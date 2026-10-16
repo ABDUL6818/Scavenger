@@ -279,6 +279,9 @@ importers:
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.19(yaml@2.9.0)
+      ts-prune:
+        specifier: 0.10.3
+        version: 0.10.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
