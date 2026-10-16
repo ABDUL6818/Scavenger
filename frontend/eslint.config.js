@@ -65,7 +65,7 @@ export default [
   // Production source files
   {
     files: ['**/*.{ts,tsx}'],
-    ignores: ['dist', 'node_modules', '**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', '**/__tests__/**', '*.stories.tsx', '*.stories.ts'],
+    ignores: ['dist', 'node_modules', '**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', '*.stories.tsx', '*.stories.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -127,7 +127,7 @@ export default [
   },
   // Test files: relax no-explicit-any and no-unused-vars
   {
-    files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', '**/__tests__/**/*.ts', '**/__tests__/**/*.tsx'],
+    files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

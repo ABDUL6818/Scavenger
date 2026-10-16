@@ -270,9 +270,6 @@ importers:
       playwright:
         specifier: ^1.59.1
         version: 1.62.1
-      postcss:
-        specifier: ^8.4.49
-        version: 8.5.26
       prettier:
         specifier: ^3.4.2
         version: 3.9.6
@@ -282,6 +279,9 @@ importers:
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.19(yaml@2.9.0)
+      ts-prune:
+        specifier: 0.10.3
+        version: 0.10.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

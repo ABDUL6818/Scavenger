@@ -115,7 +115,7 @@ export default defineConfig({
       '@/api': path.resolve(__dirname, './src/api'),
       '@/assets': path.resolve(__dirname, './src/assets'),
       '@/i18n': path.resolve(__dirname, './src/i18n'),
-      '@/test': path.resolve(__dirname, './src/test')
+      '@/test-utils': path.resolve(__dirname, './src/test-utils')
     }
   },
   test: {
@@ -124,7 +124,7 @@ export default defineConfig({
       test: {
         globals: true,
         environment: 'jsdom',
-        setupFiles: ['./src/test/setup.tsx'],
+        setupFiles: ['./src/test-utils/setup.tsx'],
         css: false,
         // Snapshot tests for design-system component variants (issue #1290).
         // Snapshots are stored in __snapshots__ directories next to each test.
@@ -140,7 +140,7 @@ export default defineConfig({
             'src/**/*.d.ts',
             'src/**/*.test.{ts,tsx}',
             'src/**/*.spec.{ts,tsx}',
-            'src/test/**',
+            'src/test-utils/**',
             'src/**/*.stories.tsx',
           ],
           lines: 85,
