@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
-import { ApiClient, ApiError, createApiClient } from '../apiClient'
+import { ApiClient, ApiError, createApiClient, normalizeApiError } from '../httpClient'
 import { server } from '@/test/msw/server'
 
 describe('ApiClient', () => {
@@ -174,8 +174,6 @@ describe('ApiClient', () => {
     it('throws ApiError with status 0 on network failure', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Failed to fetch.')))
       const client = createApiClient({ baseUrl: 'https://api.example.com' })
-
-      const client = createApiClient({ baseUrl: 'https://api.example.com' })
       await expect(client.get('/api/wastes')).rejects.toThrow(ApiError)
     })
 
@@ -230,5 +228,25 @@ describe('ApiClient', () => {
 
       expect(capturedAuth).toBeNull()
     })
+  })
+})
+
+describe('normalizeApiError()', () => {
+  it('returns ApiError instances unchanged', async () => {
+    const original = new ApiError(404, 'Not Found', { error: 'missing' })
+    expect(normalizeApiError(original)).toBe(original)
+  })
+
+  it('wraps plain Error instances with their message', () => {
+    const normalized = normalizeApiError(new Error('boom'))
+    expect(normalized).toBeInstanceOf(ApiError)
+    expect(normalized.status).toBe(0)
+    expect(normalized.message).toBe('boom')
+  })
+
+  it('wraps non-Error values using String()', () => {
+    const normalized = normalizeApiError('plain failure')
+    expect(normalized).toBeInstanceOf(ApiError)
+    expect(normalized.message).toBe('plain failure')
   })
 })

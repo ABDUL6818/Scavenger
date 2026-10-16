@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@/context/WalletContext'
 import { useToast } from '@/hooks/useToast'
+import { cacheKeys } from '@/lib/cacheKeys'
 
 const WASTE_TYPE_LABELS: Record<number, string> = {
   [WasteType.Paper]: 'Paper',
@@ -690,12 +691,12 @@ export function ProfilePage() {
   )
 
   const retryParticipant = () => {
-    queryClient.invalidateQueries({ queryKey: ['participant', address] })
+    queryClient.invalidateQueries({ queryKey: cacheKeys.participant(address) })
   }
 
   const retryStats = () => {
-    queryClient.invalidateQueries({ queryKey: ['participant-stats', address] })
-    queryClient.invalidateQueries({ queryKey: ['participant-wastes', address] })
+    queryClient.invalidateQueries({ queryKey: cacheKeys.participantStats(address) })
+    queryClient.invalidateQueries({ queryKey: cacheKeys.participantWastes(address) })
   }
 
   // Whether the authenticated wallet owns this profile
