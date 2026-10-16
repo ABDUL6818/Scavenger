@@ -531,7 +531,7 @@ impl ScavengerContract {
         }
     }
 
-    /// Resource-cost optimization (see BENCHMARK_RESULTS.md "Storage read
+    /// Resource-cost optimization (see docs/archive/stellar-contract/BENCHMARK_RESULTS.md "Storage read
     /// caching"): same checks as `require_registered`, but returns the
     /// fetched `Participant` so callers that also need the record (e.g. for
     /// a role check) can reuse this single storage read instead of issuing
@@ -2355,7 +2355,7 @@ pub fn calculate_incentive_reward(env: Env, incentive_id: u64, waste_amount: u64
 
         Self::require_not_paused(&env);
 
-        // Resource-cost optimization (BENCHMARK_RESULTS.md "Storage read
+        // Resource-cost optimization (docs/archive/stellar-contract/BENCHMARK_RESULTS.md "Storage read
         // caching"): fetch each participant record once and reuse it for
         // both the registration check and the role-transition check below,
         // instead of the previous 4 separate storage reads (2 via

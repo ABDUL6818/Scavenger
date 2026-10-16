@@ -149,9 +149,9 @@ pub use types::{Material, ParticipantRole, RecyclingStats, Waste, WasteStatus, W
 ### 8. Documentation
 
 Created comprehensive documentation:
-- `docs/WASTE_STORAGE_IMPLEMENTATION.md` - Complete implementation guide
+- `docs/archive/WASTE_STORAGE_IMPLEMENTATION.md` - Complete implementation guide
 - `docs/WASTE_STORAGE_QUICK_REFERENCE.md` - Quick reference
-- `docs/WASTE_STORAGE_CHANGES_SUMMARY.md` - This document
+- `docs/archive/WASTE_STORAGE_CHANGES_SUMMARY.md` - This document
 
 ## Technical Details
 
@@ -434,9 +434,9 @@ Since there are no breaking changes:
 
 1. `stellar-contract/src/types.rs` - Added Waste and WasteStatus
 2. `stellar-contract/src/lib.rs` - Updated exports
-3. `docs/WASTE_STORAGE_IMPLEMENTATION.md` - Implementation guide
+3. `docs/archive/WASTE_STORAGE_IMPLEMENTATION.md` - Implementation guide
 4. `docs/WASTE_STORAGE_QUICK_REFERENCE.md` - Quick reference
-5. `docs/WASTE_STORAGE_CHANGES_SUMMARY.md` - This file
+5. `docs/archive/WASTE_STORAGE_CHANGES_SUMMARY.md` - This file
 
 ## Conclusion
 
@@ -444,6 +444,6 @@ The Waste storage implementation successfully adds comprehensive Soroban storage
 
 ## Documentation Links
 
-- **Implementation Guide:** `docs/WASTE_STORAGE_IMPLEMENTATION.md`
+- **Implementation Guide:** `docs/archive/WASTE_STORAGE_IMPLEMENTATION.md`
 - **Quick Reference:** `docs/WASTE_STORAGE_QUICK_REFERENCE.md`
 - **Completion Report:** `WASTE_STORAGE_IMPLEMENTATION_COMPLETE.md`

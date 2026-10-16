@@ -108,8 +108,8 @@ Added 15 new tests specifically for Participant functionality:
 ### 6. Documentation
 
 Created comprehensive documentation:
-- `docs/PARTICIPANT_IMPLEMENTATION.md` - Complete implementation guide
-- `docs/PARTICIPANT_CHANGES_SUMMARY.md` - This summary document
+- `docs/archive/PARTICIPANT_IMPLEMENTATION.md` - Complete implementation guide
+- `docs/archive/PARTICIPANT_CHANGES_SUMMARY.md` - This summary document
 
 ## Security Enhancements
 
@@ -268,8 +268,8 @@ The Participant implementation successfully adds comprehensive participant manag
 
 1. `stellar-contract/src/lib.rs` - Main contract implementation
 2. `stellar-contract/src/types.rs` - No changes (ParticipantRole already existed)
-3. `docs/PARTICIPANT_IMPLEMENTATION.md` - New documentation
-4. `docs/PARTICIPANT_CHANGES_SUMMARY.md` - This file
+3. `docs/archive/PARTICIPANT_IMPLEMENTATION.md` - New documentation
+4. `docs/archive/PARTICIPANT_CHANGES_SUMMARY.md` - This file
 
 ## Files Requiring Regeneration
 

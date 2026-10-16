@@ -1,33 +1,23 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
-import {
-  ArrowRight,
-  ArrowLeft,
-  Send,
-  Package,
-  MapPin,
-  FileText,
-  Camera,
-  CheckCircle2,
-  Clock,
-  Truck,
-  ShieldCheck,
-  AlertTriangle,
-  History,
-  X,
-  Loader2,
-  ImageIcon,
-} from 'lucide-react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ScavengerClient } from '@/api/client'
-import { useContract } from '@/context/ContractContext'
-import { useWallet } from '@/context/WalletContext'
-import { networkConfig } from '@/lib/stellar'
-import { wasteTypeLabel, formatDate, formatAddress } from '@/lib/helpers'
-import { isValidStellarAddress } from '@/lib/validation/stellarAddress'
-import { Badge } from '@/components/ui/Badge'
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, History, Loader2,Send } from 'lucide-react'
+import { useCallback, useEffect,useState } from 'react'
+
+import type { Waste } from '@/api/types'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { useWallet } from '@/context/WalletContext'
+import { DestinationStep } from '@/features/transfers/components/DestinationStep'
+import { DocumentationStep } from '@/features/transfers/components/DocumentationStep'
+import { ReviewStep } from '@/features/transfers/components/ReviewStep'
+import { SelectWasteStep } from '@/features/transfers/components/SelectWasteStep'
+import { StatusTimeline } from '@/features/transfers/components/StatusTimeline'
+import { StepIndicator } from '@/features/transfers/components/StepIndicator'
+import { TransferHistoryTab } from '@/features/transfers/components/TransferHistoryTab'
+import { WasteChainHistory } from '@/features/transfers/components/WasteChainHistory'
+import { INITIAL_FORM,STEPS } from '@/features/transfers/constants'
+import { transferDestinationSchema } from '@/features/transfers/schemas'
+import { buildTransferNote } from '@/features/transfers/service'
+import { addTransferRecord } from '@/features/transfers/transferHistory'
+import type { TransferFormData, TransferStep } from '@/features/transfers/types'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import type { Waste, WasteTransfer } from '@/api/types'
 import { cacheKeys } from '@/lib/cacheKeys'
@@ -985,7 +975,7 @@ export function MaterialTransferPage() {
       case 'select':
         return form.wasteId !== null
       case 'destination':
-        return isValidStellarAddress(form.recipientAddress)
+        return transferDestinationSchema.safeParse({ recipientAddress: form.recipientAddress }).success
       case 'documentation':
         return true // documentation is optional
       case 'review':
@@ -1016,20 +1006,11 @@ export function MaterialTransferPage() {
   const handleSubmit = useCallback(async () => {
     if (!form.wasteId || !address) return
 
-    // Combine notes for the on-chain note field
-    const combinedNote = [
-      form.transferNotes,
-      form.conditionNotes ? `Condition: ${form.conditionNotes}` : '',
-      form.handlingInstructions ? `Handling: ${form.handlingInstructions}` : '',
-    ]
-      .filter(Boolean)
-      .join(' | ')
-
     try {
       await transfer.mutateAsync({
         wasteId: form.wasteId,
         to: form.recipientAddress,
-        note: combinedNote || 'Transfer',
+        note: buildTransferNote(form),
       })
 
       addTransferRecord({

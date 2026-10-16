@@ -5,3 +5,9 @@
 ## Architecture Decision Records
 
 - [0001 — Multi-Service Architecture](adr/0001-multi-service-architecture.md)
+
+## Archive
+
+Point-in-time implementation summaries, issue-specific reports and historical audit
+reports live in [`archive/`](archive/). They are kept for reference and git history
+only and are not maintained.
