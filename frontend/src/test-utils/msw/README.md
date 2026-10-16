@@ -26,7 +26,7 @@ frontend/src/test/msw/
 
 ```typescript
 // In your test file — no setup needed, it's in setup.tsx:
-import { server } from '@/test/msw/server'
+import { server } from '@/test-utils/msw/server'
 import { http, HttpResponse } from 'msw'
 
 // Override a handler for ONE test:
@@ -60,7 +60,7 @@ The global setup in `setup.tsx` handles:
 
 ```typescript
 import { http, HttpResponse } from 'msw'
-import { server } from '@/test/msw/server'
+import { server } from '@/test-utils/msw/server'
 
 // 404 error
 server.use(

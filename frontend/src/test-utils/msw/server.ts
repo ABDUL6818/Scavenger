@@ -7,7 +7,7 @@
  *   afterAll   → server.close()  (stop intercepting)
  *
  * Import this in test files that need HTTP mocking:
- *   import { server } from '@/test/msw/server'
+ *   import { server } from '@/test-utils/msw/server'
  */
 import { setupServer } from 'msw/node'
 import { handlers } from './handlers'

@@ -53,7 +53,7 @@ vi.mock('@stellar/stellar-sdk', () => ({
   nativeToScVal: vi.fn().mockImplementation((val) => ({ value: val })),
 }))
 
-vi.mock('@/lib/wallet', () => ({
+vi.mock('@/features/wallet/service', () => ({
   signTransactionXDR: vi.fn().mockResolvedValue('signed-xdr'),
 }))
 

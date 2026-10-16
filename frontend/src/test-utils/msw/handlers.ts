@@ -2,7 +2,7 @@
  * MSW request handlers for frontend API tests.
  *
  * These handlers mirror the actual backend API response shapes used by the
- * Scavngr frontend. The ApiClient (src/lib/apiClient.ts) makes REST calls
+ * Scavngr frontend. The ApiClient (src/api/httpClient.ts) makes REST calls
  * to these endpoints; MSW intercepts them during tests.
  *
  * To add a handler:
