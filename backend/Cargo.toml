@@ -69,6 +69,9 @@ wiremock = "=0.6.5"
 # sandbox RPC stubs. `tokio-test` is re-added for `tokio_test::block_on` and
 # timeout helpers used by the cross-chain timeout scenarios.
 tokio-test = "=0.4.4"
+# #1481: property-based tests for the pure geometry helpers in
+# services/geospatial.rs (tests/geospatial_geometry_proptest.rs).
+proptest = "1.4.0"
 
 [lib]
 name = "scavenger_backend"
