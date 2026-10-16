@@ -6,7 +6,7 @@
 
 - `*.stories.tsx` / `*.stories.ts`: Storybook loads these by file, so their named exports are never imported.
 - `index.ts` / `index.tsx`: barrel files re-export components for consumers outside the module.
-- `src/test/**`: shared test setup and MSW handlers are imported by Vitest config, not by app code.
+- `src/test-utils/**`: shared test setup and MSW handlers are imported by Vitest config, not by app code.
 - `*.d.ts`: ambient type declarations.
 
 ## Current status
