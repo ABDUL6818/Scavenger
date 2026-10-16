@@ -591,7 +591,7 @@ operations. Abbreviated from the ISO currency code XLM.
 
 ## Related Documentation
 
-- [Contract API](./API_DOCUMENTATION.md) — Complete API reference
+- [Contract API](./API_REFERENCE.md) — Complete API reference
 - [Architecture](./ARCHITECTURE.md) — System design overview
 - [README](../README.md) — Project overview
 - [Contributing Guide](../CONTRIBUTING.md) — Development guidelines
