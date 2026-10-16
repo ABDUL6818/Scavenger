@@ -668,7 +668,7 @@ Test snapshots capture ledger state after each test run and are stored in `stell
 - **Read-only calls**: Use `simulate_transaction` (no fee) for all view functions
 - **Pagination**: For large `get_participant_wastes` results, slice client-side
 
-Full benchmark results: [`stellar-contract/BENCHMARK_RESULTS.md`](../stellar-contract/BENCHMARK_RESULTS.md)
+Full benchmark results: [`docs/archive/stellar-contract/BENCHMARK_RESULTS.md`](../docs/archive/stellar-contract/BENCHMARK_RESULTS.md)
 
 ---
 

@@ -57,4 +57,4 @@ needs to decide how to reconcile this:
 
 No code changes were made for #1048, #1049, or #1051 pending that decision.
 #1050 was actionable as-is and is handled separately — see
-[`FRONTEND_ERROR_BOUNDARY_STRATEGY.md`](./FRONTEND_ERROR_BOUNDARY_STRATEGY.md).
+[`FRONTEND_ERROR_BOUNDARY_STRATEGY.md`](../FRONTEND_ERROR_BOUNDARY_STRATEGY.md).

@@ -112,9 +112,9 @@ Added 18 new tests covering:
 ### 6. Documentation
 
 Created comprehensive documentation:
-- `docs/INCENTIVE_IMPLEMENTATION.md` - Complete implementation guide
+- `docs/archive/INCENTIVE_IMPLEMENTATION.md` - Complete implementation guide
 - `docs/INCENTIVE_QUICK_REFERENCE.md` - Quick reference for developers
-- `docs/INCENTIVE_CHANGES_SUMMARY.md` - This document
+- `docs/archive/INCENTIVE_CHANGES_SUMMARY.md` - This document
 
 ## Security Enhancements
 
@@ -439,9 +439,9 @@ Since there are no breaking changes, migration is straightforward:
 ## Files Modified
 
 1. `stellar-contract/src/lib.rs` - Added Incentive struct and functions
-2. `docs/INCENTIVE_IMPLEMENTATION.md` - Complete implementation guide
+2. `docs/archive/INCENTIVE_IMPLEMENTATION.md` - Complete implementation guide
 3. `docs/INCENTIVE_QUICK_REFERENCE.md` - Quick reference
-4. `docs/INCENTIVE_CHANGES_SUMMARY.md` - This file
+4. `docs/archive/INCENTIVE_CHANGES_SUMMARY.md` - This file
 
 ## Files Requiring Regeneration
 
@@ -453,6 +453,6 @@ The Incentive implementation successfully adds manufacturer incentive programs t
 
 ## Documentation Links
 
-- **Implementation Guide:** `docs/INCENTIVE_IMPLEMENTATION.md`
+- **Implementation Guide:** `docs/archive/INCENTIVE_IMPLEMENTATION.md`
 - **Quick Reference:** `docs/INCENTIVE_QUICK_REFERENCE.md`
 - **Completion Report:** `INCENTIVE_IMPLEMENTATION_COMPLETE.md`

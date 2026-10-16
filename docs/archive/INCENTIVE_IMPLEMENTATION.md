@@ -584,4 +584,4 @@ The Incentive implementation provides a robust, secure, and efficient foundation
 
 - **Implementation Guide:** This document
 - **Quick Reference:** `docs/INCENTIVE_QUICK_REFERENCE.md`
-- **Changes Summary:** `docs/INCENTIVE_CHANGES_SUMMARY.md`
+- **Changes Summary:** `docs/archive/INCENTIVE_CHANGES_SUMMARY.md`

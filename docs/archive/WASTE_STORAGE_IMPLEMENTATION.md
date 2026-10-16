@@ -515,5 +515,5 @@ The Waste storage implementation provides a robust, type-safe, and efficient sol
 ## Documentation Links
 
 - **Quick Reference:** `docs/WASTE_STORAGE_QUICK_REFERENCE.md`
-- **Changes Summary:** `docs/WASTE_STORAGE_CHANGES_SUMMARY.md`
+- **Changes Summary:** `docs/archive/WASTE_STORAGE_CHANGES_SUMMARY.md`
 - **Completion Report:** `WASTE_STORAGE_IMPLEMENTATION_COMPLETE.md`

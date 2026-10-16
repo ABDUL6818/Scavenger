@@ -193,9 +193,9 @@ env.storage().instance().set(&key, &history);
 ## Documentation
 
 ### New Documentation Files
-1. `docs/TRANSFER_RECORD_IMPLEMENTATION.md` - Comprehensive implementation guide
+1. `docs/archive/TRANSFER_RECORD_IMPLEMENTATION.md` - Comprehensive implementation guide
 2. `docs/TRANSFER_RECORD_QUICK_REFERENCE.md` - Quick reference for developers
-3. `docs/TRANSFER_RECORD_CHANGES_SUMMARY.md` - This file
+3. `docs/archive/TRANSFER_RECORD_CHANGES_SUMMARY.md` - This file
 
 ## Migration Guide
 
