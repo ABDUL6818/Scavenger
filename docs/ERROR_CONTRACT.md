@@ -1,5 +1,8 @@
 # Error Contract
 
+> Decision record: [ADR-0009](adr/0009-error-contract-envelope.md).
+
+
 **Relates to:** #1153 — Standardise error type naming between `backend/src/errors` and `indexer/src/errors`
 
 Every service in the Scavngr stack (backend, indexer) emits errors in a single JSON envelope:

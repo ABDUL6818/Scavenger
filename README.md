@@ -16,7 +16,7 @@ A decentralized recycling platform built on Stellar blockchain using Soroban sma
 | [Architecture Diagram](docs/architecture-diagram.svg) | Visual overview of all system components and data flow |
 | [Backend API Reference](docs/api/backend-reference.md) | HTTP endpoints exposed by the backend |
 | [Local Dev Setup Guide](docs/local-dev-setup.md) | Complete local development setup covering all four workspaces |
-| [API Reference Guide](docs/API_REFERENCE_GUIDE.md) | Comprehensive contract function reference with examples and quick reference cards |
+| [API Reference Guide](docs/API_REFERENCE.md) | Comprehensive contract function reference with examples and quick reference cards |
 | [Deployment Runbook](docs/DEPLOYMENT_RUNBOOK.md) | Step-by-step testnet and mainnet deployment with rollback procedures |
 | [Troubleshooting Guide](docs/TROUBLESHOOTING_GUIDE.md) | Common errors, debugging tips, and performance tuning |
 | [User Guide](docs/USER_GUIDE.md) | End-user guide for the platform |
