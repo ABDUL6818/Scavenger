@@ -125,7 +125,7 @@
     "eslint-plugin-simple-import-sort": "^11.0.0",
     "eslint-plugin-storybook": "^10.3.5",
     "jsdom": "^29.0.2",
-    "msw": "2.15.0",
+    "msw": "^2.15.0",
     "playwright": "^1.59.1",
     "postcss": "^8.4.49",
     "prettier": "^3.4.2",

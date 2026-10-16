@@ -1,11 +1,11 @@
 import { z } from 'zod'
-import { WasteType } from '@/api/types'
+import { wasteTypeSchema } from '@/lib/schemas/shared'
 
 export type WeightUnit = 'grams' | 'kilograms'
 
 /** Forms track an unselected material as '' before the user picks one. */
 export const wasteTypeFieldSchema = z
-  .union([z.nativeEnum(WasteType), z.literal('')])
+  .union([wasteTypeSchema, z.literal('')])
   .refine((v) => v !== '', { message: 'Material type is required' })
 
 /** Weight is always collected in the unit currently selected in the UI; the

@@ -50,6 +50,16 @@ const participantPoint = {
 }
 
 describe('WasteMapPage', () => {
+  it('reserves map height with a placeholder while the lazy map chunk loads', () => {
+    mocks.useMapData.mockReturnValue({ wastes: [], participants: [], isLoading: false })
+
+    render(<WasteMapPage />)
+
+    const placeholder = screen.getByRole('status', { name: 'Loading map' })
+    expect(placeholder).toHaveTextContent('Loading map...')
+    expect(placeholder.className).toContain('min-h-[320px]')
+  })
+
   it('renders the map view with filters and location counts', async () => {
     mocks.useMapData.mockReturnValue({
       wastes: [wastePoint],

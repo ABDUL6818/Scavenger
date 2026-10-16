@@ -50,7 +50,7 @@ change).
 `stellar-contract/benches/contract_benchmarks.rs`'s `waste_transfer` group
 (`transfer_waste` benchmark) exercises exactly this code path and will
 reflect the reduced storage-read count on the next `cargo bench` run
-against a saved baseline (see `BENCHMARK_RESULTS.md` for the run/compare
+against a saved baseline (see `docs/archive/stellar-contract/BENCHMARK_RESULTS.md` for the run/compare
 commands: `cargo bench --package stellar-scavngr-contract -- --baseline
 <name>`). Re-running and re-saving the baseline is left as a follow-up
 since this change does not alter benchmark code itself.

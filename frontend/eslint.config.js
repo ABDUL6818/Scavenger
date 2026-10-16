@@ -106,6 +106,25 @@ export default [
       ],
     },
   },
+  // Feature modules: import from another feature only through its index.ts
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/features/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/features/*/*', '!**/features/*/index', '!**/features/*/index.ts', '!**/features/*/index.tsx'],
+              message:
+                'Import feature modules through their index.ts only (see docs/adr/0009-feature-folder-layout.md).',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Test files: relax no-explicit-any and no-unused-vars
   {
     files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', '**/__tests__/**/*.ts', '**/__tests__/**/*.tsx'],
