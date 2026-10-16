@@ -43,6 +43,7 @@ and boundaries.
 
 ### Data flow
 
+```bash
 # Add to README's Documentation table if it has one
 grep -q "adr" README.md && echo "already referenced" || \
   sed -i '/^| \[Security Audit\]/a | [ADR: Multi-Service Architecture](docs/adr/0001-multi-service-architecture.md) | Why the repo is split into five services |' README.md
@@ -51,3 +52,4 @@ grep -q "adr" README.md && echo "already referenced" || \
 [ -f docs/README.md ] && grep -q "adr" docs/README.md || \
   echo "- [ADR: Multi-Service Architecture](adr/0001-multi-service-architecture.md)" >> docs/README.md 2>/dev/null
 grep -n "adr\|ADR" README.md docs/README.md 2>/dev/null
+```

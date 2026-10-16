@@ -20,6 +20,12 @@ reasoning is the part that is otherwise lost when contributors move on.
 | [0005](./0005-indexer-relational-schema.md) | Project events into a normalised Postgres schema, keeping raw events | Accepted | Indexer |
 | [0006](./0006-wallet-based-authentication-flow.md) | Authenticate with wallet signatures; treat frontend session state as UI only | Accepted | Frontend / Auth |
 | [0007](./0007-multichain-backend-boundary.md) | Multichain and Contract Upgrade Boundaries in the Backend Service | Accepted | Backend / Architecture |
+| [0008](./0008-stellar-soroban.md) | Stellar/Soroban as the Settlement Layer | Accepted | Contract |
+| [0009](./0009-error-contract-envelope.md) | Emit errors as a single JSON envelope with stable `category.variant` codes | Accepted | Backend / Indexer |
+| [0010](./0010-frontend-caching-layers.md) | Cache frontend data in React Query with IndexedDB persistence, plus a Workbox service worker | Accepted | Frontend |
+| [0011](./0011-feature-flags-as-typed-constants.md) | Gate unfinished features with typed flag constants and a single `useFeatureFlag` hook | Accepted | Frontend |
+| [0012](./0012-multi-region-active-passive.md) | Run an active-passive multi-region deployment with DNS failover | Accepted | Operations |
+| [0013](./0013-contract-module-layout.md) | Keep one `#[contractimpl]` facade in `lib.rs` and put domain logic in per-domain modules | Accepted | Contract |
 
 Template: [`template.md`](./template.md)
 
