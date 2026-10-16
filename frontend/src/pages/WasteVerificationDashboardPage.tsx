@@ -32,6 +32,7 @@ import { useAppTitle } from '@/hooks/useAppTitle'
 import { cn } from '@/lib/utils'
 import type { Material, WasteType, WasteTransfer } from '@/api/types'
 import { WasteType as WasteTypeEnum } from '@/api/types'
+import { cacheKeys } from '@/lib/cacheKeys'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -126,7 +127,7 @@ function useAllMaterials() {
   const { address } = useWallet()
 
   return useQuery<Material[]>({
-    queryKey: ['dashboard-materials', address],
+    queryKey: cacheKeys.dashboardMaterials(address),
     queryFn: async () => {
       if (!address) return []
       const client = new ScavengerClient({
@@ -161,7 +162,7 @@ function useVerifyMaterial() {
       return client.verifyMaterial(materialId, address, address)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['dashboard-materials'] })
+      qc.invalidateQueries({ queryKey: cacheKeys.dashboardMaterials() })
     },
   })
 }
@@ -170,7 +171,7 @@ function useMaterialTransfers(materialId: number | null) {
   const { config } = useContract()
 
   return useQuery<WasteTransfer[]>({
-    queryKey: ['material-transfers', materialId],
+    queryKey: cacheKeys.materialTransfers(materialId),
     queryFn: async () => {
       if (materialId === null) return []
       const client = new ScavengerClient({

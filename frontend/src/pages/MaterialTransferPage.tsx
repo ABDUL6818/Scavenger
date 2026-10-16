@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import type { Waste, WasteTransfer } from '@/api/types'
+import { cacheKeys } from '@/lib/cacheKeys'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -99,7 +100,7 @@ function useParticipantWastes() {
   const { address } = useWallet()
 
   return useQuery<Waste[]>({
-    queryKey: ['participant-wastes', address],
+    queryKey: cacheKeys.participantWastes(address),
     queryFn: async () => {
       if (!address) return []
       const client = new ScavengerClient({
@@ -122,7 +123,7 @@ function useWasteTransferHistory(wasteId: bigint | null) {
   const { config } = useContract()
 
   return useQuery<WasteTransfer[]>({
-    queryKey: ['waste-transfer-history', wasteId?.toString()],
+    queryKey: cacheKeys.wasteTransferHistory(wasteId?.toString()),
     queryFn: async () => {
       if (wasteId === null) return []
       const client = new ScavengerClient({
@@ -161,8 +162,8 @@ function useTransferWaste() {
       return client.transferWaste(wasteId, address, to, BigInt(0), BigInt(0), note, address)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['participant-wastes'] })
-      qc.invalidateQueries({ queryKey: ['waste-transfer-history'] })
+      qc.invalidateQueries({ queryKey: cacheKeys.participantWastes() })
+      qc.invalidateQueries({ queryKey: cacheKeys.wasteTransferHistory() })
     },
   })
 }

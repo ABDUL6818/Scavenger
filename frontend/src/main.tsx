@@ -14,6 +14,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { getErrorMessage } from '@/lib/contractErrors'
 import { initWebVitals } from '@/lib/webVitals'
 import { getDB, setQueryData } from '@/lib/indexedDB'
+import { queryCachePolicy } from '@/lib/queryCachePolicy'
 import '@/i18n/config'
 import './index.css'
 
@@ -44,10 +45,7 @@ const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 24 * 60 * 60 * 1000, // 24 hours
+      ...queryCachePolicy,
     }
   }
 })
