@@ -1,5 +1,5 @@
 /**
- * lib/apiClient.ts
+ * api/httpClient.ts
  *
  * Typed HTTP API client for Scavngr REST endpoints.
  * Centralises all fetch calls, auth headers, and error handling so
@@ -210,3 +210,17 @@ export const apiClient = createApiClient({
     ? (import.meta as unknown as { env: Record<string, string> }).env?.VITE_API_BASE_URL ?? window.location.origin
     : '',
 })
+
+/* ────────────────────────────────────────────────────────────────
+   Error normalization
+   ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Coerce any thrown value into an ApiError so callers can branch on a single
+ * type. Errors that are already ApiError pass through unchanged.
+ */
+export function normalizeApiError(err: unknown): ApiError {
+  if (err instanceof ApiError) return err
+  const message = err instanceof Error ? err.message : String(err)
+  return new ApiError(0, 'Unknown', null, message)
+}
