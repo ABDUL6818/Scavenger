@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import * as walletService from '../wallet'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import * as walletService from '../service'
 import * as freighterApi from '@stellar/freighter-api'
 
 vi.mock('@stellar/freighter-api', () => ({
   isConnected: vi.fn(),
   requestAccess: vi.fn(),
   getPublicKey: vi.fn(),
+  getNetworkDetails: vi.fn(),
   signTransaction: vi.fn(),
   isBrowser: true,
 }))
@@ -46,7 +47,7 @@ describe('wallet service', () => {
     it('should return null if error occurs', async () => {
       vi.mocked(freighterApi.getPublicKey).mockRejectedValue(new Error('Failed.'))
       const result = await walletService.getWalletPublicKey()
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
     })
   })
 
@@ -202,7 +203,7 @@ describe('wallet service', () => {
         new Error('Access denied.')
       )
       const result = await walletService.getWalletPublicKey()
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
     })
   })
 
@@ -213,7 +214,7 @@ describe('wallet service', () => {
         isConnected: false,
         isInstalled: false,
         isLoading: false,
-        error: null,
+        error: undefined,
       })
     })
 
@@ -239,7 +240,7 @@ describe('wallet service', () => {
         new Error('No key available.')
       )
       const result = await walletService.getWalletPublicKey()
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
     })
   })
 
@@ -256,5 +257,87 @@ describe('wallet service', () => {
       // This test runs after clearing, so the mock should be fresh
       expect(vi.mocked(freighterApi.isConnected)).toBeDefined()
     })
+  })
+})
+
+describe('getNetworkMismatchMessage', () => {
+  const APP_PASSPHRASE = 'Test SDF Network ; September 2015'
+
+  it('returns undefined when Freighter is on the app network', async () => {
+    vi.mocked(freighterApi.getNetworkDetails).mockResolvedValue({
+      network: 'TESTNET',
+      networkUrl: '',
+      networkPassphrase: APP_PASSPHRASE,
+    })
+    expect(await walletService.getNetworkMismatchMessage(APP_PASSPHRASE)).toBeUndefined()
+  })
+
+  it('returns the mismatch message when Freighter is on another network', async () => {
+    vi.mocked(freighterApi.getNetworkDetails).mockResolvedValue({
+      network: 'PUBLIC',
+      networkUrl: '',
+      networkPassphrase: 'Public Global Stellar Network ; September 2015',
+    })
+    expect(await walletService.getNetworkMismatchMessage(APP_PASSPHRASE)).toBe(
+      walletService.NETWORK_MISMATCH_MESSAGE
+    )
+  })
+
+  it('does not block when Freighter cannot report its network', async () => {
+    vi.mocked(freighterApi.getNetworkDetails).mockRejectedValue(new Error('locked'))
+    expect(await walletService.getNetworkMismatchMessage(APP_PASSPHRASE)).toBeUndefined()
+  })
+})
+
+describe('watchWalletAccount', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('reports the initial account and each switch', async () => {
+    const onChange = vi.fn()
+    vi.mocked(freighterApi.getPublicKey)
+      .mockResolvedValueOnce('GFIRST')
+      .mockResolvedValueOnce('GFIRST')
+      .mockResolvedValueOnce('GSECOND')
+
+    const stop = walletService.watchWalletAccount(onChange, 1000)
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(1000)
+    stop()
+
+    expect(onChange.mock.calls).toEqual([['GFIRST'], ['GSECOND']])
+  })
+
+  it('reports undefined when the wallet locks', async () => {
+    const onChange = vi.fn()
+    vi.mocked(freighterApi.getPublicKey)
+      .mockResolvedValueOnce('GFIRST')
+      .mockResolvedValueOnce(undefined as unknown as string)
+
+    const stop = walletService.watchWalletAccount(onChange, 1000)
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1000)
+    stop()
+
+    expect(onChange).toHaveBeenLastCalledWith(undefined)
+  })
+
+  it('stops polling after the returned unsubscribe is called', async () => {
+    const onChange = vi.fn()
+    vi.mocked(freighterApi.getPublicKey).mockResolvedValue('GFIRST')
+
+    const stop = walletService.watchWalletAccount(onChange, 1000)
+    await vi.advanceTimersByTimeAsync(0)
+    stop()
+    const callsAtStop = vi.mocked(freighterApi.getPublicKey).mock.calls.length
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(vi.mocked(freighterApi.getPublicKey).mock.calls.length).toBe(callsAtStop)
   })
 })
