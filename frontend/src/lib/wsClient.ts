@@ -90,7 +90,8 @@ export interface ScavengerWsClientOptions {
  *         showMaintenanceBanner()
  *         break
  *       default:
- *         console.error('[ws]', err.code, err.message)
+ *         // Surface unexpected codes to your app's error reporter.
+ *         reportError(err)
  *     }
  *   },
  * })
@@ -124,7 +125,6 @@ export class ScavengerWsClient {
       try {
         parsed = JSON.parse(event.data) as ServerMessage
       } catch {
-        // Non-JSON frame — ignore (server should never send one, but be safe).
         return
       }
 
@@ -162,5 +162,37 @@ export class ScavengerWsClient {
   disconnect(): void {
     this.ws?.close()
     this.ws = null
+  }
+}
+
+// ── Transaction status mapping ────────────────────────────────────────────────
+
+/**
+ * Lifecycle states shared with the transaction-status UI module (#1687).
+ * Kept as a local string union so this module stays dependency-free.
+ */
+export type TransactionStatus = 'pending' | 'success' | 'failed'
+
+/**
+ * Map a structured WebSocket error frame to a transaction lifecycle status.
+ *
+ * Backwards-compatibility: this is a new additive export; existing callers of
+ * `ScavengerWsClient` are unaffected. Consumers that previously derived status
+ * from `onError`/`onClose` callbacks can now delegate to this helper and the
+ * shared transaction-status component.
+ */
+export function wsErrorToStatus(error: WsErrorPayload): TransactionStatus {
+  switch (error.code) {
+    case 'server.shutting_down':
+    case 'server.heartbeat_timeout':
+    case 'auth.invalid_token':
+    case 'channel.not_found':
+    case 'message.unknown_type':
+    case 'message.parse_error':
+      return 'failed'
+    case 'auth.token_required':
+      return 'pending'
+    default:
+      return 'failed'
   }
 }

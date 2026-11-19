@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FileText, Clock, History, ClipboardList } from 'lucide-react'
 import { useAppTitle } from '@/hooks/useAppTitle'
+import { useTranslation } from '@/i18n'
 import { ReportBuilderTab } from './ComplianceReportsPage/ReportBuilderTab'
 import { HistoryTab } from './ComplianceReportsPage/HistoryTab'
 import { SchedulingTab } from './ComplianceReportsPage/SchedulingTab'
@@ -10,13 +11,14 @@ type Tab = 'builder' | 'history' | 'scheduling'
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export function ComplianceReportsPage() {
-  useAppTitle('Compliance Reports')
+  const { t } = useTranslation()
+  useAppTitle(t('complianceReports.pageTitle'))
   const [activeTab, setActiveTab] = useState<Tab>('builder')
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'builder', label: 'Report Builder', icon: <ClipboardList className="h-4 w-4" /> },
-    { id: 'history', label: 'History', icon: <History className="h-4 w-4" /> },
-    { id: 'scheduling', label: 'Scheduling', icon: <Clock className="h-4 w-4" /> },
+    { id: 'builder', label: t('complianceReports.tabs.builder'), icon: <ClipboardList className="h-4 w-4" /> },
+    { id: 'history', label: t('complianceReports.tabs.history'), icon: <History className="h-4 w-4" /> },
+    { id: 'scheduling', label: t('complianceReports.tabs.scheduling'), icon: <Clock className="h-4 w-4" /> },
   ]
 
   return (
@@ -24,16 +26,16 @@ export function ComplianceReportsPage() {
       <div className="flex items-center gap-3">
         <FileText className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Compliance Reports</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{t('complianceReports.pageTitle')}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Generate, view, and schedule compliance reports
+            {t('complianceReports.pageDescription')}
           </p>
         </div>
       </div>
 
       <div
         role="tablist"
-        aria-label="Compliance report sections"
+        aria-label={t('complianceReports.tabsAriaLabel')}
         className="flex flex-wrap gap-1 rounded-lg border bg-muted p-1"
       >
         {tabs.map((tab) => (

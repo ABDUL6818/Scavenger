@@ -37,7 +37,7 @@ initWebVitals((metric) => {
         rating: metric.rating,
         timestamp: new Date().toISOString(),
       }))
-    } catch (error) {
+    } catch {
       // Silently fail in production
     }
   }

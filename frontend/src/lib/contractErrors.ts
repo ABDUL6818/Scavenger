@@ -1,6 +1,6 @@
 import { ContractError } from '@/api/types'
+import { TRANSACTION_STATUS_MESSAGES } from '@/lib/transactionStatus'
 
-// Maps contract error codes to user-friendly messages (matches errors.rs)
 const ERROR_MESSAGES: Record<number, string> = {
   1: 'Contract is already initialized.',
   2: 'You are not authorized to perform this action.',
@@ -43,5 +43,5 @@ export function getErrorMessage(error: unknown): string {
     if (error.message) return error.message
   }
   if (error instanceof Error) return error.message
-  return 'Something went wrong. Please try again.'
+  return TRANSACTION_STATUS_MESSAGES.failed
 }

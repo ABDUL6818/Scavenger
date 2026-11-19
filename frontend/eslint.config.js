@@ -58,6 +58,11 @@ const sharedRules = {
   'simple-import-sort/exports': 'error',
   'no-console': ['error', { allow: ['warn', 'error'] }],
   'no-debugger': 'error',
+  'no-warning-comments': [
+    'warn',
+    { terms: ['todo', 'fixme', 'xxx'], location: 'anywhere' },
+  ],
+  'spaced-comment': ['error', 'always', { markers: ['/'] }],
   'prefer-const': 'error',
   eqeqeq: ['error', 'always'],
   curly: ['error', 'all'],
@@ -154,7 +159,7 @@ export default [
   },
   // Storybook stories: allow console.log
   {
-    files: ['*.stories.tsx', '*.stories.ts'],
+    files: ['**/*.stories.tsx', '**/*.stories.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -175,6 +180,18 @@ export default [
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       'no-console': 'off',
+    },
+  },
+  // Disallow commented-out code blocks in production source
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', '**/*.stories.tsx', '**/*.stories.ts'],
+    rules: {
+      'no-inline-comments': 'off',
+      'no-warning-comments': [
+        'warn',
+        { terms: ['todo', 'fixme', 'xxx'], location: 'anywhere' },
+      ],
     },
   },
   prettierConfig,

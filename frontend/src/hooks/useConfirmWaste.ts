@@ -5,16 +5,19 @@ import { useContract } from '@/context/ContractContext'
 import { useToast } from '@/hooks/useToast'
 import { networkConfig } from '@/lib/stellar'
 import { invalidateKeys, invalidationPlan } from '@/lib/cacheInvalidation'
+import { useTransactionStatus } from '@/hooks/useTransactionStatus'
 
 export function useConfirmWaste() {
   const { address } = useWallet()
   const { config } = useContract()
   const queryClient = useQueryClient()
   const toast = useToast()
+  const transactionStatus = useTransactionStatus()
 
   return useMutation({
     mutationFn: async (wasteId: bigint) => {
       if (!address) throw new Error('Wallet not connected.')
+      transactionStatus.setPending(wasteId.toString())
       const client = new ScavengerClient({
         rpcUrl: config.rpcUrl,
         networkPassphrase: networkConfig.networkPassphrase,
@@ -25,9 +28,11 @@ export function useConfirmWaste() {
     },
     onSuccess: (wasteId) => {
       invalidateKeys(queryClient, invalidationPlan.confirmWaste(wasteId.toString()))
+      transactionStatus.setSuccess(wasteId.toString())
       toast.success(`Waste #${wasteId} confirmed successfully.`)
     },
     onError: (error) => {
+      transactionStatus.setFailed(error)
       toast.error(error)
     },
   })

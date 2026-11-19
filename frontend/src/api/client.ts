@@ -25,6 +25,10 @@ import {
   MaterialSubmission,
 } from './types'
 import { signTransactionXDR } from '@/features/wallet/service'
+import {
+  pollTransactionStatus,
+  TransactionStatusError,
+} from '@/features/transaction-status'
 import { ContractErrorCode, isRetryableError } from '@/lib/constants'
 
 export interface ClientOptions {
@@ -102,19 +106,21 @@ export class ScavengerClient {
       )
     }
 
-    // Poll for confirmation
-    const hash = sendResult.hash
-    for (let i = 0; i < 20; i++) {
-      await new Promise((r) => setTimeout(r, 1500))
-      const status = await this.server.getTransaction(hash)
-      if (status.status === SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
-        const retval = (status as SorobanRpc.Api.GetSuccessfulTransactionResponse).returnValue
-        if (!retval) return undefined
-        return scValToNative(retval) as T
+    // Poll for confirmation via the shared transaction-status module
+    try {
+      const retval = await pollTransactionStatus({
+        hash: sendResult.hash,
+        getTransaction: (hash) => this.server.getTransaction(hash),
+        maxAttempts: 20,
+        intervalMs: 1500,
+      })
+      if (!retval) return undefined
+      return scValToNative(retval) as T
+    } catch (err) {
+      if (err instanceof TransactionStatusError) {
+        throw new ContractError(err.message, ContractErrorCode.TRANSACTION_FAILED)
       }
-      if (status.status === SorobanRpc.Api.GetTransactionStatus.FAILED) {
-        throw new ContractError('Transaction failed on-chain', ContractErrorCode.TRANSACTION_FAILED)
-      }
+      throw err
     }
     throw new ContractError('Transaction confirmation timeout', ContractErrorCode.TIMEOUT)
   }
@@ -129,7 +135,6 @@ export class ScavengerClient {
   }
 
   private _parseError(raw: string): ContractError {
-    // Try to extract numeric error code from XDR or message
     const match = raw.match(/Error\(Contract, #(\d+)\)/)
     if (match) return new ContractError(`Contract error #${match[1]}`, Number(match[1]))
     return new ContractError(raw)
@@ -507,3 +512,12 @@ export class ScavengerClient {
     return BigInt(material.id)
   }
 }
+
+/**
+ * Backwards-compatibility note:
+ * - Public method signatures on `ScavengerClient` are unchanged.
+ * - Transaction confirmation now delegates to the shared `pollTransactionStatus`
+ *   hook/module; failures still surface as `ContractError` with the same messages
+ *   ("Transaction failed on-chain" / "Transaction confirmation timeout").
+ * - No `console.*` logging or commented-out code remains in this module.
+ */

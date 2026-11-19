@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { WasteType } from '@/api/types'
 import { useImageUpload } from '@/hooks/useImageUpload'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { LoadingState } from '@/components/ui/LoadingState'
 import { wasteSubmissionSchema, toWeightInGrams, type WeightUnit } from '@/lib/validation/wasteSubmission'
 import { STATUSES, type Status } from '@/lib/constants'
 import { getSubmitErrorMessage, getPhotoError } from '@/lib/format'
@@ -41,6 +43,7 @@ interface WasteSubmissionFormProps {
 }
 
 export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormProps) {
+  const { t } = useTranslation()
   const { images, addImages, removeImage, uploadIds, isUploading, validationError: imageValidationError } = useImageUpload()
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('grams')
   const [submitState, setSubmitState] = useState<Status>(STATUSES.IDLE)
@@ -90,7 +93,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
     <form onSubmit={onFormSubmit} noValidate>
       <Card>
         <CardHeader>
-          <CardTitle>Submit Waste</CardTitle>
+          <CardTitle>{t('wasteSubmission.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <WasteSubmissionFields
@@ -114,15 +117,15 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
           )}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" className="flex-1" disabled={submitState === STATUSES.LOADING || isUploading}>
               {submitState === STATUSES.LOADING ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</>
               ) : isUploading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uploading photos...</>
+                <LoadingState variant="inline" label={t('wasteSubmission.actions.uploadingPhotos')} />
               ) : (
-                'Submit Waste'
+                t('wasteSubmission.actions.submit')
               )}
             </Button>
           </div>

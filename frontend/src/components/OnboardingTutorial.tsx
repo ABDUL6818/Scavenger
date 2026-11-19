@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Joyride, { CallBackProps, STATUS, EVENTS } from 'react-joyride'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { getOnboardingSteps, getOnboardingStyles } from '@/lib/onboardingSteps'
@@ -15,6 +16,7 @@ interface OnboardingTutorialProps {
 }
 
 export function OnboardingTutorial({ userRole, isVisible, onComplete }: OnboardingTutorialProps) {
+  const { t } = useTranslation('onboarding')
   const { state, startOnboarding, completeOnboarding, skipOnboarding, updateStep } = useOnboarding()
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
@@ -65,11 +67,10 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Play className="h-5 w-5" />
-              Welcome to Scavenger!
+              {t('welcome.title')}
             </DialogTitle>
             <DialogDescription>
-              Let's take a quick interactive tour to help you get familiar with the platform.
-              We'll highlight key features and show you how to make the most of your {userRole.toLowerCase()} role.
+              {t('welcome.description', { role: t(`roles.${userRole.toLowerCase()}`) })}
             </DialogDescription>
           </DialogHeader>
 
@@ -84,16 +85,16 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
                 htmlFor="dont-show-again"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Don't show this again
+                {t('welcome.dontShowAgain')}
               </label>
             </div>
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handleSkipTutorial}>
-                Skip Tutorial
+                {t('welcome.skipTutorial')}
               </Button>
               <Button onClick={handleStartTutorial}>
-                Start Tour
+                {t('welcome.startTour')}
               </Button>
             </div>
           </div>
@@ -112,12 +113,12 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
         disableCloseOnEsc
         styles={getOnboardingStyles()}
         locale={{
-          back: 'Previous',
-          close: 'Close',
-          last: 'Finish',
-          next: 'Next',
-          open: 'Open',
-          skip: 'Skip tutorial',
+          back: t('joyride.back'),
+          close: t('joyride.close'),
+          last: t('joyride.last'),
+          next: t('joyride.next'),
+          open: t('joyride.open'),
+          skip: t('joyride.skip'),
         }}
       />
     </>

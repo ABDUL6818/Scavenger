@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Controller, type Control, type FieldErrors } from 'react-hook-form'
 import {
   Newspaper, Recycle, Package, Wrench, GlassWater,
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { WasteType } from '@/api/types'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { WASTE_TYPES } from '@/lib/constants'
 import type { WasteFormValues } from '@/lib/schemas/waste'
 
@@ -19,9 +21,14 @@ const WASTE_TYPE_ICONS = {
   [WasteType.Electronic]: Cpu,
 } as const
 
+/**
+ * Static option metadata. `label` is kept for backwards compatibility with
+ * existing callers/tests; UI rendering uses the i18n key `labelKey`.
+ */
 export const WASTE_TYPE_OPTIONS = WASTE_TYPES.map((wasteType) => ({
   value: wasteType.value,
   label: wasteType.label,
+  labelKey: `waste.materials.${wasteType.value}`,
   icon: WASTE_TYPE_ICONS[wasteType.value],
 }))
 
@@ -32,21 +39,24 @@ interface WasteMaterialSelectorProps {
 }
 
 export function WasteMaterialSelector({ control, selectedType, errors }: WasteMaterialSelectorProps) {
+  const { t } = useTranslation()
   const [materialSearch, setMaterialSearch] = useState('')
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false)
 
   const filteredMaterials = useMemo(() => {
     if (!materialSearch) return WASTE_TYPE_OPTIONS
     const lower = materialSearch.toLowerCase()
-    return WASTE_TYPE_OPTIONS.filter((opt) => opt.label.toLowerCase().includes(lower))
-  }, [materialSearch])
+    return WASTE_TYPE_OPTIONS.filter((opt) =>
+      t(opt.labelKey).toLowerCase().includes(lower)
+    )
+  }, [materialSearch, t])
 
   const selectedOption = WASTE_TYPE_OPTIONS.find((opt) => opt.value === selectedType)
 
   return (
     <section>
       <label className="block text-sm font-medium mb-2">
-        Material Type <span className="text-destructive">*</span>
+        {t('waste.materialType')} <span className="text-destructive">*</span>
       </label>
       <Controller
         name="wasteType"
@@ -61,7 +71,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                 !selectedOption && 'text-muted-foreground',
                 fieldState.error && 'border-destructive'
               )}
-              aria-label="Select material type"
+              aria-label={t('waste.selectMaterialType')}
               aria-expanded={materialDropdownOpen}
               aria-haspopup="listbox"
               aria-invalid={fieldState.invalid}
@@ -70,10 +80,10 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                 {selectedOption ? (
                   <>
                     <selectedOption.icon className="h-4 w-4" />
-                    {selectedOption.label}
+                    {t(selectedOption.labelKey)}
                   </>
                 ) : (
-                  'Select material type'
+                  t('waste.selectMaterialType')
                 )}
               </span>
               <ChevronDown className="h-4 w-4 opacity-50" />
@@ -84,16 +94,21 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                   <Search className="h-4 w-4 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Search materials..."
+                    placeholder={t('waste.searchMaterials')}
                     value={materialSearch}
                     onChange={(e) => setMaterialSearch(e.target.value)}
                     className="flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
-                    aria-label="Search materials"
+                    aria-label={t('waste.searchMaterials')}
                   />
                 </div>
                 <ul role="listbox" className="max-h-48 overflow-y-auto p-1">
                   {filteredMaterials.length === 0 ? (
-                    <li className="px-3 py-2 text-sm text-muted-foreground">No materials found</li>
+                    <li>
+                      <EmptyState
+                        title={t('waste.noMaterialsFound')}
+                        className="px-3 py-2"
+                      />
+                    </li>
                   ) : (
                     filteredMaterials.map((opt) => {
                       const Icon = opt.icon
@@ -114,7 +129,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                           )}
                         >
                           <Icon className="h-4 w-4" />
-                          {opt.label}
+                          {t(opt.labelKey)}
                         </li>
                       )
                     })

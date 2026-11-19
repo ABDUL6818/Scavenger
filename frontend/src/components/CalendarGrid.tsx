@@ -1,6 +1,9 @@
 import { memo, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/cn'
-import { buildCalendarCells, getTodayDayInMonth } from '@/lib/date'
+import { buildCalendarCells, getDaysInMonth, getTodayDayInMonth } from '@/lib/date'
+import { LoadingState } from '@/components/LoadingState'
+import { EmptyState } from '@/components/EmptyState'
 
 interface Props {
   month: Date
@@ -8,6 +11,7 @@ interface Props {
   onDayHover?: (day: number | null) => void
   renderDayContent?: (day: number) => React.ReactNode
   dayClassName?: string
+  loading?: boolean
 }
 
 function CalendarGridComponent({
@@ -16,24 +20,37 @@ function CalendarGridComponent({
   onDayHover,
   renderDayContent,
   dayClassName,
+  loading = false,
 }: Props) {
+  const { t } = useTranslation()
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
 
-  const { cells, todayDay } = useMemo(() => {
-    const today = new Date()
+  const { cells, todayDay, daysInMonth } = useMemo(() => {
+    const daysInMonth = getDaysInMonth(year, monthIdx)
     const todayDay = getTodayDayInMonth(year, monthIdx)
     return {
       cells: buildCalendarCells(year, monthIdx) as (number | null)[],
       todayDay: todayDay ?? -1,
+      daysInMonth,
     }
   }, [year, monthIdx])
 
+  const weekdayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+
+  if (loading) {
+    return <LoadingState label={t('calendar.loading')} />
+  }
+
+  if (daysInMonth === 0) {
+    return <EmptyState title={t('calendar.empty.title')} description={t('calendar.empty.description')} />
+  }
+
   return (
     <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
-      {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
+      {weekdayKeys.map((d) => (
         <div key={d} className="py-1 font-medium">
-          {d}
+          {t(`calendar.weekdays.${d}`)}
         </div>
       ))}
       {cells.map((day, i) => (
