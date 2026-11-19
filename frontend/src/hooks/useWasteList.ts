@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useWallet } from '@/context/WalletContext'
 import { Material } from '@/api/types'
 import { useToast } from '@/hooks/useToast'
@@ -228,17 +228,51 @@ export function useWasteList() {
     [address, adminAddress, getClient, load, toast]
   )
 
-  return {
-    wastes,
-    isLoading,
-    error,
-    isAdmin: Boolean(address && adminAddress && String(address) === String(adminAddress)),
-    reload: load,
-    confirmWaste,
-    transferWaste,
-    batchConfirmWastes,
-    batchVerifyWastes,
-    batchTransferWastes,
-    batchDeactivateWastes,
-  }
+  const isAdmin = useMemo(
+    () => Boolean(address && adminAddress && String(address) === String(adminAddress)),
+    [address, adminAddress]
+  )
+
+  const confirmedWastes = useMemo(
+    () => wastes.filter((w) => w.is_confirmed),
+    [wastes]
+  )
+
+  const unconfirmedWastes = useMemo(
+    () => wastes.filter((w) => !w.is_confirmed),
+    [wastes]
+  )
+
+  return useMemo(
+    () => ({
+      wastes,
+      confirmedWastes,
+      unconfirmedWastes,
+      isLoading,
+      error,
+      isAdmin,
+      reload: load,
+      confirmWaste,
+      transferWaste,
+      batchConfirmWastes,
+      batchVerifyWastes,
+      batchTransferWastes,
+      batchDeactivateWastes,
+    }),
+    [
+      wastes,
+      confirmedWastes,
+      unconfirmedWastes,
+      isLoading,
+      error,
+      isAdmin,
+      load,
+      confirmWaste,
+      transferWaste,
+      batchConfirmWastes,
+      batchVerifyWastes,
+      batchTransferWastes,
+      batchDeactivateWastes,
+    ]
+  )
 }

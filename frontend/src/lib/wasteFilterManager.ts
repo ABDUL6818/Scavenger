@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 export interface WasteFilter {
   wasteType?: string[];
@@ -108,15 +108,43 @@ export const WasteFilterManager: React.FC<WasteFilterManagerProps> = ({
     return Object.keys(filters).length > 0;
   }, [filters]);
 
-  return {
-    filters,
-    updateFilter,
-    clearFilters,
-    applyPreset,
-    saveCurrentAsPreset,
-    isFilterActive,
-    presets: savedPresets,
-  };
+  const activePresets = useMemo(() => {
+    return savedPresets.filter((preset) => {
+      const presetFilters = preset.filters;
+      return Object.keys(presetFilters).some((key) => {
+        const filterKey = key as keyof WasteFilter;
+        const currentValue = filters[filterKey];
+        const presetValue = presetFilters[filterKey];
+        if (currentValue === undefined || presetValue === undefined) {
+          return false;
+        }
+        return JSON.stringify(currentValue) === JSON.stringify(presetValue);
+      });
+    });
+  }, [savedPresets, filters]);
+
+  return useMemo(
+    () => ({
+      filters,
+      updateFilter,
+      clearFilters,
+      applyPreset,
+      saveCurrentAsPreset,
+      isFilterActive,
+      presets: savedPresets,
+      activePresets,
+    }),
+    [
+      filters,
+      updateFilter,
+      clearFilters,
+      applyPreset,
+      saveCurrentAsPreset,
+      isFilterActive,
+      savedPresets,
+      activePresets,
+    ]
+  );
 };
 
 export default WasteFilterManager;

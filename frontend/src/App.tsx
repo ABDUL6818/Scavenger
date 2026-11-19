@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { router } from '@/router'
 import { config } from '@/config'
@@ -16,18 +16,9 @@ function AppFallback() {
 }
 
 export function App() {
-  // Env-dependent behaviour is now sourced from the validated config module
-  // instead of reading `import.meta.env` directly. This keeps startup
-  // validation (zod) in one place and avoids undefined values at runtime.
-  if (config.enableAppShell) {
-    return (
-      <Suspense fallback={<AppFallback />}>
-        <LazyAppShell>
-          <RouterProvider router={router} />
-        </LazyAppShell>
-      </Suspense>
-    )
-  }
-
-  return <RouterProvider router={router} />
+  return (
+    <Suspense fallback={<div role="status">Loading…</div>}>
+      <RouterProvider router={router} />
+    </Suspense>
+  )
 }

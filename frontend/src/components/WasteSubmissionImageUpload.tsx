@@ -1,6 +1,27 @@
 import { ImageUpload } from '@/components/ui/ImageUpload'
+import { FormField } from '@/components/ui/FormField'
 import type { UploadImage } from '@/hooks/useImageUpload'
 
+/**
+ * WasteSubmissionImageUpload
+ *
+ * Storybook-style usage:
+ *
+ * ```tsx
+ * <WasteSubmissionImageUpload
+ *   images={images}
+ *   onAdd={handleAdd}
+ *   onRemove={handleRemove}
+ *   validationError={null}
+ *   photoError={errors.photos?.message}
+ * />
+ * ```
+ *
+ * Renders the photo upload section for the waste submission form using the
+ * shared `ImageUpload` and `FormField` UI primitives. Zod-derived validation
+ * errors from react-hook-form are surfaced via `photoError` and rendered with
+ * `role="alert"` for accessibility.
+ */
 export interface WasteSubmissionImageUploadProps {
   images: UploadImage[]
   onAdd: (files: File[]) => void
@@ -17,21 +38,18 @@ export function WasteSubmissionImageUpload({
   photoError,
 }: WasteSubmissionImageUploadProps) {
   return (
-    <section>
-      <label className="block text-sm font-medium mb-2">
-        Photos <span className="text-destructive">*</span>
-      </label>
+    <FormField
+      label="Photos"
+      required
+      error={photoError ?? undefined}
+      htmlFor="waste-submission-photos"
+    >
       <ImageUpload
         images={images}
         onAdd={onAdd}
         onRemove={onRemove}
         validationError={validationError}
       />
-      {photoError && (
-        <p className="mt-1 text-sm text-destructive" role="alert">
-          {photoError}
-        </p>
-      )}
-    </section>
+    </FormField>
   )
 }

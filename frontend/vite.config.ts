@@ -9,50 +9,45 @@ import { playwright } from '@vitest/browser-playwright';
 const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
-export default defineConfig(({ mode }) => {
-  // Load env vars (VITE_ prefixed) so they can be exposed via `define` if needed.
-  // Validation of these vars happens at runtime in `src/config` via zod (issue #1691).
-  const env = loadEnv(mode, process.cwd(), 'VITE_');
-
-  return {
-    build: {
-      // Emit assets (images, fonts) into a dedicated folder with content hashes
-      // for long-term caching. WebP/AVIF conversion is handled by the image
-      // pipeline (see `frontend/public` assets, issue #1690); Vite emits the
-      // already-optimized files with proper hashing here.
-      assetsDir: 'assets',
-      assetsInlineLimit: (filePath: string) => {
-        // Never inline fonts — they must be emitted as separate, cacheable files.
-        if (/\.(woff2?|ttf|otf|eot)$/i.test(filePath)) {
-          return false;
-        }
-        // Never inline modern image formats so they can be cached independently.
-        if (/\.(webp|avif)$/i.test(filePath)) {
-          return false;
-        }
-        // Default Vite behavior for everything else (4kb threshold).
-        return undefined as unknown as boolean;
-      },
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'stellar': ['@stellar/stellar-sdk', '@stellar/freighter-api'],
-            'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
-            'query': ['@tanstack/react-query', '@tanstack/react-query-devtools'],
-            'map': ['leaflet', 'react-leaflet', 'leaflet.markercluster'],
-            'firebase': ['firebase'],
-          },
-          // Group fonts and images into predictable, cache-friendly folders.
-          assetFileNames: (assetInfo) => {
-            const name = assetInfo.names?.[0] ?? assetInfo.name ?? '';
-            if (/\.(woff2?|ttf|otf|eot)$/i.test(name)) {
-              return 'assets/fonts/[name]-[hash][extname]';
-            }
-            if (/\.(webp|avif|png|jpe?g|gif|svg)$/i.test(name)) {
-              return 'assets/images/[name]-[hash][extname]';
-            }
-            return 'assets/[name]-[hash][extname]';
-          },
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Route-level code splitting (issue #1676): pages are lazy-loaded via
+        // React.lazy + Suspense in src/routes, so Rollup emits one chunk per
+        // route automatically. The manualChunks function below only groups
+        // shared vendor code so it is not duplicated across route chunks.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+          if (id.includes('@stellar/stellar-sdk') || id.includes('@stellar/freighter-api')) {
+            return 'stellar';
+          }
+          if (
+            id.includes('@radix-ui/react-dialog') ||
+            id.includes('@radix-ui/react-dropdown-menu') ||
+            id.includes('@radix-ui/react-select')
+          ) {
+            return 'ui';
+          }
+          if (id.includes('@tanstack/react-query')) {
+            return 'query';
+          }
+          if (
+            id.includes('leaflet') ||
+            id.includes('react-leaflet') ||
+            id.includes('leaflet.markercluster')
+          ) {
+            return 'map';
+          }
+          if (id.includes('firebase')) {
+            return 'firebase';
+          }
+          if (id.includes('react-router') || id.includes('react-dom') || id.includes('/react/')) {
+            return 'react-vendor';
+          }
+          return 'vendor';
         },
       },
       chunkSizeWarningLimit: 1000,
