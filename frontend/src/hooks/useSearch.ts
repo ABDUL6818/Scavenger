@@ -23,6 +23,11 @@ export function useDebounce<T>(value: T, delay: number): T {
 export function useSearch(query: string, filters?: Partial<SearchFilters>): SearchResult[] {
   const queryClient = useQueryClient()
 
+  // Stabilize the filters dependency so a new object literal with identical
+  // contents does not invalidate the memoized search results.
+  const status = filters?.status
+  const wasteTypesKey = filters?.wasteTypes?.join('\u0000') ?? ''
+
   return useMemo(() => {
     const trimmed = query.trim().toLowerCase()
     if (!trimmed) return []
@@ -95,5 +100,6 @@ export function useSearch(query: string, filters?: Partial<SearchFilters>): Sear
     }
 
     return results
-  }, [query, filters, queryClient])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, status, wasteTypesKey, queryClient])
 }
