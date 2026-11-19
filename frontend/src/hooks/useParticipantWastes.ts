@@ -1,31 +1,32 @@
-import { useQuery } from '@tanstack/react-query'
-import { ScavengerClient } from '@/api/client'
-import { Waste, WasteType } from '@/api/types'
+import { Waste } from '@/api/types'
 import { useWallet } from '@/context/WalletContext'
-import { useContract } from '@/context/ContractContext'
-import { networkConfig } from '@/lib/stellar'
 import { cacheKeys } from '@/lib/cacheKeys'
+import { useContractQuery } from './useContractQuery'
+import { WasteFilters, applyWasteFilters } from './wasteFilters'
 
-export interface WasteFilters {
-  wasteType?: WasteType
-  isActive?: boolean
-  isConfirmed?: boolean
-}
+// Re-exported for backwards compatibility; the canonical definition now lives
+// in `./wasteFilters` and is shared across waste-related hooks.
+export type { WasteFilters }
 
+/**
+ * Hook contract: `useParticipantWastes`
+ *
+ * - Input: optional `WasteFilters` ({ wasteType?, isActive?, isConfirmed? }).
+ * - Data source: participant waste IDs via `getParticipantWastesV2`, then each
+ *   waste record via `getWasteV2` (fetched in parallel, nulls dropped).
+ * - Query is disabled while no wallet address is connected.
+ * - Returns `{ wastes, isLoading, isError }`; `wastes` is always an array
+ *   (empty when disconnected, loading, errored, or no matches).
+ * - Filters are applied client-side after fetching.
+ */
 export function useParticipantWastes(filters?: WasteFilters) {
   const { address } = useWallet()
-  const { config } = useContract()
 
-  const { data, isLoading, isError } = useQuery<Waste[]>({
+  const { data, isLoading, isError } = useContractQuery<Waste[]>({
     queryKey: cacheKeys.participantWastes(address, filters),
-    queryFn: async () => {
+    enabled: !!address,
+    queryFn: async (client) => {
       if (!address) return []
-
-      const client = new ScavengerClient({
-        rpcUrl: config.rpcUrl,
-        networkPassphrase: networkConfig.networkPassphrase,
-        contractId: config.contractId,
-      })
 
       // Fetch the list of waste IDs owned by this participant (v2)
       const wasteIds = await client.getParticipantWastesV2(address)
@@ -33,23 +34,10 @@ export function useParticipantWastes(filters?: WasteFilters) {
       // Batch-fetch each waste record in parallel
       const results = await Promise.all(wasteIds.map((id) => client.getWasteV2(id)))
 
-      // Drop nulls (deleted/missing records)
-      let wastes = results.filter((w): w is Waste => w !== null)
-
-      // Apply optional filters
-      if (filters?.wasteType !== undefined) {
-        wastes = wastes.filter((w) => w.waste_type === filters.wasteType)
-      }
-      if (filters?.isActive !== undefined) {
-        wastes = wastes.filter((w) => w.is_active === filters.isActive)
-      }
-      if (filters?.isConfirmed !== undefined) {
-        wastes = wastes.filter((w) => w.is_confirmed === filters.isConfirmed)
-      }
-
-      return wastes
+      // Drop nulls (deleted/missing records) and apply optional filters
+      const wastes = results.filter((w): w is Waste => w !== null)
+      return applyWasteFilters(wastes, filters)
     },
-    enabled: !!address,
   })
 
   return {

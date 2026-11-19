@@ -14,6 +14,7 @@
  *     the current CSV path in useAnalyticsExport)
  */
 import { useCallback } from 'react';
+import { useAsync } from './useAsync';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -29,10 +30,18 @@ export interface ExportOptions {
 /**
  * Provides `exportToCSV` and `exportToJSON` functions.
  *
- * Both functions are stable (wrapped in `useCallback`) so they can be
- * safely used as `useEffect` or event-handler dependencies.
+ * Contract:
+ *   - `exportToCSV` and `exportToJSON` are stable (wrapped in `useCallback`)
+ *     so they can be safely used as `useEffect` or event-handler deps.
+ *   - Both return a `Promise<void>` that resolves once the download has been
+ *     triggered and rejects if serialisation or the download fails.
+ *   - `loading` / `error` / `reset` are shared with `useImport` via the
+ *     consolidated `useAsync` contract (issue #1693).
+ *   - Empty input is a no-op: it resolves without triggering a download.
  */
 export function useExport() {
+  const { loading, error, run, reset } = useAsync();
+
   /**
    * Serialises a 2D string array to CSV and triggers a browser download.
    *
@@ -46,13 +55,17 @@ export function useExport() {
    *   { filename: 'waste-report' }
    * )
    */
-  const exportToCSV = useCallback((rows: CsvRow[], options: ExportOptions = {}) => {
-    if (rows.length === 0) return;
+  const exportToCSV = useCallback(
+    (rows: CsvRow[], options: ExportOptions = {}) =>
+      run(() => {
+        if (rows.length === 0) return;
 
-    const csv = rows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    triggerDownload(blob, buildFilename(options.filename, 'csv'));
-  }, []);
+        const csv = rows.map((row) => row.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        triggerDownload(blob, buildFilename(options.filename, 'csv'));
+      }),
+    [run],
+  );
 
   /**
    * Serialises an arbitrary value to pretty-printed JSON and triggers a
@@ -64,13 +77,17 @@ export function useExport() {
    * @example
    * exportToJSON(participants, { filename: 'participants' })
    */
-  const exportToJSON = useCallback(<T>(data: T, options: ExportOptions = {}) => {
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
-    triggerDownload(blob, buildFilename(options.filename, 'json'));
-  }, []);
+  const exportToJSON = useCallback(
+    <T,>(data: T, options: ExportOptions = {}) =>
+      run(() => {
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+        triggerDownload(blob, buildFilename(options.filename, 'json'));
+      }),
+    [run],
+  );
 
-  return { exportToCSV, exportToJSON };
+  return { exportToCSV, exportToJSON, loading, error, reset };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
