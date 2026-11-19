@@ -34,9 +34,9 @@ export function CalendarGrid({
   )
 
   return (
-    <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+    <div className="grid grid-cols-7 gap-0.5 xs:gap-1 tablet:gap-1.5 text-center text-[10px] xs:text-xs text-muted-foreground">
       {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
-        <div key={d} className="py-1 font-medium">
+        <div key={d} className="py-0.5 xs:py-1 font-medium">
           {d}
         </div>
       ))}
@@ -44,10 +44,10 @@ export function CalendarGrid({
         <div
           key={i}
           className={cn(
-            'relative flex h-8 w-full items-center justify-center rounded-md text-xs',
+            'relative flex h-7 xs:h-8 tablet:h-9 w-full items-center justify-center rounded-md text-[10px] xs:text-xs',
             day === null && 'invisible',
             day === activeDay && 'bg-primary text-primary-foreground font-bold',
-            day === todayDay && day !== activeDay && 'bg-accent',
+            day === todayDay && day !== activeDay && 'bg-accent text-accent-foreground',
             day !== null && day !== activeDay && day !== todayDay && 'hover:bg-muted cursor-pointer',
             dayClassName
           )}

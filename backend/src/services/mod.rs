@@ -13,6 +13,12 @@ pub mod storage;
 pub mod verification;
 pub mod webhook;
 
+// Repository layer modules introduced by the controller/service/repository split (#1697).
+// These are internal additions: they expose data-access abstractions used by the service
+// layer and are not part of the previously public service API surface. Existing service
+// exports below remain unchanged, so API behavior stays backwards compatible.
+pub mod repositories;
+
 #[cfg(test)]
 mod ml_classification_tests;
 

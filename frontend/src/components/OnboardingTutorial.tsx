@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Joyride, { CallBackProps, STATUS, EVENTS } from 'react-joyride'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { getOnboardingSteps, getOnboardingStyles } from '@/lib/onboardingSteps'
@@ -25,31 +25,34 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
     }
   }, [isVisible, userRole, state.completed, state.skipped])
 
-  const handleStartTutorial = () => {
+  const handleStartTutorial = useCallback(() => {
     if (userRole) {
       startOnboarding(userRole)
       setShowWelcomeDialog(false)
     }
-  }
+  }, [userRole, startOnboarding])
 
-  const handleSkipTutorial = () => {
+  const handleSkipTutorial = useCallback(() => {
     skipOnboarding()
     setShowWelcomeDialog(false)
     onComplete()
-  }
+  }, [skipOnboarding, onComplete])
 
-  const handleJoyrideCallback = (data: CallBackProps) => {
-    const { status, type, index } = data
+  const handleJoyrideCallback = useCallback(
+    (data: CallBackProps) => {
+      const { status, type, index } = data
 
-    if (type === EVENTS.STEP_AFTER) {
-      updateStep(index + 1)
-    }
+      if (type === EVENTS.STEP_AFTER) {
+        updateStep(index + 1)
+      }
 
-    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-      completeOnboarding()
-      onComplete()
-    }
-  }
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        completeOnboarding()
+        onComplete()
+      }
+    },
+    [updateStep, completeOnboarding, onComplete]
+  )
 
   const steps = userRole ? getOnboardingSteps(userRole) : []
 
@@ -136,14 +139,14 @@ export function useOnboardingTutorial(userRole: UserRole | null) {
     }
   }, [userRole, shouldShowOnboarding])
 
-  const hideTutorial = () => {
+  const hideTutorial = useCallback(() => {
     setIsVisible(false)
-  }
+  }, [])
 
-  const restartTutorial = () => {
+  const restartTutorial = useCallback(() => {
     resetOnboarding()
     setIsVisible(true)
-  }
+  }, [resetOnboarding])
 
   return {
     isVisible,

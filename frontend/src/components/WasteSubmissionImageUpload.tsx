@@ -17,8 +17,8 @@ export function WasteSubmissionImageUpload({
   photoError,
 }: WasteSubmissionImageUploadProps) {
   return (
-    <section>
-      <label className="block text-sm font-medium mb-2">
+    <section className="w-full min-w-0">
+      <label className="mb-2 block text-xs font-medium xs:text-sm tablet:text-sm">
         Photos <span className="text-destructive">*</span>
       </label>
       <ImageUpload
@@ -28,7 +28,10 @@ export function WasteSubmissionImageUpload({
         validationError={validationError}
       />
       {photoError && (
-        <p className="mt-1 text-sm text-destructive" role="alert">
+        <p
+          className="mt-1 break-words text-xs text-destructive xs:text-sm tablet:text-sm"
+          role="alert"
+        >
           {photoError}
         </p>
       )}

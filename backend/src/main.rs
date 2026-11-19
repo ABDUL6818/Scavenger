@@ -19,6 +19,10 @@ use api::{
     archival as archival_api, audit, compliance_api, contracts, export, search as search_api, signing_api,
     verification, ws,
 };
+// #1697: Route handlers are now thin controllers that resolve their
+// service/repository dependencies from the DI container.  The `api` modules
+// re-export the controller entry points under their historical names so the
+// route table below stays unchanged.
 use cache::{Cache, CacheInvalidationManager};
 use config::AppConfig;
 use middleware::{
@@ -59,6 +63,9 @@ async fn main() -> std::io::Result<()> {
     info!(service = "backend", "Starting Scavenger Backend Server on 0.0.0.0:8080");
 
     // Build the DI container (#914) — all services are constructed here.
+    // #1697: Controllers resolve services (and, transitively, repositories)
+    // from this container via `web::Data<AppContainer>`; nothing is
+    // constructed ad-hoc inside handlers.
     let container = AppContainer::from_env().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
     // Destructure what the closures below need so we can `.clone()` into each
@@ -71,6 +78,8 @@ async fn main() -> std::io::Result<()> {
     let cache = container.cache.clone();
     let cache_invalidation = container.cache_invalidation.clone();
     let audit_service = container.audit.clone();
+    // #1697: `container` is cloned into each worker closure below so that
+    // controllers can resolve services/repositories from it.
     let verification_service = container.verification.clone();
     let search_client = container.search.clone();
     let archival_service = container.archival.clone();
@@ -88,6 +97,7 @@ async fn main() -> std::io::Result<()> {
     // #1159: Use AppConfig fields — no direct std::env::var reads in main.rs.
     let csrf_secret = app_config.csrf_secret.clone();
     let allowed_origins = app_config.allowed_origins.clone();
+    let container = Arc::new(container);
 
     HttpServer::new(move || {
         let cors = {
@@ -136,6 +146,10 @@ async fn main() -> std::io::Result<()> {
             .wrap(RateLimitMiddleware::new(rate_limit_config.clone()))
             .wrap(ValidationMiddleware)
             .wrap(RequestIdMiddleware)
+            // #1697: Expose the container itself so controllers can resolve
+            // their service/repository dependencies without every service
+            // having to be registered individually.
+            .app_data(web::Data::new(container.clone()))
             .app_data(web::Data::new(email_service.clone()))
             .app_data(web::Data::new(notification_service.clone()))
             .app_data(web::Data::new(reporting_service.clone()))
@@ -153,6 +167,11 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::route().to(not_found))
             // Health
             .route("/health", web::get().to(health_check))
+            // ── Route table ──────────────────────────────────────────────────
+            // #1697: Every route below points at a controller entry point.
+            // Controllers delegate to the service layer, which in turn talks to
+            // repositories.  Paths, methods and middleware are unchanged, so the
+            // public API remains backward compatible.
             // Contract Queries (Task 1)
             .route("/api/v1/contracts/wastes", web::get().to(contracts::list_wastes))
             .route("/api/v1/contracts/wastes/{id}", web::get().to(contracts::get_waste))

@@ -1,5 +1,10 @@
 //! HTTP handlers for verification. Parse the request, call `services::VerificationService` and
 //! serialise the result. Validation and state transitions belong in the service.
+//!
+//! #1697: This module is a thin controller layer. It only parses/sanitises input, delegates
+//! business logic to `VerificationService` (which in turn uses a repository for persistence),
+//! and shapes HTTP responses. Route paths, request/response schemas and status codes are
+//! unchanged for backward compatibility.
 
 use crate::services::VerificationService;
 use crate::validation::{error_response, sanitize_string, validate_doc_type, validate_required, validate_url, ValidationError};
@@ -64,20 +69,29 @@ impl<T> ApiResponse<T> {
     }
 }
 
+/// #1697: controller-level input parsing for `start_verification`, kept separate from the
+/// HTTP handler so it can be unit-tested without constructing a `web::Json` wrapper.
+fn parse_start_verification(req: &StartVerificationRequest) -> Result<String, Vec<ValidationError>> {
+    let participant_id = sanitize_string(&req.participant_id);
+    let mut errors = Vec::new();
+    if let Some(e) = validate_required(&participant_id, "participant_id") {
+        errors.push(e);
+    }
+    if errors.is_empty() {
+        Ok(participant_id)
+    } else {
+        Err(errors)
+    }
+}
+
 pub async fn start_verification(
     req: web::Json<StartVerificationRequest>,
     service: web::Data<Arc<dyn VerificationService>>,
 ) -> HttpResponse {
-    let mut errors = Vec::new();
-    let participant_id = sanitize_string(&req.participant_id);
-
-    if let Some(e) = validate_required(&participant_id, "participant_id") {
-        errors.push(e);
-    }
-
-    if !errors.is_empty() {
-        return error_response(&errors);
-    }
+    let participant_id = match parse_start_verification(&req) {
+        Ok(id) => id,
+        Err(errors) => return error_response(&errors),
+    };
 
     match service.start_verification(participant_id).await {
         Ok(verification) => HttpResponse::Ok().json(ApiResponse::success(verification)),
@@ -85,15 +99,13 @@ pub async fn start_verification(
     }
 }
 
-pub async fn submit_document(
-    req: web::Json<DocumentUploadRequest>,
-    service: web::Data<Arc<dyn VerificationService>>,
-) -> HttpResponse {
-    let mut errors = Vec::new();
+/// #1697: controller-level input parsing for `submit_document`.
+fn parse_submit_document(req: &DocumentUploadRequest) -> Result<(String, String, String), Vec<ValidationError>> {
     let participant_id = sanitize_string(&req.participant_id);
     let doc_type = sanitize_string(&req.doc_type);
     let url = sanitize_string(&req.url);
 
+    let mut errors = Vec::new();
     if let Some(e) = validate_required(&participant_id, "participant_id") {
         errors.push(e);
     }
@@ -104,9 +116,21 @@ pub async fn submit_document(
         errors.push(e);
     }
 
-    if !errors.is_empty() {
-        return error_response(&errors);
+    if errors.is_empty() {
+        Ok((participant_id, doc_type, url))
+    } else {
+        Err(errors)
     }
+}
+
+pub async fn submit_document(
+    req: web::Json<DocumentUploadRequest>,
+    service: web::Data<Arc<dyn VerificationService>>,
+) -> HttpResponse {
+    let (participant_id, doc_type, url) = match parse_submit_document(&req) {
+        Ok(parts) => parts,
+        Err(errors) => return error_response(&errors),
+    };
 
     match service.submit_document(participant_id, doc_type, url).await {
         Ok(document) => HttpResponse::Ok().json(ApiResponse::success(document)),
@@ -114,20 +138,43 @@ pub async fn submit_document(
     }
 }
 
+/// #1697: controller-level path-parameter parsing for `verify_document`.
+fn parse_verify_document(doc_id: &str) -> Result<String, Vec<ValidationError>> {
+    let doc_id = sanitize_string(doc_id);
+    if doc_id.is_empty() {
+        Err(vec![ValidationError {
+            field: "doc_id".to_string(),
+            message: "doc_id is required".to_string(),
+        }])
+    } else {
+        Ok(doc_id)
+    }
+}
+
 pub async fn verify_document(
     doc_id: web::Path<String>,
     service: web::Data<Arc<dyn VerificationService>>,
 ) -> HttpResponse {
-    let doc_id = sanitize_string(doc_id.as_str());
-    if doc_id.is_empty() {
-        return error_response(&[ValidationError {
-            field: "doc_id".to_string(),
-            message: "doc_id is required".to_string(),
-        }]);
-    }
+    let doc_id = match parse_verify_document(doc_id.as_str()) {
+        Ok(id) => id,
+        Err(errors) => return error_response(&errors),
+    };
     match service.verify_document(doc_id).await {
         Ok(document) => HttpResponse::Ok().json(ApiResponse::success(document)),
         Err(e) => HttpResponse::NotFound().json(ApiResponse::<String>::error(e)),
+    }
+}
+
+/// #1697: controller-level path-parameter parsing for `get_verification_status`.
+fn parse_participant_path(participant_id: &str) -> Result<String, Vec<ValidationError>> {
+    let participant_id = sanitize_string(participant_id);
+    if participant_id.is_empty() {
+        Err(vec![ValidationError {
+            field: "participant_id".to_string(),
+            message: "participant_id is required".to_string(),
+        }])
+    } else {
+        Ok(participant_id)
     }
 }
 
@@ -135,26 +182,20 @@ pub async fn get_verification_status(
     participant_id: web::Path<String>,
     service: web::Data<Arc<dyn VerificationService>>,
 ) -> HttpResponse {
-    let participant_id = sanitize_string(participant_id.as_str());
-    if participant_id.is_empty() {
-        return error_response(&[ValidationError {
-            field: "participant_id".to_string(),
-            message: "participant_id is required".to_string(),
-        }]);
-    }
+    let participant_id = match parse_participant_path(participant_id.as_str()) {
+        Ok(id) => id,
+        Err(errors) => return error_response(&errors),
+    };
     match service.get_verification_status(participant_id).await {
         Ok(verification) => HttpResponse::Ok().json(ApiResponse::success(verification)),
         Err(e) => HttpResponse::NotFound().json(ApiResponse::<String>::error(e)),
     }
 }
 
-pub async fn submit_checklist(
-    req: web::Json<ChecklistSubmitRequest>,
-    service: web::Data<Arc<dyn VerificationService>>,
-) -> HttpResponse {
-    let mut errors = Vec::new();
+/// #1697: controller-level input parsing for `submit_checklist`.
+fn parse_submit_checklist(req: &ChecklistSubmitRequest) -> Result<(String, HashMap<String, bool>), Vec<ValidationError>> {
     let participant_id = sanitize_string(&req.participant_id);
-
+    let mut errors = Vec::new();
     if let Some(e) = validate_required(&participant_id, "participant_id") {
         errors.push(e);
     }
@@ -165,11 +206,23 @@ pub async fn submit_checklist(
         });
     }
 
-    if !errors.is_empty() {
-        return error_response(&errors);
+    if errors.is_empty() {
+        Ok((participant_id, req.checks.clone()))
+    } else {
+        Err(errors)
     }
+}
 
-    match service.submit_checklist(participant_id, req.checks.clone()).await {
+pub async fn submit_checklist(
+    req: web::Json<ChecklistSubmitRequest>,
+    service: web::Data<Arc<dyn VerificationService>>,
+) -> HttpResponse {
+    let (participant_id, checks) = match parse_submit_checklist(&req) {
+        Ok(parts) => parts,
+        Err(errors) => return error_response(&errors),
+    };
+
+    match service.submit_checklist(participant_id, checks).await {
         Ok(checklist) => HttpResponse::Ok().json(ApiResponse::success(checklist)),
         Err(e) => HttpResponse::BadRequest().json(ApiResponse::<String>::error(e)),
     }
@@ -263,13 +316,10 @@ pub async fn retry_verification(
     participant_id: web::Path<String>,
     service: web::Data<Arc<dyn VerificationService>>,
 ) -> HttpResponse {
-    let participant_id = sanitize_string(participant_id.as_str());
-    if participant_id.is_empty() {
-        return error_response(&[ValidationError {
-            field: "participant_id".to_string(),
-            message: "participant_id is required".to_string(),
-        }]);
-    }
+    let participant_id = match parse_participant_path(participant_id.as_str()) {
+        Ok(id) => id,
+        Err(errors) => return error_response(&errors),
+    };
     match service.retry_verification(participant_id).await {
         Ok(verification) => HttpResponse::Ok().json(ApiResponse::success(verification)),
         Err(e) => HttpResponse::BadRequest().json(ApiResponse::<String>::error(e)),
@@ -671,5 +721,147 @@ mod tests {
     fn test_validate_rejection_request_all_empty() {
         let errors = validate_rejection_request("", "", "");
         assert_eq!(errors.len(), 3);
+    }
+
+    // ── #1697: controller input-parsing unit tests ────────────────────────
+
+    #[test]
+    fn test_parse_start_verification_valid() {
+        let req = StartVerificationRequest {
+            participant_id: "  participant-001  ".to_string(),
+        };
+        let id = parse_start_verification(&req).expect("should parse");
+        assert_eq!(id, "participant-001");
+    }
+
+    #[test]
+    fn test_parse_start_verification_empty() {
+        let req = StartVerificationRequest {
+            participant_id: "".to_string(),
+        };
+        let errors = parse_start_verification(&req).expect_err("should fail");
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].field, "participant_id");
+    }
+
+    #[test]
+    fn test_parse_submit_document_valid() {
+        let req = DocumentUploadRequest {
+            participant_id: "participant-001".to_string(),
+            doc_type: "passport".to_string(),
+            url: "https://example.com/doc.pdf".to_string(),
+        };
+        let (pid, doc_type, url) = parse_submit_document(&req).expect("should parse");
+        assert_eq!(pid, "participant-001");
+        assert_eq!(doc_type, "passport");
+        assert_eq!(url, "https://example.com/doc.pdf");
+    }
+
+    #[test]
+    fn test_parse_submit_document_collects_all_errors() {
+        let req = DocumentUploadRequest {
+            participant_id: "".to_string(),
+            doc_type: "".to_string(),
+            url: "not-a-url".to_string(),
+        };
+        let errors = parse_submit_document(&req).expect_err("should fail");
+        assert_eq!(errors.len(), 3);
+    }
+
+    #[test]
+    fn test_parse_verify_document_valid() {
+        assert_eq!(parse_verify_document("doc-001").unwrap(), "doc-001");
+    }
+
+    #[test]
+    fn test_parse_verify_document_empty() {
+        let errors = parse_verify_document("   ").expect_err("should fail");
+        assert_eq!(errors[0].field, "doc_id");
+    }
+
+    #[test]
+    fn test_parse_participant_path_valid() {
+        assert_eq!(parse_participant_path("participant-001").unwrap(), "participant-001");
+    }
+
+    #[test]
+    fn test_parse_participant_path_empty() {
+        let errors = parse_participant_path("").expect_err("should fail");
+        assert_eq!(errors[0].field, "participant_id");
+    }
+
+    #[test]
+    fn test_parse_submit_checklist_valid() {
+        let mut checks = HashMap::new();
+        checks.insert("identity_verified".to_string(), true);
+        let req = ChecklistSubmitRequest {
+            participant_id: "participant-001".to_string(),
+            checks,
+        };
+        let (pid, parsed_checks) = parse_submit_checklist(&req).expect("should parse");
+        assert_eq!(pid, "participant-001");
+        assert_eq!(parsed_checks.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_submit_checklist_empty_checks() {
+        let req = ChecklistSubmitRequest {
+            participant_id: "participant-001".to_string(),
+            checks: HashMap::new(),
+        };
+        let errors = parse_submit_checklist(&req).expect_err("should fail");
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].field, "checks");
+    }
+
+    // ── #1697: controller handler tests with mocked service ───────────────
+
+    #[actix_web::test]
+    async fn test_verify_document_empty_path_returns_400() {
+        let svc = mock_service();
+        let resp = verify_document(web::Path::from("".to_string()), svc).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn test_verify_document_not_found_returns_404() {
+        let svc = mock_service();
+        let resp = verify_document(web::Path::from("doc-001".to_string()), svc).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn test_get_verification_status_empty_path_returns_400() {
+        let svc = mock_service();
+        let resp = get_verification_status(web::Path::from("".to_string()), svc).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn test_get_verification_status_valid_returns_200() {
+        let svc = mock_service();
+        let resp = get_verification_status(web::Path::from("participant-001".to_string()), svc).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_get_pending_reviews_returns_200() {
+        let svc = mock_service();
+        let resp = get_pending_reviews(svc).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_retry_verification_empty_path_returns_400() {
+        let svc = mock_service();
+        let resp = retry_verification(web::Path::from("".to_string()), svc).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn test_retry_verification_valid_returns_200() {
+        let svc = mock_service();
+        let resp = retry_verification(web::Path::from("participant-001".to_string()), svc).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
     }
 }

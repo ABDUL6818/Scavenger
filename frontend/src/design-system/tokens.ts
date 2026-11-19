@@ -164,9 +164,21 @@ export const animation = {
   },
 } as const
 
-/** Semantic token mappings (light / dark) */
+/**
+ * Semantic token mappings (light / dark)
+ *
+ * Values are stored as raw HSL channel triples ("H S% L%") so they can be
+ * composed with alpha via `hsl(var(--token) / <alpha>)`. Every key here is
+ * exposed as a CSS custom property named `--<key>` (see `cssVariableName`).
+ *
+ * Backwards-compatibility: all previously published token names are retained
+ * unchanged. New tokens (surface*, text*, border*, accent*, status*) are
+ * additive. `destructive` remains an alias of `status-danger` for callers that
+ * have not yet migrated.
+ */
 export const semanticTokens = {
   light: {
+    // Base
     background: '0 0% 100%',
     foreground: '222 47% 11%',
     card: '0 0% 100%',
@@ -187,8 +199,39 @@ export const semanticTokens = {
     input: '214 32% 85%',
     ring: '142 76% 36%',
     radius: '0.5rem',
+
+    // Surface scale (elevation-aware backgrounds)
+    surface: '0 0% 100%',
+    'surface-raised': '210 40% 98%',
+    'surface-sunken': '210 40% 94%',
+    'surface-overlay': '0 0% 100%',
+
+    // Text scale
+    text: '222 47% 11%',
+    'text-muted': '215 25% 38%',
+    'text-subtle': '215 20% 52%',
+    'text-inverted': '0 0% 100%',
+
+    // Border scale
+    'border-subtle': '214 32% 92%',
+    'border-strong': '214 32% 72%',
+
+    // Accent scale
+    'accent-subtle': '142 76% 96%',
+    'accent-strong': '142 76% 26%',
+
+    // Status
+    'status-success': '142 76% 30%',
+    'status-success-foreground': '0 0% 100%',
+    'status-warning': '32 95% 38%',
+    'status-warning-foreground': '0 0% 100%',
+    'status-danger': '0 72% 44%',
+    'status-danger-foreground': '0 0% 100%',
+    'status-info': '217 91% 40%',
+    'status-info-foreground': '0 0% 100%',
   },
   dark: {
+    // Base
     background: '222 47% 8%',
     foreground: '210 40% 96%',
     card: '222 47% 11%',
@@ -209,8 +252,71 @@ export const semanticTokens = {
     input: '217 33% 22%',
     ring: '142 69% 58%',
     radius: '0.5rem',
+
+    // Surface scale (elevation-aware backgrounds)
+    surface: '222 47% 8%',
+    'surface-raised': '222 47% 12%',
+    'surface-sunken': '222 47% 5%',
+    'surface-overlay': '222 47% 14%',
+
+    // Text scale
+    text: '210 40% 96%',
+    'text-muted': '215 25% 68%',
+    'text-subtle': '215 20% 56%',
+    'text-inverted': '222 47% 8%',
+
+    // Border scale
+    'border-subtle': '217 33% 16%',
+    'border-strong': '217 33% 34%',
+
+    // Accent scale
+    'accent-subtle': '142 30% 14%',
+    'accent-strong': '142 69% 72%',
+
+    // Status
+    'status-success': '142 69% 58%',
+    'status-success-foreground': '222 47% 8%',
+    'status-warning': '38 92% 60%',
+    'status-warning-foreground': '222 47% 8%',
+    'status-danger': '0 72% 58%',
+    'status-danger-foreground': '0 0% 100%',
+    'status-info': '213 94% 68%',
+    'status-info-foreground': '222 47% 8%',
   },
 } as const
+
+export type ThemeMode = keyof typeof semanticTokens
+export type SemanticTokenName = keyof typeof semanticTokens.light
+
+/** Canonical CSS custom property name for a semantic token, e.g. `--text-muted`. */
+export function cssVariableName(token: SemanticTokenName): `--${string}` {
+  return `--${token}`
+}
+
+/**
+ * Resolve a semantic token to its raw HSL channel triple for the given theme.
+ * Falls back to the light theme when a token is missing from the requested one.
+ */
+export function resolveToken(token: SemanticTokenName, mode: ThemeMode = 'light'): string {
+  return semanticTokens[mode][token] ?? semanticTokens.light[token]
+}
+
+/** Resolve a semantic token to a full `hsl(...)` color string. */
+export function resolveColor(token: SemanticTokenName, mode: ThemeMode = 'light'): string {
+  return `hsl(${resolveToken(token, mode)})`
+}
+
+/**
+ * Build the CSS custom property map for a theme, suitable for applying to a
+ * root element (e.g. `<html style={...}>` or a `:root` rule).
+ */
+export function themeCssVariables(mode: ThemeMode = 'light'): Record<`--${string}`, string> {
+  const entries = Object.entries(semanticTokens[mode]) as [SemanticTokenName, string][]
+  return Object.fromEntries(entries.map(([name, value]) => [cssVariableName(name), value])) as Record<
+    `--${string}`,
+    string
+  >
+}
 
 export const tokens = { colors, typography, spacing, borderRadius, shadows, animation, semanticTokens }
 export default tokens

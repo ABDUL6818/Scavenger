@@ -15,13 +15,13 @@ export function WasteSubmissionSummary({
 }: WasteSubmissionSummaryProps) {
   return (
     <Card>
-      <CardContent className="flex flex-col items-center gap-4 py-12">
-        <div className="rounded-full bg-green-100 p-3">
-          <Recycle className="h-8 w-8 text-green-600" />
+      <CardContent className="flex flex-col items-center gap-4 px-4 py-8 text-center sm:px-6 sm:py-10 md:py-12">
+        <div className="rounded-full bg-success/10 p-3">
+          <Recycle className="h-8 w-8 text-success" aria-hidden="true" />
         </div>
-        <h2 className="text-xl font-semibold">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        <Button variant="outline" onClick={onDone}>
+        <h2 className="text-lg font-semibold break-words sm:text-xl">{title}</h2>
+        <p className="max-w-prose text-sm text-muted-foreground break-words">{description}</p>
+        <Button variant="outline" onClick={onDone} className="w-full sm:w-auto">
           Done
         </Button>
       </CardContent>

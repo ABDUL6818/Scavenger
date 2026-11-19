@@ -20,12 +20,12 @@ function FlagRow({ flag, value, hasOverride, onToggle, onClear }: {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-mono text-sm font-medium">{flag.key}</span>
           {hasOverride && (
-            <Badge className="text-xs bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400">
+            <Badge className="text-xs bg-warning/10 text-warning border border-warning/30">
               overridden
             </Badge>
           )}
           {flag.rolloutPercentage !== undefined && (
-            <Badge className="text-xs bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400">
+            <Badge className="text-xs bg-info/10 text-info border border-info/30">
               {flag.rolloutPercentage}% rollout
             </Badge>
           )}
@@ -51,8 +51,8 @@ function FlagRow({ flag, value, hasOverride, onToggle, onClear }: {
           role="switch"
           aria-checked={isOn}
           onClick={() => onToggle(!isOn)}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
-            isOn ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+            isOn ? 'bg-success' : 'bg-muted'
           }`}
         >
           <span
@@ -75,11 +75,11 @@ export function FeatureFlagsPage() {
   const overrideCount = overrides.length
 
   return (
-    <main className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Flag className="h-6 w-6" />
+    <main className="p-3 xs:p-4 tablet:p-6 space-y-6 max-w-3xl mx-auto">
+      <div className="flex flex-col gap-3 xs:flex-row xs:items-start xs:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl xs:text-2xl font-bold flex items-center gap-2">
+            <Flag className="h-5 w-5 xs:h-6 xs:w-6 shrink-0" />
             Feature Flags
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -89,7 +89,7 @@ export function FeatureFlagsPage() {
         {overrideCount > 0 && (
           <button
             onClick={clearAll}
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground self-start xs:self-auto shrink-0"
           >
             <RotateCcw className="h-4 w-4" />
             Reset all
@@ -98,7 +98,7 @@ export function FeatureFlagsPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 xs:gap-4">
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold">{Object.keys(flags).length}</p>
@@ -107,13 +107,13 @@ export function FeatureFlagsPage() {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold text-green-600">{enabledCount}</p>
+            <p className="text-2xl font-bold text-success">{enabledCount}</p>
             <p className="text-sm text-muted-foreground">Enabled</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold text-yellow-600">{overrideCount}</p>
+            <p className="text-2xl font-bold text-warning">{overrideCount}</p>
             <p className="text-sm text-muted-foreground">Overridden</p>
           </CardContent>
         </Card>
@@ -128,7 +128,7 @@ export function FeatureFlagsPage() {
             require a deployment configuration update.
           </CardDescription>
         </CardHeader>
-        <CardContent className="divide-y p-0 px-6">
+        <CardContent className="divide-y p-0 px-3 xs:px-4 tablet:px-6">
           {Object.values(flags).map((flag) => (
             <FlagRow
               key={flag.key}
@@ -166,7 +166,7 @@ export function FeatureFlagsPage() {
                   <li key={i} className="flex items-center gap-2 text-muted-foreground">
                     <span className="font-mono">{e.flagKey}</span>
                     <span>→</span>
-                    <Badge className={`text-xs ${e.value ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <Badge className={`text-xs ${e.value ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
                       {String(e.value)}
                     </Badge>
                     <span className="ml-auto text-xs">{new Date(e.timestamp).toLocaleTimeString()}</span>
@@ -179,7 +179,7 @@ export function FeatureFlagsPage() {
       </Card>
 
       {/* Info callout */}
-      <div className="flex gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-sm text-blue-700 dark:text-blue-300">
+      <div className="flex gap-2 p-3 rounded-lg bg-info/10 text-sm text-info">
         <Info className="h-4 w-4 mt-0.5 shrink-0" />
         <p>
           Overrides apply only to this browser session. For permanent rollout changes, update{' '}

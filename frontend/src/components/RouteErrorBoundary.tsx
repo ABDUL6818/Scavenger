@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 
@@ -15,7 +16,9 @@ export function RouteErrorBoundary() {
   const error = useRouteError()
   const navigate = useNavigate()
 
-  console.error('[RouteErrorBoundary]', error)
+  useEffect(() => {
+    console.error('[RouteErrorBoundary]', error)
+  }, [error])
 
   const message = error instanceof Error ? error.message : String(error)
   const isChunkLoadError = error instanceof Error && CHUNK_LOAD_ERROR_RE.test(message)

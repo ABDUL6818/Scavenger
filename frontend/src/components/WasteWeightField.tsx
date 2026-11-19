@@ -27,19 +27,21 @@ export function WasteWeightField({
       <label htmlFor="weight-input" className="block text-sm font-medium mb-2">
         Weight <span className="text-destructive">*</span>
       </label>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 xs:flex-row tablet:gap-3">
         <Input
           id="weight-input"
           type="number"
           step="any"
           min="0"
+          inputMode="decimal"
+          className="w-full min-w-0"
           placeholder={weightUnit === 'grams' ? 'e.g. 500' : 'e.g. 0.5'}
           {...register('weight')}
         />
         <button
           type="button"
           onClick={() => setWeightUnit(weightUnit === 'grams' ? 'kilograms' : 'grams')}
-          className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
+          className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent xs:w-auto tablet:px-5"
           aria-label={`Switch to ${weightUnit === 'grams' ? 'kilograms' : 'grams'}`}
         >
           {weightUnit === 'grams' ? 'g' : 'kg'}

@@ -26,13 +26,13 @@ function WasteRow({
   onTransfer: (id: number) => void
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-md border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+    <div className="flex flex-col gap-3 rounded-md border border-border px-3 py-3 text-sm xs:px-4 tablet:flex-row tablet:items-center tablet:justify-between">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 tablet:gap-3">
         <Badge variant="secondary">{wasteTypeLabel(material.waste_type)}</Badge>
         <span className="text-muted-foreground">ID #{material.id}</span>
-        <span>{material.weight.toLocaleString()} g</span>
+        <span className="break-words">{material.weight.toLocaleString()} g</span>
       </div>
-      <div className="flex items-center justify-between gap-3 sm:justify-start">
+      <div className="flex items-center justify-between gap-3 tablet:justify-start">
         <span className="text-xs text-muted-foreground">{formatDate(material.submitted_at)}</span>
         <Button size="sm" variant="outline" onClick={() => onTransfer(material.id)}>
           Transfer
@@ -72,8 +72,8 @@ export function CollectorDashboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-6 overflow-x-hidden">
-        <div className="h-8 w-48 animate-pulse rounded bg-muted" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="h-8 w-48 max-w-full animate-pulse rounded bg-muted" />
+        <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 tablet:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
@@ -111,16 +111,16 @@ export function CollectorDashboardPage() {
   }
 
   return (
-    <div className="space-y-6 overflow-x-hidden px-4 py-6 sm:px-0 sm:py-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Collector Dashboard</h1>
-          <p className="text-sm text-muted-foreground">{formatAddress(address)}</p>
+    <div className="space-y-6 overflow-x-hidden px-3 py-6 xs:px-4 tablet:px-0 tablet:py-0">
+      <div className="flex flex-col gap-3 tablet:flex-row tablet:items-center tablet:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold xs:text-2xl">Collector Dashboard</h1>
+          <p className="break-words text-sm text-muted-foreground">{formatAddress(address)}</p>
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 tablet:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -212,11 +212,11 @@ export function CollectorDashboardPage() {
           <CardTitle className="text-base">Collection Statistics by Waste Type</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 xs:grid-cols-3 tablet:grid-cols-3 lg:grid-cols-5">
             {ALL_WASTE_TYPES.map((type) => (
               <div
                 key={type}
-                className="flex flex-col items-center rounded-md border p-3 text-center"
+                className="flex flex-col items-center rounded-md border border-border p-3 text-center"
               >
                 <span className="text-xs text-muted-foreground">{wasteTypeLabel(type)}</span>
                 <span className="mt-1 text-xl font-bold">{statsByWasteType[type] ?? 0}</span>

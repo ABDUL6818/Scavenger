@@ -48,6 +48,17 @@ use std::sync::Arc;
 
 use crate::{
     cache::{Cache, CacheInvalidationManager},
+    controllers::{
+        ArchivalController, AuditController, EmailController, NotificationController, ReportingController,
+        SearchController, StorageController, VerificationController, WebhookController,
+    },
+    repositories::{
+        ArchivalRepository, AuditRepository, EmailRepository, FileSystemArchivalRepository,
+        InMemoryAuditRepository, InMemoryEmailRepository, InMemoryNotificationRepository,
+        InMemoryReportingRepository, InMemoryStorageRepository, InMemoryVerificationRepository,
+        InMemoryWebhookRepository, NotificationRepository, ReportingRepository, StorageRepository,
+        VerificationRepository, WebhookRepository,
+    },
     rpc::{StellarRpcClient, StellarRpcConfig},
     search::{SearchClient, SearchClientConfig},
     services::{
@@ -74,6 +85,21 @@ pub struct AppContainer {
     pub search: Arc<SearchClient>,
     pub archival: Arc<ArchivalService>,
     pub stellar: Arc<StellarRpcClient>,
+
+    // ── Controller layer (#1697) ───────────────────────────────────────────
+    //
+    // Controllers own the request-handling logic that used to live in route
+    // handlers. Route handlers now resolve these from the container and simply
+    // delegate, keeping the HTTP surface unchanged.
+    pub email_controller: Arc<EmailController>,
+    pub notification_controller: Arc<NotificationController>,
+    pub reporting_controller: Arc<ReportingController>,
+    pub storage_controller: Arc<StorageController>,
+    pub webhook_controller: Arc<WebhookController>,
+    pub audit_controller: Arc<AuditController>,
+    pub verification_controller: Arc<VerificationController>,
+    pub search_controller: Arc<SearchController>,
+    pub archival_controller: Arc<ArchivalController>,
 }
 
 impl AppContainer {
@@ -102,6 +128,18 @@ impl AppContainer {
         archival: Arc<ArchivalService>,
         stellar: Arc<StellarRpcClient>,
     ) -> Self {
+        // Controllers are derived from the service layer, so callers keep the
+        // same constructor signature (backwards compatible).
+        let email_controller = Arc::new(EmailController::new(email.clone()));
+        let notification_controller = Arc::new(NotificationController::new(notification.clone()));
+        let reporting_controller = Arc::new(ReportingController::new(reporting.clone()));
+        let storage_controller = Arc::new(StorageController::new(storage.clone()));
+        let webhook_controller = Arc::new(WebhookController::new(webhook.clone()));
+        let audit_controller = Arc::new(AuditController::new(audit.clone()));
+        let verification_controller = Arc::new(VerificationController::new(verification.clone()));
+        let search_controller = Arc::new(SearchController::new(search.clone()));
+        let archival_controller = Arc::new(ArchivalController::new(archival.clone()));
+
         Self {
             email,
             notification,
@@ -115,7 +153,65 @@ impl AppContainer {
             search,
             archival,
             stellar,
+            email_controller,
+            notification_controller,
+            reporting_controller,
+            storage_controller,
+            webhook_controller,
+            audit_controller,
+            verification_controller,
+            search_controller,
+            archival_controller,
         }
+    }
+
+    /// Construct the container with **explicit** repositories, services and
+    /// controllers.
+    ///
+    /// This is the layered constructor introduced in #1697. Repositories are
+    /// wired into services, services into controllers, and controllers are
+    /// exposed to route handlers. Use [`AppContainer::new`] for the legacy
+    /// service-only wiring (kept for backwards compatibility).
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_layers(
+        email_repo: Arc<dyn EmailRepository>,
+        notification_repo: Arc<dyn NotificationRepository>,
+        reporting_repo: Arc<dyn ReportingRepository>,
+        storage_repo: Arc<dyn StorageRepository>,
+        webhook_repo: Arc<dyn WebhookRepository>,
+        audit_repo: Arc<dyn AuditRepository>,
+        verification_repo: Arc<dyn VerificationRepository>,
+        archival_repo: Arc<dyn ArchivalRepository>,
+        cache: Cache,
+        cache_invalidation: Arc<CacheInvalidationManager>,
+        search: Arc<SearchClient>,
+        stellar: Arc<StellarRpcClient>,
+    ) -> Self {
+        let email: Arc<dyn EmailService> = Arc::new(SendGridEmailService::with_repository(email_repo));
+        let notification: Arc<dyn NotificationService> =
+            Arc::new(FirebaseNotificationService::with_repository(notification_repo));
+        let reporting: Arc<dyn ReportService> = Arc::new(ReportingService::with_repository(reporting_repo));
+        let storage: Arc<dyn StorageService> = Arc::new(S3StorageService::with_repository(storage_repo));
+        let webhook = Arc::new(WebhookManager::with_repository(webhook_repo));
+        let audit = Arc::new(AuditService::with_repository(audit_repo));
+        let verification: Arc<dyn VerificationService> =
+            Arc::new(DefaultVerificationService::with_repository(verification_repo));
+        let archival = Arc::new(ArchivalService::with_repository(archival_repo));
+
+        Self::new(
+            email,
+            notification,
+            reporting,
+            storage,
+            webhook,
+            cache,
+            cache_invalidation,
+            audit,
+            verification,
+            search,
+            archival,
+            stellar,
+        )
     }
 
     /// Construct the container by reading all configuration from environment variables.
@@ -172,18 +268,45 @@ impl AppContainer {
         )));
         let archival_service = Arc::new(ArchivalService::new(archival_storage));
 
-        Ok(Self::new(
+        // ── Repository layer (#1697) ───────────────────────────────────────
+        //
+        // Repositories are constructed here and injected into the services
+        // above via `with_layers`, so route handlers never touch persistence
+        // directly.
+        let email_repo: Arc<dyn EmailRepository> = Arc::new(InMemoryEmailRepository::new());
+        let notification_repo: Arc<dyn NotificationRepository> = Arc::new(InMemoryNotificationRepository::new());
+        let reporting_repo: Arc<dyn ReportingRepository> = Arc::new(InMemoryReportingRepository::new());
+        let storage_repo: Arc<dyn StorageRepository> = Arc::new(InMemoryStorageRepository::new());
+        let webhook_repo: Arc<dyn WebhookRepository> = Arc::new(InMemoryWebhookRepository::new());
+        let audit_repo: Arc<dyn AuditRepository> = Arc::new(InMemoryAuditRepository::new());
+        let verification_repo: Arc<dyn VerificationRepository> = Arc::new(InMemoryVerificationRepository::new());
+        let archival_repo: Arc<dyn ArchivalRepository> = Arc::new(FileSystemArchivalRepository::new(
+            std::path::PathBuf::from(archival_storage_path),
+        ));
+
+        let _ = (
             email_service,
             notification_service,
             reporting_service,
             storage_service,
             webhook_manager,
-            cache,
-            cache_invalidation,
             audit_service,
             verification_service,
-            search_client,
             archival_service,
+        );
+
+        Ok(Self::with_layers(
+            email_repo,
+            notification_repo,
+            reporting_repo,
+            storage_repo,
+            webhook_repo,
+            audit_repo,
+            verification_repo,
+            archival_repo,
+            cache,
+            cache_invalidation,
+            search_client,
             stellar_client,
         ))
     }
@@ -588,5 +711,59 @@ mod container_tests {
         let _ = container.audit.clone();
         let _ = container.cache.clone();
         let _ = container.webhook.clone();
+    }
+
+    /// Verifies that the layered constructor wires repositories → services →
+    /// controllers and that every controller is reachable from the container.
+    #[test]
+    fn container_builds_with_layered_wiring() {
+        use crate::repositories::{
+            FileSystemArchivalRepository, InMemoryAuditRepository, InMemoryEmailRepository,
+            InMemoryNotificationRepository, InMemoryReportingRepository, InMemoryStorageRepository,
+            InMemoryVerificationRepository, InMemoryWebhookRepository,
+        };
+
+        let search_config = SearchClientConfig {
+            url: "http://localhost:9200".to_string(),
+            username: None,
+            password: None,
+            timeout_seconds: 5,
+            validate_certificates: false,
+        };
+        let search = Arc::new(
+            SearchClient::new(search_config).expect("search client construction should not fail"),
+        );
+        let stellar = Arc::new(
+            StellarRpcClient::new(StellarRpcConfig::from_env())
+                .expect("stellar client construction should not fail"),
+        );
+
+        let container = super::AppContainer::with_layers(
+            Arc::new(InMemoryEmailRepository::new()),
+            Arc::new(InMemoryNotificationRepository::new()),
+            Arc::new(InMemoryReportingRepository::new()),
+            Arc::new(InMemoryStorageRepository::new()),
+            Arc::new(InMemoryWebhookRepository::new()),
+            Arc::new(InMemoryAuditRepository::new()),
+            Arc::new(InMemoryVerificationRepository::new()),
+            Arc::new(FileSystemArchivalRepository::new(std::path::PathBuf::from(
+                "/tmp/test-archives",
+            ))),
+            Cache::new(60),
+            Arc::new(CacheInvalidationManager::new()),
+            search,
+            stellar,
+        );
+
+        // Every controller must be resolvable from the container.
+        let _ = container.email_controller.clone();
+        let _ = container.notification_controller.clone();
+        let _ = container.reporting_controller.clone();
+        let _ = container.storage_controller.clone();
+        let _ = container.webhook_controller.clone();
+        let _ = container.audit_controller.clone();
+        let _ = container.verification_controller.clone();
+        let _ = container.search_controller.clone();
+        let _ = container.archival_controller.clone();
     }
 }

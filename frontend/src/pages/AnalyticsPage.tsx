@@ -42,10 +42,10 @@ export function AnalyticsPage() {
   }, [exportToPDF])
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+    <div className="space-y-4 xs:space-y-6">
+      <div className="flex flex-col gap-3 tablet:flex-row tablet:items-start tablet:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold xs:text-3xl">Analytics Dashboard</h1>
           <p className="mt-1 text-muted-foreground">
             Track waste management trends and performance metrics
           </p>
@@ -64,7 +64,7 @@ export function AnalyticsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 tablet:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={<Package className="h-4 w-4" />}
           label="Total Waste Processed"
@@ -104,34 +104,34 @@ export function AnalyticsPage() {
       </div>
 
       {/* Charts row 1 */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xs:gap-6 tablet:grid-cols-2">
         <WasteTypeChart />
         <MonthlyTrendsChart />
       </div>
 
       {/* Charts row 2 */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 xs:gap-6 tablet:grid-cols-3">
+        <div className="tablet:col-span-2">
           <RecyclingRateChart />
         </div>
         <QuickStatsCard />
       </div>
 
       {/* Top materials + participant contributions */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xs:gap-6 tablet:grid-cols-2">
         <TopMaterialsChart />
         <ParticipantContributionChart />
       </div>
 
       {/* Leaderboard + Carbon */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xs:gap-6 tablet:grid-cols-2">
         <LeaderboardCard />
         <CarbonImpactCard />
       </div>
 
       {/* User Behavior Analytics */}
       <div>
-        <h2 className="mb-4 text-xl font-semibold">User Behavior Analytics</h2>
+        <h2 className="mb-4 text-lg font-semibold xs:text-xl">User Behavior Analytics</h2>
         <UserBehaviorDashboard />
       </div>
     </div>

@@ -32,28 +32,30 @@ pub async fn check_compliance(req: web::Json<CheckRequest>) -> impl Responder {
     // Delegate to service (business logic)
     match service.check_compliance(req.into_inner()).await {
         Ok(result) => HttpResponse::Ok().json(result),
-        Err(e) => {
-            // HTTP layer handles response mapping only
-            match e {
-                ComplianceError::InvalidAmount(msg) => {
-                    HttpResponse::BadRequest().json(serde_json::json!({
-                        "error": "Invalid request",
-                        "message": msg
-                    }))
-                }
-                ComplianceError::ValidationError(msg) => {
-                    HttpResponse::BadRequest().json(serde_json::json!({
-                        "error": "Validation error",
-                        "message": msg
-                    }))
-                }
-                ComplianceError::CheckFailed(msg) => {
-                    HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Compliance check failed",
-                        "message": msg
-                    }))
-                }
-            }
+        Err(e) => map_compliance_error(e),
+    }
+}
+
+/// Map a domain error to an HTTP response (controller responsibility only).
+fn map_compliance_error(e: ComplianceError) -> HttpResponse {
+    match e {
+        ComplianceError::InvalidAmount(msg) => {
+            HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Invalid request",
+                "message": msg
+            }))
+        }
+        ComplianceError::ValidationError(msg) => {
+            HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Validation error",
+                "message": msg
+            }))
+        }
+        ComplianceError::CheckFailed(msg) => {
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Compliance check failed",
+                "message": msg
+            }))
         }
     }
 }
@@ -93,4 +95,75 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/status/{id}", web::get().to(get_compliance_status))
             .route("/health", web::get().to(health_check))
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, App};
+
+    #[actix_web::test]
+    async fn health_check_returns_ok() {
+        let app = test::init_service(
+            App::new().configure(configure)
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri("/api/compliance/health")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+    }
+
+    #[actix_web::test]
+    async fn check_compliance_rejects_invalid_request() {
+        let app = test::init_service(
+            App::new().configure(configure)
+        )
+        .await;
+
+        // Empty/invalid body should be rejected at the HTTP layer (400).
+        let req = test::TestRequest::post()
+            .uri("/api/compliance/check")
+            .set_json(serde_json::json!({}))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn get_status_unknown_id_returns_not_found() {
+        let app = test::init_service(
+            App::new().configure(configure)
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri("/api/compliance/status/does-not-exist")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn map_invalid_amount_is_bad_request() {
+        let resp = map_compliance_error(ComplianceError::InvalidAmount("bad".into()));
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn map_validation_error_is_bad_request() {
+        let resp = map_compliance_error(ComplianceError::ValidationError("bad".into()));
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn map_check_failed_is_internal_server_error() {
+        let resp = map_compliance_error(ComplianceError::CheckFailed("boom".into()));
+        assert_eq!(
+            resp.status(),
+            actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
 }

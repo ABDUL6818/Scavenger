@@ -62,7 +62,7 @@ function LevelCard({ level }: { level: Level }) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Star className="h-4 w-4 text-yellow-500" />
+          <Star className="h-4 w-4 text-warning" />
           Level {level.level} — {level.title}
         </CardTitle>
       </CardHeader>
@@ -73,7 +73,7 @@ function LevelCard({ level }: { level: Level }) {
         </div>
         <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-yellow-500 transition-all duration-700"
+            className="h-full rounded-full bg-warning transition-all duration-700"
             style={{ width: `${level.progressPct}%` }}
           />
         </div>
@@ -92,19 +92,19 @@ function BadgeGrid({ badges }: { badges: BadgeType[] }) {
         <CardTitle className="text-base">Badges</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 xs:grid-cols-3 xs:gap-3 tablet:grid-cols-5">
           {badges.map((b) => (
             <div
               key={b.id}
               title={b.description}
               className={cn(
-                'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-opacity',
-                b.earned ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20' : 'opacity-40'
+                'flex min-w-0 flex-col items-center gap-1 rounded-lg border p-2 text-center transition-opacity xs:p-3',
+                b.earned ? 'border-warning bg-warning/10' : 'opacity-40'
               )}
             >
               <span className="text-2xl">{b.icon}</span>
-              <span className="text-xs font-medium leading-tight">{b.name}</span>
-              {b.earned && <Badge variant="default" className="text-[10px] px-1 py-0">Earned</Badge>}
+              <span className="break-words text-xs font-medium leading-tight">{b.name}</span>
+              {b.earned && <Badge variant="default" className="px-1 py-0 text-[10px]">Earned</Badge>}
             </div>
           ))}
         </div>
@@ -117,17 +117,17 @@ function BadgeGrid({ badges }: { badges: BadgeType[] }) {
 
 function ChallengeRow({ challenge }: { challenge: Challenge }) {
   return (
-    <div className="space-y-1 rounded-md border px-4 py-3">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{challenge.title}</span>
-        <Badge variant={challenge.completed ? 'default' : 'secondary'} className="text-xs">
+    <div className="space-y-1 rounded-md border px-3 py-3 xs:px-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span className="min-w-0 break-words font-medium">{challenge.title}</span>
+        <Badge variant={challenge.completed ? 'default' : 'secondary'} className="shrink-0 text-xs">
           {challenge.completed ? '✓ Done' : `${challenge.current}/${challenge.target}`}
         </Badge>
       </div>
       <p className="text-xs text-muted-foreground">{challenge.description}</p>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className={cn('h-full rounded-full transition-all', challenge.completed ? 'bg-green-500' : 'bg-primary')}
+          className={cn('h-full rounded-full transition-all', challenge.completed ? 'bg-success' : 'bg-primary')}
           style={{ width: `${challenge.progressPct}%` }}
         />
       </div>
@@ -143,21 +143,21 @@ function LeaderboardSection({ entries }: { entries: LeaderboardEntry[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Trophy className="h-4 w-4 text-yellow-500" /> Leaderboard
+          <Trophy className="h-4 w-4 text-warning" /> Leaderboard
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {entries.map((e) => (
           <div
             key={e.address}
-            className="flex items-center justify-between rounded-md border px-4 py-2 text-sm"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm xs:px-4"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span>{MEDALS[e.rank - 1] ?? `#${e.rank}`}</span>
-              <span className="font-medium">{e.displayName}</span>
-              <Badge variant="outline" className="text-xs">Lv {e.level}</Badge>
+              <span className="truncate font-medium">{e.displayName}</span>
+              <Badge variant="outline" className="shrink-0 text-xs">Lv {e.level}</Badge>
             </div>
-            <span className="font-bold">{e.xp.toLocaleString()} XP</span>
+            <span className="shrink-0 font-bold">{e.xp.toLocaleString()} XP</span>
           </div>
         ))}
       </CardContent>
@@ -176,7 +176,7 @@ function NewBadgeToast({ badges, onDismiss }: { badges: BadgeType[]; onDismiss: 
 
   if (badges.length === 0) return null
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+    <div className="fixed inset-x-4 bottom-4 z-50 flex flex-col gap-2 xs:inset-x-auto xs:bottom-6 xs:right-6">
       {badges.map((b) => (
         <div
           key={b.id}
@@ -217,11 +217,11 @@ export function GamificationPage() {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6 sm:px-0 sm:py-0">
+    <div className="space-y-6 px-3 py-6 xs:px-4 tablet:px-0 tablet:py-0">
       {/* Confetti canvas */}
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-40" />
 
-      <h1 className="text-xl font-bold sm:text-2xl">Achievements</h1>
+      <h1 className="text-xl font-bold xs:text-2xl">Achievements</h1>
 
       {/* Level */}
       <LevelCard level={level} />
@@ -233,7 +233,7 @@ export function GamificationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Zap className="h-4 w-4 text-orange-500" /> Daily Challenges
+            <Zap className="h-4 w-4 text-warning" /> Daily Challenges
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -244,7 +244,7 @@ export function GamificationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Calendar className="h-4 w-4 text-blue-500" /> Weekly Challenges
+            <Calendar className="h-4 w-4 text-info" /> Weekly Challenges
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">

@@ -38,7 +38,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
 
   return (
     <section>
-      <label className="block text-sm font-medium mb-2">
+      <label className="mb-2 block text-sm font-medium">
         Material Type <span className="text-destructive">*</span>
       </label>
       <Controller
@@ -50,39 +50,39 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
               type="button"
               onClick={() => setMaterialDropdownOpen(!materialDropdownOpen)}
               className={cn(
-                'flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-2 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 xs:px-3',
                 !selectedOption && 'text-muted-foreground'
               )}
               aria-label="Select material type"
               aria-expanded={materialDropdownOpen}
               aria-haspopup="listbox"
             >
-              <span className="flex items-center gap-2">
+              <span className="flex min-w-0 items-center gap-2">
                 {selectedOption ? (
                   <>
-                    <selectedOption.icon className="h-4 w-4" />
-                    {selectedOption.label}
+                    <selectedOption.icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{selectedOption.label}</span>
                   </>
                 ) : (
-                  'Select material type'
+                  <span className="truncate">Select material type</span>
                 )}
               </span>
-              <ChevronDown className="h-4 w-4 opacity-50" />
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
             </button>
             {materialDropdownOpen && (
-              <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-                <div className="flex items-center border-b px-3">
-                  <Search className="h-4 w-4 text-muted-foreground" />
+              <div className="absolute z-50 mt-1 w-full min-w-0 rounded-md border bg-popover shadow-md">
+                <div className="flex items-center border-b px-2 xs:px-3">
+                  <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <input
                     type="text"
                     placeholder="Search materials..."
                     value={materialSearch}
                     onChange={(e) => setMaterialSearch(e.target.value)}
-                    className="flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                    className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
                     aria-label="Search materials"
                   />
                 </div>
-                <ul role="listbox" className="max-h-48 overflow-y-auto p-1">
+                <ul role="listbox" className="max-h-48 overflow-y-auto p-1 xs:max-h-56 tablet:max-h-64">
                   {filteredMaterials.length === 0 ? (
                     <li className="px-3 py-2 text-sm text-muted-foreground">No materials found</li>
                   ) : (
@@ -99,12 +99,12 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                             setMaterialSearch('')
                           }}
                           className={cn(
-                            'flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent',
+                            'flex cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm hover:bg-accent xs:px-3',
                             field.value === opt.value && 'bg-accent'
                           )}
                         >
-                          <Icon className="h-4 w-4" />
-                          {opt.label}
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{opt.label}</span>
                         </li>
                       )
                     })

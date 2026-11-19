@@ -1,18 +1,16 @@
-use crate::search::{build_search_query, format_search_response, SearchClient};
+use crate::search::service::{SearchService, SearchServiceError};
 use actix_web::{web, HttpResponse, Result};
-use elasticsearch::SearchParts;
 use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
 
-/// Search API handlers.
+/// Search API handlers (controller layer).
 ///
-/// #1088: query-building (`crate::search::build_search_query`) and
-/// result-formatting (`crate::search::format_search_response`) live in
-/// `search/request.rs` and `search/response.rs` respectively, so both can be
-/// unit tested without an HTTP request or a live Elasticsearch cluster. This
-/// file is now just the glue: parse params, build the query, execute it,
-/// format the response.
+/// #1697: this module is now a thin controller. It parses/validates request
+/// parameters and shapes HTTP responses; all business logic lives in
+/// `crate::search::service::SearchService` and data access in
+/// `crate::search::repository::SearchRepository`. Route paths, response
+/// schemas and error codes are unchanged.
 const SEARCHABLE_FIELDS: &[&str] = &["title", "description", "content"];
 
 #[derive(Debug, Deserialize)]
@@ -30,38 +28,34 @@ fn default_size() -> usize {
     20
 }
 
+/// Map a service error onto the HTTP error code used previously.
+fn map_service_error(err: SearchServiceError) -> actix_web::Error {
+    match err {
+        SearchServiceError::Backend(_) => actix_web::error::ErrorInternalServerError(err),
+    }
+}
+
 /// Perform a search query.
-pub async fn search(client: web::Data<Arc<SearchClient>>, params: web::Query<SearchParams>) -> Result<HttpResponse> {
+pub async fn search(
+    service: web::Data<Arc<SearchService>>,
+    params: web::Query<SearchParams>,
+) -> Result<HttpResponse> {
     let fields: Vec<String> = SEARCHABLE_FIELDS.iter().map(|f| f.to_string()).collect();
-    let query_body = build_search_query(&params.q, params.from, params.size, &fields, &params.filters);
 
-    let start = std::time::Instant::now();
-
-    let es_response = client
-        .client()
-        .search(SearchParts::None)
-        .body(query_body)
-        .send()
+    let response = service
+        .search(&params.q, params.from, params.size, &fields, &params.filters)
         .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-    let es_body: serde_json::Value = es_response
-        .json()
-        .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-    let took_ms = start.elapsed().as_millis() as u64;
-    let response = format_search_response(&es_body, took_ms);
+        .map_err(map_service_error)?;
 
     Ok(HttpResponse::Ok().json(response))
 }
 
 /// Get search suggestions/autocomplete
 pub async fn suggest(
-    _client: web::Data<Arc<SearchClient>>,
+    service: web::Data<Arc<SearchService>>,
     _params: web::Query<SearchParams>,
 ) -> Result<HttpResponse> {
-    let suggestions = vec!["waste type A", "waste type B", "participant name"];
+    let suggestions = service.suggest();
 
     Ok(HttpResponse::Ok().json(json!({
         "suggestions": suggestions
@@ -78,4 +72,53 @@ pub async fn get_search_config() -> Result<HttpResponse> {
         "available_facets": ["status", "type", "created_date"],
         "searchable_fields": ["title", "description", "content", "tags"]
     })))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::search::service::SearchService;
+    use crate::search::SearchClient;
+    use actix_web::{test, App};
+    use std::sync::Arc;
+
+    fn test_client() -> Arc<SearchClient> {
+        Arc::new(SearchClient::new("http://localhost:9200").expect("client"))
+    }
+
+    #[actix_web::test]
+    async fn suggest_returns_suggestions() {
+        let service = Arc::new(SearchService::new(test_client()));
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(service))
+                .route("/search/suggest", web::get().to(suggest)),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri("/search/suggest?q=waste")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert!(body["suggestions"].is_array());
+    }
+
+    #[actix_web::test]
+    async fn config_returns_expected_shape() {
+        let app = test::init_service(
+            App::new().route("/search/config", web::get().to(get_search_config)),
+        )
+        .await;
+
+        let req = test::TestRequest::get().uri("/search/config").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["default_page_size"], 20);
+        assert_eq!(body["max_page_size"], 100);
+    }
 }

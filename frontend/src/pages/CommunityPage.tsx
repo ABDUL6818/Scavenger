@@ -43,17 +43,17 @@ export function CommunityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Community Hub</h1>
+        <h1 className="text-2xl font-bold xs:text-3xl">Community Hub</h1>
         <p className="mt-1 text-muted-foreground">
           Connect with fellow recyclers and track your impact
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-6 tablet:grid-cols-3">
+        <Card className="tablet:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-yellow-500" />
+              <Trophy className="h-5 w-5 text-warning" />
               Leaderboard
             </CardTitle>
           </CardHeader>
@@ -101,7 +101,7 @@ export function CommunityPage() {
                     >
                       <Icon className="h-5 w-5" />
                     </div>
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <div className="font-medium">{achievement.title}</div>
                       <div className="text-xs text-muted-foreground">{achievement.description}</div>
                     </div>
@@ -113,22 +113,22 @@ export function CommunityPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 xs:grid-cols-1 tablet:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Community Stats</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm text-muted-foreground">Total Members</span>
                 <span className="text-xl font-bold">1,247</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm text-muted-foreground">Active Today</span>
                 <span className="text-xl font-bold">342</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm text-muted-foreground">Items Recycled</span>
                 <span className="text-xl font-bold">45.2K</span>
               </div>
@@ -160,14 +160,14 @@ export function CommunityPage() {
           <CardContent>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <Trophy className="h-8 w-8 text-yellow-500" />
-                <div>
+                <Trophy className="h-8 w-8 shrink-0 text-warning" />
+                <div className="min-w-0">
                   <div className="font-medium">Top 100</div>
                   <div className="text-xs text-muted-foreground">850 points to go</div>
                 </div>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full w-[65%] bg-yellow-500" />
+                <div className="h-full w-[65%] bg-warning" />
               </div>
             </div>
           </CardContent>
@@ -176,7 +176,7 @@ export function CommunityPage() {
 
       {/* Contributor Recognition Program */}
       <div>
-        <h2 className="mb-4 text-xl font-semibold">Contributor Recognition Program</h2>
+        <h2 className="mb-4 text-lg font-semibold xs:text-xl">Contributor Recognition Program</h2>
         <ContributorRecognition />
       </div>
     </div>

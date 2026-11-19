@@ -78,7 +78,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
         <CardHeader>
           <CardTitle>Submit Waste</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 xs:space-y-5 sm:space-y-6">
           <WasteSubmissionFields
             control={control}
             register={register}
@@ -98,15 +98,19 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
           {submitError && (
             <p className="text-sm text-destructive" role="alert">{submitError}</p>
           )}
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+          <div className="flex flex-col gap-2 pt-2 xs:flex-row xs:gap-3 tablet:gap-4">
+            <Button type="button" variant="outline" onClick={onCancel} className="w-full xs:flex-1">
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={submitState === 'loading' || isUploading}>
+            <Button
+              type="submit"
+              className="w-full xs:flex-1"
+              disabled={submitState === 'loading' || isUploading}
+            >
               {submitState === 'loading' ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Submitting...</>
               ) : isUploading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uploading photos...</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Uploading photos...</>
               ) : (
                 'Submit Waste'
               )}

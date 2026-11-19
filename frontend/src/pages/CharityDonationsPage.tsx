@@ -32,20 +32,25 @@ function CharityCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <CardTitle className="text-base">{charity.name}</CardTitle>
+        <div className="flex flex-col gap-2 xs:flex-row xs:items-start xs:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="break-words text-base">{charity.name}</CardTitle>
             <Badge variant="secondary" className="mt-1 text-xs">
               {charity.category}
             </Badge>
           </div>
-          <Button size="sm" variant="outline" onClick={() => onProfile(charity)}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full xs:w-auto"
+            onClick={() => onProfile(charity)}
+          >
             Profile
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">{charity.description}</p>
+        <p className="break-words text-sm text-muted-foreground">{charity.description}</p>
         <Button size="sm" className="w-full" onClick={() => onDonate(charity)}>
           <Heart className="mr-1 h-3 w-3" /> Donate
         </Button>
@@ -70,11 +75,11 @@ function CharityProfileDialog({
     <Dialog open={!!charity} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{charity.name}</DialogTitle>
+          <DialogTitle className="break-words">{charity.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2 text-sm">
           <Badge variant="secondary">{charity.category}</Badge>
-          <p className="text-muted-foreground">{charity.description}</p>
+          <p className="break-words text-muted-foreground">{charity.description}</p>
           <div>
             <span className="font-medium">Contract Address: </span>
             <span className="break-all text-xs text-muted-foreground">{charity.address}</span>
@@ -84,17 +89,18 @@ function CharityProfileDialog({
               href={charity.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-primary hover:underline"
+              className="flex items-center gap-1 break-all text-primary hover:underline"
             >
-              <ExternalLink className="h-3 w-3" /> {charity.website}
+              <ExternalLink className="h-3 w-3 shrink-0" /> {charity.website}
             </a>
           )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="flex-col gap-2 xs:flex-row">
+          <Button variant="outline" className="w-full xs:w-auto" onClick={onClose}>
             Close
           </Button>
           <Button
+            className="w-full xs:w-auto"
             onClick={() => {
               onClose()
               onDonate(charity)
@@ -141,7 +147,7 @@ function DonateDialog({
       <Dialog open={!!charity && !showConfirm} onOpenChange={(v) => !v && onClose()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Donate to {charity.name}</DialogTitle>
+            <DialogTitle className="break-words">Donate to {charity.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
@@ -152,7 +158,7 @@ function DonateDialog({
               <input
                 type="number"
                 min="1"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 placeholder="Enter amount"
                 value={amountStr}
                 onChange={(e) => setAmountStr(e.target.value.replace(/\D/g, ''))}
@@ -164,11 +170,15 @@ function DonateDialog({
               )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
+          <DialogFooter className="flex-col gap-2 xs:flex-row">
+            <Button variant="outline" className="w-full xs:w-auto" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={invalid || !amountStr}>
+            <Button
+              className="w-full xs:w-auto"
+              onClick={handleSubmit}
+              disabled={invalid || !amountStr}
+            >
               Review
             </Button>
           </DialogFooter>
@@ -197,13 +207,20 @@ function HistoryRow({
   onDownload: (d: CharityDonation) => void
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-md border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{donation.charityName}</span>
+    <div className="flex flex-col gap-2 rounded-md border px-3 py-3 text-sm xs:px-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="break-words font-medium">{donation.charityName}</span>
         <Badge variant="outline">{formatTokenAmount(donation.tokenAmount)} tokens</Badge>
-        <span className="text-xs text-muted-foreground">{formatDate(donation.timestamp / 1000)}</span>
+        <span className="text-xs text-muted-foreground">
+          {formatDate(donation.timestamp / 1000)}
+        </span>
       </div>
-      <Button size="sm" variant="outline" onClick={() => onDownload(donation)}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full sm:w-auto"
+        onClick={() => onDownload(donation)}
+      >
         <Download className="mr-1 h-3 w-3" /> Receipt
       </Button>
     </div>
@@ -224,7 +241,7 @@ export function CharityDonationsPage() {
 
   if (!address) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
+      <div className="flex h-64 items-center justify-center px-4 text-center text-muted-foreground">
         Connect your wallet to donate to charities.
       </div>
     )
@@ -237,26 +254,28 @@ export function CharityDonationsPage() {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6 sm:px-0 sm:py-0">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Charity Donations</h1>
+    <div className="space-y-6 px-3 py-6 xs:px-4 sm:px-0 sm:py-0">
+      <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words text-xl font-bold xs:text-2xl">Charity Donations</h1>
           <p className="text-sm text-muted-foreground">
             Total donated: <strong>{formatTokenAmount(totalDonated)}</strong> tokens
           </p>
         </div>
       </div>
 
-      {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
+      {error && <p className="break-words text-sm text-destructive">{(error as Error).message}</p>}
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border p-1 w-fit">
+      <div className="flex w-full gap-1 rounded-lg border p-1 xs:w-fit">
         {(['charities', 'history'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-md px-3 py-1.5 text-sm capitalize transition-colors ${
-              tab === t ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+            className={`flex-1 rounded-md px-3 py-1.5 text-sm capitalize transition-colors xs:flex-none ${
+              tab === t
+                ? 'bg-primary text-primary-foreground'
+                : 'text-foreground hover:bg-muted'
             }`}
           >
             {t}
@@ -265,7 +284,7 @@ export function CharityDonationsPage() {
       </div>
 
       {tab === 'charities' && (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 xs:grid-cols-1 sm:grid-cols-2 tablet:grid-cols-3">
           {charities.map((c) => (
             <CharityCard
               key={c.id}
@@ -301,7 +320,10 @@ export function CharityDonationsPage() {
       <CharityProfileDialog
         charity={profileTarget}
         onClose={() => setProfileTarget(null)}
-        onDonate={(c) => { setProfileTarget(null); setDonateTarget(c) }}
+        onDonate={(c) => {
+          setProfileTarget(null)
+          setDonateTarget(c)
+        }}
       />
 
       <DonateDialog

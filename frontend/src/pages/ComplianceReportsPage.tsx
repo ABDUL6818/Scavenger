@@ -243,7 +243,7 @@ This is a generated compliance report.`
               {/* Date range */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date Range</label>
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3 xs:flex-row">
                   <div className="flex-1">
                     <label className="text-xs text-muted-foreground">Start</label>
                     <Input
@@ -327,7 +327,7 @@ This is a generated compliance report.`
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 xs:flex-row">
                 <Button onClick={handleGenerate} disabled={!selectedTemplate}>
                   <Eye className="h-4 w-4 mr-1" />
                   Preview
@@ -378,15 +378,15 @@ This is a generated compliance report.`
                     </div>
                     <div className="flex justify-between border-b pb-1">
                       <span className="text-muted-foreground">Compliance Rate</span>
-                      <span className="font-medium text-green-600 tabular-nums">98.3%</span>
+                      <span className="font-medium text-success tabular-nums">98.3%</span>
                     </div>
                     <div className="flex justify-between border-b pb-1">
                       <span className="text-muted-foreground">Pending Items</span>
-                      <span className="font-medium text-yellow-600 tabular-nums">23</span>
+                      <span className="font-medium text-warning tabular-nums">23</span>
                     </div>
                     <div className="flex justify-between pb-1">
                       <span className="text-muted-foreground">Violations</span>
-                      <span className="font-medium text-red-600 tabular-nums">4</span>
+                      <span className="font-medium text-destructive tabular-nums">4</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -443,18 +443,18 @@ function HistoryTab() {
       ) : (
         <div className="divide-y divide-border rounded-lg border">
           {filtered.map(report => (
-            <div key={report.id} className="flex items-center justify-between px-4 py-3">
+            <div key={report.id} className="flex flex-col gap-2 px-4 py-3 xs:flex-row xs:items-center xs:justify-between">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-medium truncate">{report.name}</p>
                   <Badge
                     variant="outline"
                     className={
                       report.status === 'completed'
-                        ? 'text-green-600 border-green-200 bg-green-50'
+                        ? 'text-success border-success/30 bg-success/10'
                         : report.status === 'failed'
-                        ? 'text-red-600 border-red-200 bg-red-50'
-                        : 'text-yellow-600 border-yellow-200 bg-yellow-50'
+                        ? 'text-destructive border-destructive/30 bg-destructive/10'
+                        : 'text-warning border-warning/30 bg-warning/10'
                     }
                   >
                     {report.status === 'completed' && <CheckCircle2 className="h-3 w-3 mr-1" />}
@@ -467,7 +467,7 @@ function HistoryTab() {
                   {report.template} · {report.format.toUpperCase()} · {new Date(report.createdAt).toLocaleString()}
                 </p>
               </div>
-              <div className="flex gap-2 ml-3">
+              <div className="flex gap-2 xs:ml-3">
                 {report.fileUrl && (
                   <Button variant="ghost" size="sm" asChild>
                     <a href={report.fileUrl} download>
@@ -514,7 +514,7 @@ function SchedulingTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 xs:flex-row xs:items-center xs:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Scheduled Reports</h2>
           <p className="text-sm text-muted-foreground">Automated report generation and delivery</p>
@@ -597,9 +597,9 @@ function SchedulingTab() {
       {scheduled && scheduled.length > 0 ? (
         <div className="divide-y divide-border rounded-lg border">
           {scheduled.map(item => (
-            <div key={item.id} className="flex items-center justify-between px-4 py-3">
+            <div key={item.id} className="flex flex-col gap-2 px-4 py-3 xs:flex-row xs:items-center xs:justify-between">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-medium">{item.name}</p>
                   <Badge variant={item.active ? 'default' : 'outline'}>
                     {item.active ? 'Active' : 'Paused'}
@@ -609,7 +609,7 @@ function SchedulingTab() {
                   {item.schedule.charAt(0).toUpperCase() + item.schedule.slice(1)} · Next: {new Date(item.nextRun).toLocaleString()} · {item.recipients.length} recipient(s)
                 </p>
               </div>
-              <div className="flex items-center gap-2 ml-3">
+              <div className="flex items-center gap-2 xs:ml-3">
                 <Button variant="ghost" size="sm">
                   <Settings className="h-3.5 w-3.5" />
                 </Button>
@@ -642,10 +642,10 @@ export function ComplianceReportsPage() {
   ]
 
   return (
-    <div className="space-y-6 px-4 py-6 sm:space-y-8 sm:py-8">
+    <div className="space-y-6 px-3 py-6 xs:px-4 sm:space-y-8 sm:py-8">
       <div className="flex items-center gap-3">
-        <FileText className="h-6 w-6 text-primary" />
-        <div>
+        <FileText className="h-6 w-6 shrink-0 text-primary" />
+        <div className="min-w-0">
           <h1 className="text-xl font-bold sm:text-2xl">Compliance Reports</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Generate, view, and schedule compliance reports
@@ -664,14 +664,14 @@ export function ComplianceReportsPage() {
             role="tab"
             aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xs:flex-none xs:justify-start xs:px-3 ${
               activeTab === tab.id
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab.icon}
-            {tab.label}
+            <span className="truncate">{tab.label}</span>
           </button>
         ))}
       </div>

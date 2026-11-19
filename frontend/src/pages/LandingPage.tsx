@@ -35,12 +35,12 @@ export function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* Nav */}
-      <header className="flex h-14 items-center justify-between border-b px-6">
-        <div className="flex items-center gap-2 font-bold">
-          <Recycle className="h-5 w-5 text-primary" aria-hidden="true" />
-          Scavngr
+      <header className="flex h-14 items-center justify-between gap-2 border-b px-4 xs:px-6">
+        <div className="flex min-w-0 items-center gap-2 font-bold">
+          <Recycle className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+          <span className="truncate">Scavngr</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle />
           <Button asChild size="sm">
             <Link to="/dashboard">Launch App</Link>
@@ -50,15 +50,15 @@ export function LandingPage() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 py-24 text-center">
-          <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+        <section className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 py-16 text-center xs:px-6 xs:py-24">
+          <h1 className="text-3xl font-extrabold leading-tight tracking-tight xs:text-4xl tablet:text-5xl">
             Recycling, rewarded on-chain.
           </h1>
-          <p className="max-w-xl text-lg text-muted-foreground">
+          <p className="max-w-xl text-base text-muted-foreground xs:text-lg">
             Scavngr connects recyclers, collectors, and manufacturers in a transparent supply chain
             powered by Stellar Soroban smart contracts.
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex w-full flex-col justify-center gap-3 xs:w-auto xs:flex-row xs:flex-wrap">
             <Button asChild size="lg">
               <Link to="/dashboard">Get Started</Link>
             </Button>
@@ -71,10 +71,10 @@ export function LandingPage() {
         </section>
 
         {/* How it works */}
-        <section className="border-t bg-muted/40 px-6 py-20">
+        <section className="border-t bg-muted/40 px-4 py-16 xs:px-6 xs:py-20">
           <div className="mx-auto max-w-4xl">
             <h2 className="mb-12 text-center text-2xl font-bold">How it works</h2>
-            <div className="grid gap-8 sm:grid-cols-3">
+            <div className="grid gap-8 xs:grid-cols-1 tablet:grid-cols-3">
               {STEPS.map((step, i) => (
                 <div key={step.title} className="flex flex-col items-center gap-3 text-center">
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
@@ -92,10 +92,10 @@ export function LandingPage() {
         </section>
 
         {/* Live stats */}
-        <section className="px-6 py-20">
+        <section className="px-4 py-16 xs:px-6 xs:py-20">
           <div className="mx-auto max-w-3xl">
             <h2 className="mb-10 text-center text-2xl font-bold">Live stats</h2>
-            <div className="grid gap-6 sm:grid-cols-3">
+            <div className="grid gap-6 xs:grid-cols-1 tablet:grid-cols-3">
               {[
                 { label: 'Waste Items', value: isLoading ? '—' : totalWastes.toString() },
                 { label: 'Total Weight (kg)', value: isLoading ? '—' : totalWeight.toString() },
@@ -103,9 +103,9 @@ export function LandingPage() {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-lg border bg-card p-6 text-center shadow-sm"
+                  className="rounded-lg border border-border bg-card p-6 text-center shadow-sm"
                 >
-                  <p className="text-3xl font-extrabold text-primary">{stat.value}</p>
+                  <p className="text-2xl font-extrabold text-primary xs:text-3xl">{stat.value}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
                 </div>
               ))}
@@ -115,13 +115,13 @@ export function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t px-6 py-8">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
+      <footer className="border-t px-4 py-8 xs:px-6">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 tablet:flex-row tablet:justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Recycle className="h-4 w-4 text-primary" aria-hidden="true" />
             Scavngr
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             {FOOTER_LINKS.map(({ label, href }) => (
               <a
                 key={label}
@@ -134,7 +134,7 @@ export function LandingPage() {
               </a>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             © {new Date().getFullYear()} Scavngr. MIT License.
           </p>
         </div>

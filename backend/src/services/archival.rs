@@ -158,25 +158,116 @@ impl ContractState for InMemoryContractState {
     }
 }
 
+/// Repository abstraction for archival data access. Route handlers no longer
+/// touch storage directly; they go through the service, which uses this
+/// repository to load and persist records.
+pub trait ArchivalRepository: Send + Sync {
+    /// Fetch records eligible for archival according to the query.
+    fn find_eligible(&self, query: &ArchiveQuery) -> Result<Vec<ArchiveRecord>, String>;
+    /// Persist the final status of an archival job.
+    fn save_job(&self, job: &ArchiveJob) -> Result<(), String>;
+    /// Load a previously persisted job by id.
+    fn find_job(&self, job_id: &str) -> Result<Option<ArchiveJob>, String>;
+}
+
+/// In-memory repository implementation used by the service and tests.
+#[derive(Default)]
+pub struct InMemoryArchivalRepository {
+    records: Mutex<Vec<ArchiveRecord>>,
+    jobs: Mutex<HashMap<String, ArchiveJob>>,
+}
+
+impl InMemoryArchivalRepository {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Seed the repository with records eligible for archival.
+    pub fn with_records(records: Vec<ArchiveRecord>) -> Self {
+        Self {
+            records: Mutex::new(records),
+            jobs: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn job_count(&self) -> usize {
+        self.jobs.lock().unwrap().len()
+    }
+}
+
+impl ArchivalRepository for InMemoryArchivalRepository {
+    fn find_eligible(&self, query: &ArchiveQuery) -> Result<Vec<ArchiveRecord>, String> {
+        let records = self.records.lock().unwrap();
+        Ok(records
+            .iter()
+            .filter(|r| r.tier == query.tier)
+            .cloned()
+            .collect())
+    }
+
+    fn save_job(&self, job: &ArchiveJob) -> Result<(), String> {
+        self.jobs
+            .lock()
+            .unwrap()
+            .insert(job.id.clone(), job.clone());
+        Ok(())
+    }
+
+    fn find_job(&self, job_id: &str) -> Result<Option<ArchiveJob>, String> {
+        Ok(self.jobs.lock().unwrap().get(job_id).cloned())
+    }
+}
+
 /// The archival service coordinates storage writes with contract state
-/// updates, rolling back storage when the contract update fails.
+/// updates, rolling back storage when the contract update fails. It also
+/// owns the business logic previously embedded in the archival route
+/// handlers, delegating data access to an [`ArchivalRepository`].
 pub struct ArchivalService {
     storage: Arc<dyn ArchivalStorage>,
     contract: Arc<dyn ContractState>,
+    repository: Arc<dyn ArchivalRepository>,
     stats: Mutex<ArchiveStats>,
 }
 
 impl ArchivalService {
     pub fn new(storage: Arc<dyn ArchivalStorage>, contract: Arc<dyn ContractState>) -> Self {
+        Self::with_repository(
+            storage,
+            contract,
+            Arc::new(InMemoryArchivalRepository::new()),
+        )
+    }
+
+    pub fn with_repository(
+        storage: Arc<dyn ArchivalStorage>,
+        contract: Arc<dyn ContractState>,
+        repository: Arc<dyn ArchivalRepository>,
+    ) -> Self {
         Self {
             storage,
             contract,
+            repository,
             stats: Mutex::new(ArchiveStats::default()),
         }
     }
 
     pub fn stats(&self) -> ArchiveStats {
         self.stats.lock().unwrap().clone()
+    }
+
+    /// Business logic for the "create archival job" route handler: select
+    /// eligible records via the repository, archive them, and persist the
+    /// resulting job.
+    pub fn create_job(&self, job_id: &str, query: &ArchiveQuery) -> Result<ArchiveJob, String> {
+        let records = self.repository.find_eligible(query)?;
+        let job = self.archive(job_id, &records);
+        self.repository.save_job(&job)?;
+        Ok(job)
+    }
+
+    /// Business logic for the "get archival job" route handler.
+    pub fn get_job(&self, job_id: &str) -> Result<Option<ArchiveJob>, String> {
+        self.repository.find_job(job_id)
     }
 
     /// Archive a single record. If the contract state update fails after the
@@ -349,5 +440,144 @@ mod tests {
         assert!(!storage.contains("b1"));
         assert!(storage.contains("b2"));
         assert!(contract.is_archived("b2"));
+    }
+
+    /// Mock repository that records calls and can be configured to fail.
+    struct MockRepository {
+        eligible: Vec<ArchiveRecord>,
+        fail_find: bool,
+        fail_save: bool,
+        saved: Mutex<Vec<ArchiveJob>>,
+    }
+
+    impl MockRepository {
+        fn new(eligible: Vec<ArchiveRecord>) -> Self {
+            Self {
+                eligible,
+                fail_find: false,
+                fail_save: false,
+                saved: Mutex::new(Vec::new()),
+            }
+        }
+    }
+
+    impl ArchivalRepository for MockRepository {
+        fn find_eligible(&self, _query: &ArchiveQuery) -> Result<Vec<ArchiveRecord>, String> {
+            if self.fail_find {
+                return Err("repository unavailable".to_string());
+            }
+            Ok(self.eligible.clone())
+        }
+
+        fn save_job(&self, job: &ArchiveJob) -> Result<(), String> {
+            if self.fail_save {
+                return Err("save failed".to_string());
+            }
+            self.saved.lock().unwrap().push(job.clone());
+            Ok(())
+        }
+
+        fn find_job(&self, job_id: &str) -> Result<Option<ArchiveJob>, String> {
+            Ok(self
+                .saved
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|j| j.id == job_id)
+                .cloned())
+        }
+    }
+
+    #[test]
+    fn create_job_uses_repository_and_persists_job() {
+        let storage = Arc::new(InMemoryArchivalStorage::new());
+        let contract = Arc::new(InMemoryContractState::new());
+        let repo = Arc::new(MockRepository::new(vec![record("m1"), record("m2")]));
+        let service =
+            ArchivalService::with_repository(storage.clone(), contract.clone(), repo.clone());
+
+        let query = ArchiveQuery {
+            older_than_days: 30,
+            tier: StorageTier::Cold,
+        };
+        let job = service.create_job("job-m", &query).unwrap();
+        assert_eq!(job.status, ArchiveStatus::Completed);
+        assert!(storage.contains("m1"));
+        assert!(storage.contains("m2"));
+        assert!(contract.is_archived("m1"));
+        assert_eq!(repo.saved.lock().unwrap().len(), 1);
+        assert_eq!(service.stats().archived, 2);
+    }
+
+    #[test]
+    fn create_job_propagates_repository_find_error() {
+        let storage = Arc::new(InMemoryArchivalStorage::new());
+        let contract = Arc::new(InMemoryContractState::new());
+        let mut mock = MockRepository::new(vec![]);
+        mock.fail_find = true;
+        let service = ArchivalService::with_repository(storage, contract, Arc::new(mock));
+
+        let query = ArchiveQuery {
+            older_than_days: 1,
+            tier: StorageTier::Cold,
+        };
+        let err = service.create_job("job-err", &query).unwrap_err();
+        assert!(err.contains("repository unavailable"));
+    }
+
+    #[test]
+    fn create_job_propagates_repository_save_error() {
+        let storage = Arc::new(InMemoryArchivalStorage::new());
+        let contract = Arc::new(InMemoryContractState::new());
+        let mut mock = MockRepository::new(vec![record("m3")]);
+        mock.fail_save = true;
+        let service = ArchivalService::with_repository(storage, contract, Arc::new(mock));
+
+        let query = ArchiveQuery {
+            older_than_days: 1,
+            tier: StorageTier::Cold,
+        };
+        let err = service.create_job("job-save", &query).unwrap_err();
+        assert!(err.contains("save failed"));
+    }
+
+    #[test]
+    fn get_job_returns_persisted_job() {
+        let storage = Arc::new(InMemoryArchivalStorage::new());
+        let contract = Arc::new(InMemoryContractState::new());
+        let repo = Arc::new(InMemoryArchivalRepository::with_records(vec![record("g1")]));
+        let service = ArchivalService::with_repository(storage, contract, repo);
+
+        let query = ArchiveQuery {
+            older_than_days: 7,
+            tier: StorageTier::Cold,
+        };
+        let created = service.create_job("job-get", &query).unwrap();
+        let fetched = service.get_job("job-get").unwrap().unwrap();
+        assert_eq!(fetched, created);
+        assert!(service.get_job("missing").unwrap().is_none());
+    }
+
+    #[test]
+    fn in_memory_repository_filters_by_tier() {
+        let mut warm = record("w1");
+        warm.tier = StorageTier::Warm;
+        let repo = InMemoryArchivalRepository::with_records(vec![record("c1"), warm]);
+
+        let cold_query = ArchiveQuery {
+            older_than_days: 0,
+            tier: StorageTier::Cold,
+        };
+        let cold = repo.find_eligible(&cold_query).unwrap();
+        assert_eq!(cold.len(), 1);
+        assert_eq!(cold[0].id, "c1");
+
+        let warm_query = ArchiveQuery {
+            older_than_days: 0,
+            tier: StorageTier::Warm,
+        };
+        let warm = repo.find_eligible(&warm_query).unwrap();
+        assert_eq!(warm.len(), 1);
+        assert_eq!(warm[0].id, "w1");
     }
 }

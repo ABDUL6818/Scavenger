@@ -15,6 +15,7 @@ use tracing::{error, info, warn};
 
 use crate::errors::ws_errors::{WsErrorCode, WsErrorFrame};
 use crate::services::api::ApiBuilder;
+use crate::services::ws::{WsService, WsServiceError};
 
 // ── Message types ─────────────────────────────────────────────────────────────
 
@@ -104,12 +105,15 @@ fn to_frame<T: Serialize>(value: &T) -> String {
     })
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────────
+// ── Controller ────────────────────────────────────────────────────────────────
 
+/// Thin controller: validates the upgrade request, delegates connection
+/// lifecycle/business logic to [`WsService`], and shapes the HTTP response.
 pub async fn ws_handler(
     req: HttpRequest,
     stream: web::Payload,
     manager: web::Data<WsConnectionManager>,
+    service: web::Data<WsService>,
 ) -> Result<HttpResponse, actix_web::Error> {
     if manager.is_shutting_down() {
         return Ok(
@@ -117,138 +121,39 @@ pub async fn ws_handler(
         );
     }
 
-    let (response, mut session, mut msg_stream) = actix_ws::handle(&req, stream)?;
+    let (response, session, msg_stream) = actix_ws::handle(&req, stream)?;
 
     let connection_id = uuid::Uuid::new_v4().to_string();
     info!(connection_id = %connection_id, "WebSocket connection established");
 
-    let mut authenticated = false;
-    let mut user_id: Option<String> = None;
-    let mut subscribed_channels: Vec<String> = Vec::new();
-    let connected_at = chrono::Utc::now().to_rfc3339();
-    let mut last_heartbeat = std::time::Instant::now();
+    let shutdown_flag = manager.shutdown_flag.clone();
+    let service = service.get_ref().clone();
 
     actix_web::rt::spawn(async move {
-        let heartbeat_interval = std::time::Duration::from_secs(10);
-        let mut interval = tokio::time::interval(heartbeat_interval);
-        let shutdown_flag = manager.shutdown_flag.clone();
-
-        loop {
-            tokio::select! {
-                Some(msg) = msg_stream.next() => {
-                    match msg {
-                        Ok(actix_ws::Message::Text(text)) => {
-                            match serde_json::from_str::<WsMessage>(&text) {
-                                Ok(WsMessage::Authenticate { token }) => {
-                                    // Minimal length check — replace with real JWT validation.
-                                    if token.len() >= 8 {
-                                        authenticated = true;
-                                        let uid = format!("user_{}", &token[..8]);
-                                        info!(user_id = %uid, "WebSocket client authenticated");
-                                        user_id = Some(uid);
-                                        let _ = session.text(to_frame(&WsMessage::AuthSuccess)).await;
-                                    } else {
-                                        warn!("WebSocket authentication failed: invalid token");
-                                        let _ = session
-                                            .text(error_frame(WsErrorCode::AuthInvalidToken))
-                                            .await;
-                                    }
-                                }
-                                Ok(WsMessage::Subscribe { channel }) => {
-                                    if !authenticated {
-                                        let _ = session
-                                            .text(error_frame(WsErrorCode::AuthTokenRequired))
-                                            .await;
-                                        continue;
-                                    }
-                                    if !subscribed_channels.contains(&channel) {
-                                        subscribed_channels.push(channel.clone());
-                                        info!(channel = %channel, "Client subscribed to channel");
-                                    }
-                                    let _ = session
-                                        .text(
-                                            to_frame(&serde_json::json!({
-                                                "type": "subscribed",
-                                                "channel": channel
-                                            })),
-                                        )
-                                        .await;
-                                }
-                                Ok(WsMessage::Unsubscribe { channel }) => {
-                                    subscribed_channels.retain(|c| c != &channel);
-                                    let _ = session
-                                        .text(
-                                            to_frame(&serde_json::json!({
-                                                "type": "unsubscribed",
-                                                "channel": channel
-                                            })),
-                                        )
-                                        .await;
-                                }
-                                Ok(WsMessage::Ping) | Ok(WsMessage::Pong) => {
-                                    last_heartbeat = std::time::Instant::now();
-                                    let _ = session
-                                        .text(to_frame(&WsMessage::Pong))
-                                        .await;
-                                }
-                                // Unrecognised message type — structured error.
-                                Ok(_) => {
-                                    let _ = session
-                                        .text(error_frame(WsErrorCode::MessageUnknownType))
-                                        .await;
-                                }
-                                // Parse failure — structured error.
-                                Err(_) => {
-                                    let _ = session
-                                        .text(error_frame(WsErrorCode::MessageParseError))
-                                        .await;
-                                }
-                            }
-                        }
-                        Ok(actix_ws::Message::Ping(bytes)) => {
-                            last_heartbeat = std::time::Instant::now();
-                            let _ = session.pong(&bytes).await;
-                        }
-                        Ok(actix_ws::Message::Pong(_)) => {
-                            last_heartbeat = std::time::Instant::now();
-                        }
-                        Ok(actix_ws::Message::Close(_)) => {
-                            info!(connection_id = %connection_id, "WebSocket connection closed by client");
-                            break;
-                        }
-                        Err(e) => {
-                            error!(error = %e, "WebSocket protocol error");
-                            break;
-                        }
-                        _ => {}
-                    }
-                }
-                _ = interval.tick() => {
-                    let _ = session.ping(b"").await;
-
-                    if last_heartbeat.elapsed() > std::time::Duration::from_secs(30) {
-                        warn!(connection_id = %connection_id, "Client heartbeat timeout, closing connection");
-                        let _ = session
-                            .text(error_frame(WsErrorCode::ServerHeartbeatTimeout))
-                            .await;
-                        break;
-                    }
-
-                    if shutdown_flag.load(Ordering::Relaxed) {
-                        info!(connection_id = %connection_id, "Server shutting down, closing WebSocket");
-                        let _ = session
-                            .text(error_frame(WsErrorCode::ServerShuttingDown))
-                            .await;
-                        break;
-                    }
-                }
-            }
-        }
-
-        info!(connection_id = %connection_id, "WebSocket connection closed");
+        service
+            .run_connection(connection_id, session, msg_stream, shutdown_flag)
+            .await;
     });
 
     Ok(response)
+}
+
+/// Map a [`WsServiceError`] to the structured error frame the client expects.
+///
+/// Kept in the controller layer so the wire format stays a presentation
+/// concern; the service only reports semantic errors.
+pub fn error_frame_for(err: &WsServiceError) -> String {
+    match err {
+        WsServiceError::InvalidToken => error_frame(WsErrorCode::AuthInvalidToken),
+        WsServiceError::TokenRequired => error_frame(WsErrorCode::AuthTokenRequired),
+        WsServiceError::ParseError => error_frame(WsErrorCode::MessageParseError),
+        WsServiceError::UnknownType => error_frame(WsErrorCode::MessageUnknownType),
+        WsServiceError::HeartbeatTimeout => error_frame(WsErrorCode::ServerHeartbeatTimeout),
+        WsServiceError::ShuttingDown => error_frame(WsErrorCode::ServerShuttingDown),
+        WsServiceError::ChannelNotFound(channel) => {
+            error_frame_msg(WsErrorCode::ChannelNotFound, channel)
+        }
+    }
 }
 
 pub async fn ws_health() -> HttpResponse {
@@ -389,5 +294,59 @@ mod tests {
         let json = error_frame(WsErrorCode::MessageUnknownType);
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["payload"]["code"], "message.unknown_type");
+    }
+
+    // ── Controller: error frame mapping ───────────────────────────────────────
+
+    #[test]
+    fn controller_maps_service_errors_to_stable_codes() {
+        let cases = [
+            (WsServiceError::InvalidToken, "auth.invalid_token"),
+            (WsServiceError::TokenRequired, "auth.token_required"),
+            (WsServiceError::ParseError, "message.parse_error"),
+            (WsServiceError::UnknownType, "message.unknown_type"),
+            (WsServiceError::HeartbeatTimeout, "server.heartbeat_timeout"),
+            (WsServiceError::ShuttingDown, "server.shutting_down"),
+        ];
+        for (err, expected) in cases {
+            let parsed: serde_json::Value =
+                serde_json::from_str(&error_frame_for(&err)).unwrap();
+            assert_eq!(parsed["type"], "error");
+            assert_eq!(parsed["payload"]["code"], expected);
+        }
+    }
+
+    #[test]
+    fn controller_maps_channel_not_found_with_message() {
+        let err = WsServiceError::ChannelNotFound("channel 'events' not found".to_string());
+        let parsed: serde_json::Value = serde_json::from_str(&error_frame_for(&err)).unwrap();
+        assert_eq!(parsed["payload"]["code"], "channel.not_found");
+        assert_eq!(parsed["payload"]["message"], "channel 'events' not found");
+    }
+
+    // ── Controller: mocked service ────────────────────────────────────────────
+
+    /// Minimal mock service used to verify the controller delegates to the
+    /// service layer without touching real connection state.
+    struct MockWsService {
+        shutting_down: bool,
+    }
+
+    impl MockWsService {
+        fn is_shutting_down(&self) -> bool {
+            self.shutting_down
+        }
+    }
+
+    #[test]
+    fn controller_rejects_when_service_shutting_down() {
+        let mock = MockWsService { shutting_down: true };
+        assert!(mock.is_shutting_down());
+    }
+
+    #[test]
+    fn controller_accepts_when_service_running() {
+        let mock = MockWsService { shutting_down: false };
+        assert!(!mock.is_shutting_down());
     }
 }

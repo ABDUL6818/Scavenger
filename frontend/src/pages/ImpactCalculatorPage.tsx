@@ -22,11 +22,11 @@ function ImpactCard({
 }) {
   return (
     <Card>
-      <CardContent className="flex flex-col items-center gap-2 py-6 text-center">
-        <div className={`rounded-full p-3 ${color}`}>{icon}</div>
-        <p className="text-3xl font-bold">{value.toLocaleString()}</p>
-        <p className="text-sm font-medium">{unit}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
+      <CardContent className="flex flex-col items-center gap-2 px-2 py-4 text-center xs:px-4 xs:py-6">
+        <div className={`rounded-full p-2 xs:p-3 ${color}`}>{icon}</div>
+        <p className="text-2xl font-bold xs:text-3xl">{value.toLocaleString()}</p>
+        <p className="text-xs font-medium xs:text-sm">{unit}</p>
+        <p className="text-[0.6875rem] text-muted-foreground xs:text-xs">{label}</p>
       </CardContent>
     </Card>
   )
@@ -44,11 +44,11 @@ function EquivalentRow({
   label: string
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border px-4 py-3">
-      <div className="text-muted-foreground">{icon}</div>
-      <div>
+    <div className="flex items-center gap-2 rounded-md border px-3 py-2 xs:gap-3 xs:px-4 xs:py-3">
+      <div className="shrink-0 text-muted-foreground">{icon}</div>
+      <div className="min-w-0">
         <span className="font-semibold">{value.toLocaleString()}</span>{' '}
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-xs text-muted-foreground xs:text-sm">{label}</span>
       </div>
     </div>
   )
@@ -73,9 +73,9 @@ export function ImpactCalculatorPage() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xs:gap-4 sm:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-40 animate-pulse rounded-lg bg-muted" />
+          <div key={i} className="h-32 animate-pulse rounded-lg bg-muted xs:h-40" />
         ))}
       </div>
     )
@@ -86,17 +86,17 @@ export function ImpactCalculatorPage() {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6 sm:px-0 sm:py-0">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Environmental Impact</h1>
-          <p className="text-sm text-muted-foreground">
+    <div className="space-y-4 px-3 py-4 xs:space-y-6 xs:px-4 xs:py-6 sm:px-0 sm:py-0">
+      <div className="flex flex-col gap-3 xs:flex-row xs:items-center xs:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold xs:text-xl sm:text-2xl">Environmental Impact</h1>
+          <p className="text-xs text-muted-foreground xs:text-sm">
             The positive impact of your recycling activities
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={handleShare}>
+        <Button size="sm" variant="outline" onClick={handleShare} className="self-start xs:self-auto">
           {copied ? (
-            <><Check className="mr-1 h-4 w-4 text-green-500" /> Copied</>
+            <><Check className="mr-1 h-4 w-4 text-success" /> Copied</>
           ) : (
             <><Share2 className="mr-1 h-4 w-4" /> Share</>
           )}
@@ -104,34 +104,34 @@ export function ImpactCalculatorPage() {
       </div>
 
       {/* Main impact metrics */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xs:gap-4 sm:grid-cols-4">
         <ImpactCard
-          icon={<Leaf className="h-6 w-6 text-green-600" />}
+          icon={<Leaf className="h-5 w-5 text-success xs:h-6 xs:w-6" />}
           label="CO₂ Saved"
           value={impact.co2Kg}
           unit="kg CO₂"
-          color="bg-green-100 dark:bg-green-900/30"
+          color="bg-success/10"
         />
         <ImpactCard
-          icon={<Zap className="h-6 w-6 text-yellow-600" />}
+          icon={<Zap className="h-5 w-5 text-warning xs:h-6 xs:w-6" />}
           label="Energy Saved"
           value={impact.energyKwh}
           unit="kWh"
-          color="bg-yellow-100 dark:bg-yellow-900/30"
+          color="bg-warning/10"
         />
         <ImpactCard
-          icon={<Droplets className="h-6 w-6 text-blue-600" />}
+          icon={<Droplets className="h-5 w-5 text-info xs:h-6 xs:w-6" />}
           label="Water Saved"
           value={impact.waterLitres}
           unit="litres"
-          color="bg-blue-100 dark:bg-blue-900/30"
+          color="bg-info/10"
         />
         <ImpactCard
-          icon={<Trees className="h-6 w-6 text-emerald-600" />}
+          icon={<Trees className="h-5 w-5 text-success xs:h-6 xs:w-6" />}
           label="Trees Equivalent"
           value={impact.treesEquivalent}
           unit="tree-years"
-          color="bg-emerald-100 dark:bg-emerald-900/30"
+          color="bg-success/10"
         />
       </div>
 
@@ -140,7 +140,7 @@ export function ImpactCalculatorPage() {
         <CardHeader>
           <CardTitle className="text-base">That's equivalent to…</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-2 sm:grid-cols-2">
+        <CardContent className="grid gap-2 xs:gap-3 sm:grid-cols-2">
           <EquivalentRow
             icon={<Car className="h-4 w-4" />}
             value={equivalents.carKm}
@@ -170,8 +170,10 @@ export function ImpactCalculatorPage() {
           <CardTitle className="text-base">Share your impact</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="rounded-md bg-muted px-4 py-3 text-sm leading-relaxed">{shareText}</p>
-          <Button onClick={handleShare} className="w-full sm:w-auto">
+          <p className="break-words rounded-md bg-muted px-3 py-2 text-xs leading-relaxed xs:px-4 xs:py-3 xs:text-sm">
+            {shareText}
+          </p>
+          <Button onClick={handleShare} className="w-full xs:w-auto">
             {copied ? (
               <><Check className="mr-1 h-4 w-4" /> Copied to clipboard</>
             ) : (
