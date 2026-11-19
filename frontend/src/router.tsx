@@ -3,6 +3,10 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageSkeleton } from '@/components/ui/Skeletons'
+// Unified error strategy: `RouteErrorBoundary` is a thin wrapper around the
+// single app-level `ErrorBoundary` and reports through the shared toast/error
+// reporter. The router only ever references this one boundary — there are no
+// console.error-only fallbacks in the route configuration.
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 
 // Eagerly load tiny pages that are always needed at startup
@@ -201,6 +205,10 @@ function ProtectedLayout() {
 // Each protected page gets its own `errorElement` so a crash on one route
 // renders a fallback in place of just that page — the app shell and every
 // other route stay unaffected, and navigating away recovers automatically.
+// The `errorElement` is attached centrally below (see `withErrorBoundary`),
+// so route entries stay plain `{ path, element }` objects. This keeps the
+// exported `PROTECTED_ROUTES` shape backwards-compatible for any consumer
+// that maps over it.
 export const PROTECTED_ROUTES = [
   { path: 'dashboard', element: <HomePage /> },
   { path: 'submit', element: <div>Submit Waste</div> },
@@ -255,17 +263,23 @@ export const PROTECTED_ROUTES = [
   { path: 'qr', element: <QRCodePage /> },
 ]
 
+// Single place where the unified error boundary is attached to a route.
+// Every route (top-level and protected children) goes through this helper so
+// the error strategy cannot drift between routes.
+// eslint-disable-next-line react-refresh/only-export-components
+export function withErrorBoundary<T extends { element?: React.ReactNode }>(
+  route: T
+): T & { errorElement: React.ReactNode } {
+  return { ...route, errorElement: <RouteErrorBoundary /> }
+}
+
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/login" replace /> },
-  { path: '/login', element: <LoginPage />, errorElement: <RouteErrorBoundary /> },
-  { path: '/', element: <LandingPage />, errorElement: <RouteErrorBoundary /> },
-  {
+  withErrorBoundary({ path: '/', element: <Navigate to="/login" replace /> }),
+  withErrorBoundary({ path: '/login', element: <LoginPage /> }),
+  withErrorBoundary({ path: '/', element: <LandingPage /> }),
+  withErrorBoundary({
     element: <ProtectedLayout />,
-    errorElement: <RouteErrorBoundary />,
-    children: PROTECTED_ROUTES.map((route) => ({
-      ...route,
-      errorElement: <RouteErrorBoundary />,
-    })),
-  },
-  { path: '*', element: <NotFoundPage />, errorElement: <RouteErrorBoundary /> },
+    children: PROTECTED_ROUTES.map((route) => withErrorBoundary(route)),
+  }),
+  withErrorBoundary({ path: '*', element: <NotFoundPage /> }),
 ])

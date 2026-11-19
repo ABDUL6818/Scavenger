@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import type { UploadImage } from '@/hooks/useImageUpload'
 
@@ -16,11 +17,20 @@ export function WasteSubmissionImageUpload({
   validationError,
   photoError,
 }: WasteSubmissionImageUploadProps) {
+  const labelId = useId()
+  const errorId = useId()
+
   return (
-    <section>
-      <label className="block text-sm font-medium mb-2">
-        Photos <span className="text-destructive">*</span>
-      </label>
+    <section
+      role="group"
+      aria-labelledby={labelId}
+      aria-required="true"
+      aria-describedby={photoError ? errorId : undefined}
+    >
+      <span id={labelId} className="block text-sm font-medium mb-2">
+        Photos <span className="text-destructive" aria-hidden="true">*</span>
+        <span className="sr-only"> (required)</span>
+      </span>
       <ImageUpload
         images={images}
         onAdd={onAdd}
@@ -28,7 +38,12 @@ export function WasteSubmissionImageUpload({
         validationError={validationError}
       />
       {photoError && (
-        <p className="mt-1 text-sm text-destructive" role="alert">
+        <p
+          id={errorId}
+          className="mt-1 text-sm text-destructive"
+          role="alert"
+          aria-live="assertive"
+        >
           {photoError}
         </p>
       )}

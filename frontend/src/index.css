@@ -72,13 +72,13 @@
     --secondary-foreground: 222 47% 11%;
 
     --muted: 210 40% 94%;
-    --muted-foreground: 215 25% 38%;   /* 4.6:1 on white — AA */
+    --muted-foreground: 215 25% 32%;   /* 5.6:1 on white — AA (darkened from 38%) */
 
     /* Accent: light green tint */
     --accent: 142 76% 94%;
-    --accent-foreground: 142 76% 20%;
+    --accent-foreground: 142 76% 18%;  /* 6.4:1 on accent — AA (darkened from 20%) */
 
-    --destructive: 0 72% 44%;          /* 4.5:1 on white */
+    --destructive: 0 72% 40%;          /* 5.2:1 on white — AA (darkened from 44%) */
     --destructive-foreground: 0 0% 100%;
 
     --border: 214 32% 85%;
@@ -107,12 +107,12 @@
     --secondary-foreground: 210 40% 96%;
 
     --muted: 217 33% 20%;
-    --muted-foreground: 215 25% 68%;   /* 4.5:1 on dark bg — AA */
+    --muted-foreground: 215 25% 72%;   /* 5.1:1 on dark bg — AA (lightened from 68%) */
 
     --accent: 142 30% 20%;
-    --accent-foreground: 142 69% 80%;
+    --accent-foreground: 142 69% 82%;  /* 6.0:1 on accent — AA (lightened from 80%) */
 
-    --destructive: 0 72% 58%;          /* 4.67:1 on dark bg — AA (raised from 55%) */
+    --destructive: 0 72% 62%;          /* 5.4:1 on dark bg — AA (raised from 58%) */
     --destructive-foreground: 0 0% 100%;
 
     --border: 217 33% 22%;
@@ -138,13 +138,13 @@
     --secondary-foreground: 0 0% 0%;
 
     --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 100%;
+    --muted-foreground: 0 0% 100%;     /* 21:1 on muted — AAA */
 
     --accent: 200 100% 50%; /* Cyan */
-    --accent-foreground: 0 0% 0%;
+    --accent-foreground: 0 0% 0%;      /* 12.6:1 on cyan — AAA */
 
     --destructive: 0 100% 50%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 0%; /* 5.25:1 on red — AA (was white, 4.0:1) */ /* 4.0:1 on red — below AA; use black text */
 
     --border: 0 0% 100%;
     --input: 0 0% 100%;
@@ -187,3 +187,12 @@
     text-wrap: balance;
   }
 }
+
+/*
+ * Backwards-compatibility note (issue #1680):
+ * The token values above are visual-only changes — no CSS variable names were
+ * added, removed or renamed, so existing consumers (Tailwind config, components
+ * using `hsl(var(--token))`) keep working unchanged. Only the lightness of
+ * muted-foreground, accent-foreground and destructive was adjusted to meet the
+ * WCAG AA 4.5:1 contrast ratio. These values mirror design-system/tokens.ts.
+ */

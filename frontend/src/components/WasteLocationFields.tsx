@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { type UseFormRegister, type UseFormSetValue, type FieldErrors } from 'react-hook-form'
 import { LocateFixed } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,9 @@ interface WasteLocationFieldsProps {
 export function WasteLocationFields({ register, setValue, errors }: WasteLocationFieldsProps) {
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
+  const groupLabelId = useId()
+  const latitudeErrorId = useId()
+  const longitudeErrorId = useId()
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -38,10 +41,11 @@ export function WasteLocationFields({ register, setValue, errors }: WasteLocatio
   }
 
   return (
-    <section>
-      <label className="block text-sm font-medium mb-2">
-        Location <span className="text-destructive">*</span>
-      </label>
+    <section role="group" aria-labelledby={groupLabelId}>
+      <span id={groupLabelId} className="block text-sm font-medium mb-2">
+        Location <span className="text-destructive" aria-hidden="true">*</span>
+        <span className="sr-only">(required)</span>
+      </span>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Input
@@ -49,10 +53,12 @@ export function WasteLocationFields({ register, setValue, errors }: WasteLocatio
             step="0.000001"
             placeholder="Latitude"
             aria-label="Latitude"
+            aria-describedby={errors.latitude ? latitudeErrorId : undefined}
+            aria-invalid={errors.latitude ? true : undefined}
             {...register('latitude')}
           />
           {errors.latitude && (
-            <p className="mt-1 text-sm text-destructive" role="alert">{errors.latitude.message}</p>
+            <p id={latitudeErrorId} className="mt-1 text-sm text-destructive" role="alert">{errors.latitude.message}</p>
           )}
         </div>
         <div>
@@ -61,10 +67,12 @@ export function WasteLocationFields({ register, setValue, errors }: WasteLocatio
             step="0.000001"
             placeholder="Longitude"
             aria-label="Longitude"
+            aria-describedby={errors.longitude ? longitudeErrorId : undefined}
+            aria-invalid={errors.longitude ? true : undefined}
             {...register('longitude')}
           />
           {errors.longitude && (
-            <p className="mt-1 text-sm text-destructive" role="alert">{errors.longitude.message}</p>
+            <p id={longitudeErrorId} className="mt-1 text-sm text-destructive" role="alert">{errors.longitude.message}</p>
           )}
         </div>
       </div>
@@ -72,13 +80,14 @@ export function WasteLocationFields({ register, setValue, errors }: WasteLocatio
         type="button"
         onClick={useCurrentLocation}
         disabled={locating}
+        aria-busy={locating}
         className="mt-2 flex items-center gap-2 text-sm text-primary hover:underline"
       >
-        <LocateFixed className={cn('h-4 w-4', locating && 'animate-pulse')} />
+        <LocateFixed className={cn('h-4 w-4', locating && 'animate-pulse')} aria-hidden="true" />
         {locating ? 'Locating...' : 'Use current location'}
       </button>
       {locError && (
-        <p className="mt-1 text-sm text-destructive" role="alert">{locError}</p>
+        <p className="mt-1 text-sm text-destructive" role="alert" aria-live="assertive">{locError}</p>
       )}
     </section>
   )

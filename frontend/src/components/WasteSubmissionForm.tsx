@@ -10,6 +10,7 @@ import { wasteSubmissionSchema, toWeightInGrams, type WeightUnit } from '@/lib/v
 import { WasteSubmissionFields, type WasteFormValues } from './WasteSubmissionFields'
 import { WasteSubmissionImageUpload } from './WasteSubmissionImageUpload'
 import { WasteSubmissionSummary } from './WasteSubmissionSummary'
+import { useToast } from '@/components/ui/Toast'
 
 export { WasteSubmissionFields } from './WasteSubmissionFields'
 export { WasteSubmissionImageUpload } from './WasteSubmissionImageUpload'
@@ -34,6 +35,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('grams')
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const schema = useMemo(() => wasteSubmissionSchema(weightUnit), [weightUnit])
 
@@ -59,8 +61,10 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
       })
       setSubmitState('success')
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Submission failed')
+      const message = e instanceof Error ? e.message : 'Submission failed'
+      setSubmitError(message)
       setSubmitState('error')
+      toast({ title: 'Submission failed', description: message, variant: 'destructive' })
     }
   })
 
@@ -73,10 +77,10 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
   }
 
   return (
-    <form onSubmit={onFormSubmit} noValidate>
+    <form onSubmit={onFormSubmit} noValidate aria-label="Submit waste" aria-busy={submitState === 'loading'}>
       <Card>
         <CardHeader>
-          <CardTitle>Submit Waste</CardTitle>
+          <CardTitle id="waste-submission-title">Submit Waste</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <WasteSubmissionFields
@@ -96,7 +100,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
             photoError={photoError}
           />
           {submitError && (
-            <p className="text-sm text-destructive" role="alert">{submitError}</p>
+            <p className="text-sm text-destructive" role="alert" aria-live="assertive">{submitError}</p>
           )}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onCancel} className="flex-1">

@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useId, type KeyboardEvent } from 'react'
 import { Controller, type Control, type FieldErrors } from 'react-hook-form'
 import {
   Newspaper, Recycle, Package, Wrench, GlassWater,
   Leaf, Cpu, Search, ChevronDown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { handleListKeyboard } from '@/lib/accessibility'
 import { WasteType } from '@/api/types'
 import type { WasteFormValues } from './WasteSubmissionFields'
 
@@ -27,6 +28,12 @@ interface WasteMaterialSelectorProps {
 export function WasteMaterialSelector({ control, selectedType, errors }: WasteMaterialSelectorProps) {
   const [materialSearch, setMaterialSearch] = useState('')
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const baseId = useId()
+  const listboxId = `${baseId}-listbox`
+  const searchLabelId = `${baseId}-search-label`
+  const optionId = (index: number) => `${baseId}-option-${index}`
 
   const filteredMaterials = useMemo(() => {
     if (!materialSearch) return WASTE_TYPE_OPTIONS
@@ -36,26 +43,73 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
 
   const selectedOption = WASTE_TYPE_OPTIONS.find((opt) => opt.value === selectedType)
 
+  const openDropdown = () => {
+    setMaterialDropdownOpen(true)
+    const selectedIdx = filteredMaterials.findIndex((opt) => opt.value === selectedType)
+    setActiveIndex(selectedIdx >= 0 ? selectedIdx : 0)
+    requestAnimationFrame(() => searchInputRef.current?.focus())
+  }
+
+  const closeDropdown = () => {
+    setMaterialDropdownOpen(false)
+    setMaterialSearch('')
+    setActiveIndex(-1)
+  }
+
+  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
+      event.preventDefault()
+      openDropdown()
+    }
+  }
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeDropdown()
+      return
+    }
+    if (event.key === 'Enter' && activeIndex >= 0 && filteredMaterials[activeIndex]) {
+      event.preventDefault()
+      onSelectOption(filteredMaterials[activeIndex].value)
+      return
+    }
+    handleListKeyboard(event, {
+      itemCount: filteredMaterials.length,
+      activeIndex,
+      setActiveIndex,
+    })
+  }
+
   return (
     <section>
-      <label className="block text-sm font-medium mb-2">
-        Material Type <span className="text-destructive">*</span>
-      </label>
+      <span id={`${baseId}-label`} className="block text-sm font-medium mb-2">
+        Material Type <span className="text-destructive" aria-hidden="true">*</span>
+      </span>
       <Controller
         name="wasteType"
         control={control}
-        render={({ field }) => (
+        render={({ field }) => {
+          const onSelectOption = (value: WasteType) => {
+            field.onChange(value)
+            closeDropdown()
+          }
+
+          return (
           <div className="relative">
             <button
               type="button"
-              onClick={() => setMaterialDropdownOpen(!materialDropdownOpen)}
+              onClick={() => (materialDropdownOpen ? closeDropdown() : openDropdown())}
+              onKeyDown={handleTriggerKeyDown}
               className={cn(
                 'flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 !selectedOption && 'text-muted-foreground'
               )}
               aria-label="Select material type"
+              aria-labelledby={`${baseId}-label`}
               aria-expanded={materialDropdownOpen}
               aria-haspopup="listbox"
+              aria-controls={materialDropdownOpen ? listboxId : undefined}
             >
               <span className="flex items-center gap-2">
                 {selectedOption ? (
@@ -72,38 +126,60 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
             {materialDropdownOpen && (
               <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
                 <div className="flex items-center border-b px-3">
-                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  <label id={searchLabelId} htmlFor={`${baseId}-search`} className="sr-only">
+                    Search materials
+                  </label>
                   <input
+                    id={`${baseId}-search`}
+                    ref={searchInputRef}
                     type="text"
                     placeholder="Search materials..."
                     value={materialSearch}
-                    onChange={(e) => setMaterialSearch(e.target.value)}
+                    onChange={(e) => {
+                      setMaterialSearch(e.target.value)
+                      setActiveIndex(0)
+                    }}
+                    onKeyDown={handleSearchKeyDown}
                     className="flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
-                    aria-label="Search materials"
+                    aria-labelledby={searchLabelId}
+                    aria-controls={listboxId}
+                    aria-activedescendant={
+                      activeIndex >= 0 && filteredMaterials[activeIndex]
+                        ? optionId(activeIndex)
+                        : undefined
+                    }
+                    aria-autocomplete="list"
                   />
                 </div>
-                <ul role="listbox" className="max-h-48 overflow-y-auto p-1">
+                <ul
+                  id={listboxId}
+                  role="listbox"
+                  aria-labelledby={`${baseId}-label`}
+                  className="max-h-48 overflow-y-auto p-1"
+                >
                   {filteredMaterials.length === 0 ? (
-                    <li className="px-3 py-2 text-sm text-muted-foreground">No materials found</li>
+                    <li className="px-3 py-2 text-sm text-muted-foreground" role="presentation">
+                      No materials found
+                    </li>
                   ) : (
-                    filteredMaterials.map((opt) => {
+                    filteredMaterials.map((opt, index) => {
                       const Icon = opt.icon
                       return (
                         <li
                           key={opt.value}
+                          id={optionId(index)}
                           role="option"
                           aria-selected={field.value === opt.value}
-                          onClick={() => {
-                            field.onChange(opt.value)
-                            setMaterialDropdownOpen(false)
-                            setMaterialSearch('')
-                          }}
+                          onClick={() => onSelectOption(opt.value)}
+                          onMouseEnter={() => setActiveIndex(index)}
                           className={cn(
                             'flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent',
-                            field.value === opt.value && 'bg-accent'
+                            field.value === opt.value && 'bg-accent',
+                            activeIndex === index && 'ring-1 ring-ring'
                           )}
                         >
-                          <Icon className="h-4 w-4" />
+                          <Icon className="h-4 w-4" aria-hidden="true" />
                           {opt.label}
                         </li>
                       )
@@ -113,7 +189,8 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
               </div>
             )}
           </div>
-        )}
+          )
+        }}
       />
       {errors.wasteType && (
         <p className="mt-1 text-sm text-destructive" role="alert">{errors.wasteType.message}</p>

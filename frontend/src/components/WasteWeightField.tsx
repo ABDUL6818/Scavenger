@@ -21,6 +21,8 @@ export function WasteWeightField({
 }: WasteWeightFieldProps) {
   const weightValue = watch('weight')
   const convertedWeight = useMemo(() => convertWeight(weightValue, weightUnit), [weightValue, weightUnit])
+  const hasError = Boolean(errors.weight)
+  const nextUnit = weightUnit === 'grams' ? 'kilograms' : 'grams'
 
   return (
     <section>
@@ -34,22 +36,25 @@ export function WasteWeightField({
           step="any"
           min="0"
           placeholder={weightUnit === 'grams' ? 'e.g. 500' : 'e.g. 0.5'}
+          aria-invalid={hasError}
+          aria-describedby={hasError ? 'weight-error' : undefined}
           {...register('weight')}
         />
         <button
           type="button"
-          onClick={() => setWeightUnit(weightUnit === 'grams' ? 'kilograms' : 'grams')}
+          onClick={() => setWeightUnit(nextUnit)}
           className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
-          aria-label={`Switch to ${weightUnit === 'grams' ? 'kilograms' : 'grams'}`}
+          aria-label={`Weight unit: ${weightUnit}. Switch to ${nextUnit}`}
+          aria-pressed={weightUnit === 'kilograms'}
         >
           {weightUnit === 'grams' ? 'g' : 'kg'}
         </button>
       </div>
       {convertedWeight && (
-        <p className="mt-1 text-xs text-muted-foreground">= {convertedWeight}</p>
+        <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">= {convertedWeight}</p>
       )}
       {errors.weight && (
-        <p className="mt-1 text-sm text-destructive" role="alert">{errors.weight.message}</p>
+        <p id="weight-error" className="mt-1 text-sm text-destructive" role="alert">{errors.weight.message}</p>
       )}
     </section>
   )
