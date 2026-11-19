@@ -13,12 +13,41 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'stellar': ['@stellar/stellar-sdk', '@stellar/freighter-api'],
-          'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
-          'query': ['@tanstack/react-query', '@tanstack/react-query-devtools'],
-          'map': ['leaflet', 'react-leaflet', 'leaflet.markercluster'],
-          'firebase': ['firebase'],
+        // Route-level code splitting (issue #1676): pages are lazy-loaded via
+        // React.lazy + Suspense in src/routes, so Rollup emits one chunk per
+        // route automatically. The manualChunks function below only groups
+        // shared vendor code so it is not duplicated across route chunks.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+          if (id.includes('@stellar/stellar-sdk') || id.includes('@stellar/freighter-api')) {
+            return 'stellar';
+          }
+          if (
+            id.includes('@radix-ui/react-dialog') ||
+            id.includes('@radix-ui/react-dropdown-menu') ||
+            id.includes('@radix-ui/react-select')
+          ) {
+            return 'ui';
+          }
+          if (id.includes('@tanstack/react-query')) {
+            return 'query';
+          }
+          if (
+            id.includes('leaflet') ||
+            id.includes('react-leaflet') ||
+            id.includes('leaflet.markercluster')
+          ) {
+            return 'map';
+          }
+          if (id.includes('firebase')) {
+            return 'firebase';
+          }
+          if (id.includes('react-router') || id.includes('react-dom') || id.includes('/react/')) {
+            return 'react-vendor';
+          }
+          return 'vendor';
         },
       },
     },

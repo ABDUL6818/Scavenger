@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ScavengerClient } from '@/api/client'
 import { Waste, WasteType } from '@/api/types'
@@ -40,5 +41,7 @@ export function useWastes(filters?: WasteFilters) {
     enabled: !!address,
   })
 
-  return { wastes: data ?? [], isLoading, isError }
+  const wastes = useMemo<Waste[]>(() => data ?? [], [data])
+
+  return { wastes, isLoading, isError }
 }

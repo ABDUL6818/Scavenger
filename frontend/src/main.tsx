@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from '@tanstack/react-query'
 import { persistQueryClient } from '@tanstack/react-query-persist-client'
@@ -112,7 +112,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <WalletProvider>
               <AuthProvider>
                 <ContractProvider>
-                  <App />
+                  <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading…</div>}>
+                    <App />
+                  </Suspense>
                   <ThemedToaster />
                 </ContractProvider>
               </AuthProvider>

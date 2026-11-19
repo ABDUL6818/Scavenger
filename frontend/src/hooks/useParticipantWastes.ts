@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ScavengerClient } from '@/api/client'
 import { Waste, WasteType } from '@/api/types'
@@ -52,8 +53,12 @@ export function useParticipantWastes(filters?: WasteFilters) {
     enabled: !!address,
   })
 
+  // Memoize the selector so consumers receive a stable array reference when
+  // the underlying query data has not changed.
+  const wastes = useMemo(() => data ?? [], [data])
+
   return {
-    wastes: data ?? [],
+    wastes,
     isLoading,
     isError,
   }

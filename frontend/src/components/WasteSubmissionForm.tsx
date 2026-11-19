@@ -15,6 +15,15 @@ export { WasteSubmissionFields } from './WasteSubmissionFields'
 export { WasteSubmissionImageUpload } from './WasteSubmissionImageUpload'
 export { WasteSubmissionSummary } from './WasteSubmissionSummary'
 
+/**
+ * Shape of the data emitted by {@link WasteSubmissionForm} on submit.
+ *
+ * Backwards-compatibility note: this interface is unchanged from the previous
+ * hand-rolled implementation. `weight` remains normalized to grams (a number)
+ * and `latitude`/`longitude` remain strings, so existing consumers do not need
+ * to change. Validation is now driven by the shared `wasteSubmissionSchema`
+ * (react-hook-form + zod) rather than ad-hoc checks.
+ */
 export interface WasteSubmissionFormData {
   wasteType: WasteType
   weight: number
@@ -64,7 +73,8 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
     }
   })
 
-  const photoError = submitState !== 'idle' || Object.keys(errors).length > 0
+  const hasFieldErrors = Object.keys(errors).length > 0
+  const photoError = submitState !== 'idle' || hasFieldErrors
     ? uploadIds.length === 0 && images.length === 0 ? 'At least one photo is required' : null
     : null
 
