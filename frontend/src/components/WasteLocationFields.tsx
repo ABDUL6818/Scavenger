@@ -5,6 +5,9 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/Input'
 import type { WasteFormValues } from './WasteSubmissionFields'
 
+// Coordinates are validated by the shared zod schema (see wasteFormSchema);
+// this component only renders the fields and surfaces schema-derived messages.
+
 interface WasteLocationFieldsProps {
   register: UseFormRegister<WasteFormValues>
   setValue: UseFormSetValue<WasteFormValues>

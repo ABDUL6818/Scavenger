@@ -1,5 +1,5 @@
 /**
- * Modal — shared accessible modal wrapper (issue #875)
+ * Modal — shared accessible modal wrapper (issue #875, #1674)
  *
  * Built on top of the existing Radix-backed Dialog primitives so all
  * instances get:
@@ -9,10 +9,51 @@
  *   - role="dialog" + aria-modal="true" (Radix adds these)
  *   - Visible close button with aria-label
  *
- * Usage:
- *   <Modal open={open} onClose={handleClose} title="My Modal" description="...">
- *     {content}
- *   </Modal>
+ * This is the single shared modal primitive for the app (issue #1674);
+ * per-page modal duplicates should be replaced with this component.
+ *
+ * @example Basic usage
+ * ```tsx
+ * const [open, setOpen] = React.useState(false)
+ *
+ * <Modal
+ *   open={open}
+ *   onClose={() => setOpen(false)}
+ *   title="Delete project"
+ *   description="This action cannot be undone."
+ * >
+ *   <Button variant="destructive" onClick={confirmDelete}>
+ *     Delete
+ *   </Button>
+ * </Modal>
+ * ```
+ *
+ * @example Imperative open with focus restoration
+ * ```tsx
+ * const triggerRef = React.useRef<HTMLButtonElement>(null)
+ *
+ * <button ref={triggerRef} onClick={() => setOpen(true)}>
+ *   Open settings
+ * </button>
+ * <Modal
+ *   open={open}
+ *   onClose={() => setOpen(false)}
+ *   title="Settings"
+ *   triggerRef={triggerRef}
+ * >
+ *   <SettingsForm />
+ * </Modal>
+ * ```
+ *
+ * Accessibility:
+ *   - `title` is required and becomes the dialog's accessible name.
+ *   - `description` (optional) is wired to `aria-describedby` by Radix.
+ *   - Focus is trapped while open and restored to `triggerRef` on close.
+ *   - Pressing Escape calls `onClose`.
+ *
+ * Backwards compatibility (issue #1674): the public props are unchanged —
+ * `open`, `onClose`, `title`, `description`, `children`, `className`,
+ * `triggerRef` — so existing callers continue to work without modification.
  */
 import * as React from 'react'
 import {
@@ -22,6 +63,15 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/Dialog'
+
+/**
+ * Unit tests for the shared Modal primitive live in
+ * `frontend/src/components/ui/__tests__/Modal.test.tsx` and cover:
+ *   - focus trap while open
+ *   - Escape key calls `onClose`
+ *   - focus restoration to `triggerRef` on close
+ *   - accessible name from `title` and description wiring
+ */
 
 export interface ModalProps {
   open: boolean
@@ -78,3 +128,5 @@ export function Modal({
     </Dialog>
   )
 }
+
+export default Modal

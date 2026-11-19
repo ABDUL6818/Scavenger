@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react'
 import { Badge } from '@/components/ui/Badge'
 
 type StatusVariant = 'default' | 'secondary' | 'destructive' | 'outline'
@@ -18,8 +19,11 @@ const DEFAULT_VARIANT_MAP: Record<string, StatusVariant> = {
   failed: 'destructive',
 }
 
-export function StatusBadge({ status, variantMap = DEFAULT_VARIANT_MAP }: StatusBadgeProps) {
-  const variant = variantMap[status.toLowerCase()] ?? 'outline'
+function StatusBadgeComponent({ status, variantMap = DEFAULT_VARIANT_MAP }: StatusBadgeProps) {
+  const variant = useMemo(
+    () => variantMap[status.toLowerCase()] ?? 'outline',
+    [variantMap, status],
+  )
 
   return (
     <Badge variant={variant} className="capitalize">
@@ -27,3 +31,5 @@ export function StatusBadge({ status, variantMap = DEFAULT_VARIANT_MAP }: Status
     </Badge>
   )
 }
+
+export const StatusBadge = memo(StatusBadgeComponent)

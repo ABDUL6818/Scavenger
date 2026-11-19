@@ -681,6 +681,45 @@ mod tests {
         assert!(!Error::WasteExpired.is_caller_error());
         assert!(!Error::IncentiveInactive.is_caller_error());
     }
+
+    // ── Issue #1665: keep docs/contract-reference.md in sync with the enum ────
+
+    /// The published interface reference, embedded at compile time so the test
+    /// fails if the doc drifts from the source of truth.
+    const CONTRACT_REFERENCE: &str = include_str!("../../docs/contract-reference.md");
+
+    /// Extracts the numeric code from a doc-table row of the form
+    /// `| `VariantName` | 1234 | ... |`.
+    fn doc_code_for(variant: &str) -> Option<u32> {
+        let needle = alloc::format!("| `{variant}` |");
+        for line in CONTRACT_REFERENCE.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix(needle.as_str()) {
+                let code = rest.trim_start().split('|').next()?.trim();
+                return code.parse::<u32>().ok();
+            }
+        }
+        None
+    }
+
+    #[test]
+    fn every_error_variant_is_documented_with_matching_code() {
+        for error in all_errors() {
+            let variant = alloc::format!("{error:?}");
+            let documented = doc_code_for(&variant);
+            assert!(
+                documented.is_some(),
+                "{} ({variant}) is missing from docs/contract-reference.md",
+                error.code()
+            );
+            assert_eq!(
+                documented,
+                Some(*error as u32),
+                "{} ({variant}) code in docs/contract-reference.md does not match the enum",
+                error.code()
+            );
+        }
+    }
 }
 
 extern crate alloc;

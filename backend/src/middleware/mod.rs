@@ -10,6 +10,8 @@ pub mod request_id;
 pub mod validation;
 // #919: Idempotency key support for write operations
 pub mod idempotency;
+// #1699: Structured request logging (pino-compatible JSON) middleware.
+pub mod logger;
 
 pub use idempotency::IdempotencyMiddleware;
 // #1158: `RateLimitLayer` was a stale re-export left over from a superseded
@@ -17,7 +19,10 @@ pub use idempotency::IdempotencyMiddleware;
 // `RateLimitMiddleware` is the one actually registered in the router.
 pub use rate_limit::{RateLimitConfig, RateLimitMiddleware, RateLimitTier, RouteRateLimitConfig};
 pub use request_id::{RequestId, RequestIdMiddleware};
-pub use validation::ValidationMiddleware;
+// #1701: zod-style request validation middleware for all routes.
+pub use validation::{ValidationMiddleware, ValidationSchema};
+// #1699: structured logger middleware.
+pub use logger::LoggerMiddleware;
 
 /// Lock a `std::sync::Mutex`, recovering the guard if an earlier holder panicked.
 ///

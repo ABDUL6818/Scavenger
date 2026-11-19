@@ -114,23 +114,6 @@ pub async fn submit_document(
     }
 }
 
-pub async fn verify_document(
-    doc_id: web::Path<String>,
-    service: web::Data<Arc<dyn VerificationService>>,
-) -> HttpResponse {
-    let doc_id = sanitize_string(doc_id.as_str());
-    if doc_id.is_empty() {
-        return error_response(&[ValidationError {
-            field: "doc_id".to_string(),
-            message: "doc_id is required".to_string(),
-        }]);
-    }
-    match service.verify_document(doc_id).await {
-        Ok(document) => HttpResponse::Ok().json(ApiResponse::success(document)),
-        Err(e) => HttpResponse::NotFound().json(ApiResponse::<String>::error(e)),
-    }
-}
-
 pub async fn get_verification_status(
     participant_id: web::Path<String>,
     service: web::Data<Arc<dyn VerificationService>>,
@@ -341,10 +324,6 @@ mod tests {
                 verified: false,
                 verification_notes: None,
             })
-        }
-
-        async fn verify_document(&self, _doc_id: String) -> Result<Document, String> {
-            Err("not found".to_string())
         }
 
         async fn submit_checklist(

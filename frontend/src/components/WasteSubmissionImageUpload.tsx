@@ -1,7 +1,28 @@
 import { useId } from 'react'
 import { ImageUpload } from '@/components/ui/ImageUpload'
+import { FormField } from '@/components/ui/FormField'
 import type { UploadImage } from '@/hooks/useImageUpload'
 
+/**
+ * WasteSubmissionImageUpload
+ *
+ * Storybook-style usage:
+ *
+ * ```tsx
+ * <WasteSubmissionImageUpload
+ *   images={images}
+ *   onAdd={handleAdd}
+ *   onRemove={handleRemove}
+ *   validationError={null}
+ *   photoError={errors.photos?.message}
+ * />
+ * ```
+ *
+ * Renders the photo upload section for the waste submission form using the
+ * shared `ImageUpload` and `FormField` UI primitives. Zod-derived validation
+ * errors from react-hook-form are surfaced via `photoError` and rendered with
+ * `role="alert"` for accessibility.
+ */
 export interface WasteSubmissionImageUploadProps {
   images: UploadImage[]
   onAdd: (files: File[]) => void
@@ -17,20 +38,15 @@ export function WasteSubmissionImageUpload({
   validationError,
   photoError,
 }: WasteSubmissionImageUploadProps) {
-  const labelId = useId()
   const errorId = useId()
 
   return (
-    <section
-      role="group"
-      aria-labelledby={labelId}
-      aria-required="true"
-      aria-describedby={photoError ? errorId : undefined}
+    <FormField
+      label="Photos"
+      required
+      error={photoError ?? undefined}
+      htmlFor="waste-submission-photos"
     >
-      <span id={labelId} className="block text-sm font-medium mb-2">
-        Photos <span className="text-destructive" aria-hidden="true">*</span>
-        <span className="sr-only"> (required)</span>
-      </span>
       <ImageUpload
         images={images}
         onAdd={onAdd}
@@ -47,6 +63,6 @@ export function WasteSubmissionImageUpload({
           {photoError}
         </p>
       )}
-    </section>
+    </FormField>
   )
 }

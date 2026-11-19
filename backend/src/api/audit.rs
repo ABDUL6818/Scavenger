@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::services::api::{ApiBuilder, PaginatedResponse};
 use crate::services::audit::{
-    AlertRule, AuditAction, AuditEntry, AuditEventType, AuditQuery, AuditReport, AuditService, RetentionPolicy,
+    AlertRule, AuditAction, AuditEventType, AuditQuery, AuditService, RetentionPolicy,
 };
 use crate::validation::{error_response, validate_pagination, ValidationError};
 

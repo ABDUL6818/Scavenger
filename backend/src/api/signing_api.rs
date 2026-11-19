@@ -9,8 +9,12 @@
 //! `multisig_sign`, and `revoke_signature` — the operations here where a
 //! retried request could otherwise double-sign or double-revoke — should
 //! always send that header.
+//!
+//! #1700: audited for unused/deprecated handlers. Both handlers below
+//! (`verify_signature`, `get_documentation`) are live and routed, so nothing
+//! was removed. The unused `ValidationError` import was dropped.
 
-use crate::validation::{error_response, sanitize_string, validate_required, ValidationError};
+use crate::validation::{error_response, sanitize_string, validate_required};
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
 

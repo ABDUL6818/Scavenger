@@ -44,6 +44,7 @@
 /// }
 /// ```
 
+use crate::errors::AppError;
 use crate::services::{
     email::EmailError,
     notifications::NotificationError,
@@ -51,44 +52,49 @@ use crate::services::{
     storage::StorageError,
 };
 
-// ── Service error → ApiError conversions ─────────────────────────────────
+// ── Service error → AppError conversions ─────────────────────────────────
+//
+// Service-layer errors are converted into the canonical `AppError` so that
+// handlers can propagate them with `?`.  `AppError` is the single typed error
+// enum; `ApiError` is a backwards-compatible alias for it, so the existing
+// status/code mapping is preserved exactly.
 
-impl From<ReportError> for ApiError {
+impl From<ReportError> for AppError {
     fn from(e: ReportError) -> Self {
         match e {
-            ReportError::InvalidReport(msg) => ApiError::validation(msg),
-            ReportError::NotFound(msg) => ApiError::not_found(msg),
-            ReportError::ServiceError(msg) => ApiError::internal(msg),
+            ReportError::InvalidReport(msg) => AppError::validation(msg),
+            ReportError::NotFound(msg) => AppError::not_found(msg),
+            ReportError::ServiceError(msg) => AppError::internal(msg),
         }
     }
 }
 
-impl From<StorageError> for ApiError {
+impl From<StorageError> for AppError {
     fn from(e: StorageError) -> Self {
         match e {
-            StorageError::InvalidFile(msg) => ApiError::validation(msg),
-            StorageError::NotFound(msg) => ApiError::not_found(msg),
-            StorageError::ServiceError(msg) => ApiError::internal(msg),
+            StorageError::InvalidFile(msg) => AppError::validation(msg),
+            StorageError::NotFound(msg) => AppError::not_found(msg),
+            StorageError::ServiceError(msg) => AppError::internal(msg),
         }
     }
 }
 
-impl From<NotificationError> for ApiError {
+impl From<NotificationError> for AppError {
     fn from(e: NotificationError) -> Self {
         match e {
-            NotificationError::InvalidToken(msg) => ApiError::validation(msg),
-            NotificationError::NotFound(msg) => ApiError::not_found(msg),
-            NotificationError::ServiceError(msg) => ApiError::internal(msg),
+            NotificationError::InvalidToken(msg) => AppError::validation(msg),
+            NotificationError::NotFound(msg) => AppError::not_found(msg),
+            NotificationError::ServiceError(msg) => AppError::internal(msg),
         }
     }
 }
 
-impl From<EmailError> for ApiError {
+impl From<EmailError> for AppError {
     fn from(e: EmailError) -> Self {
         match e {
-            EmailError::InvalidEmail(msg) => ApiError::validation(msg),
-            EmailError::TemplateError(msg) => ApiError::internal(msg),
-            EmailError::ServiceError(msg) => ApiError::internal(msg),
+            EmailError::InvalidEmail(msg) => AppError::validation(msg),
+            EmailError::TemplateError(msg) => AppError::internal(msg),
+            EmailError::ServiceError(msg) => AppError::internal(msg),
         }
     }
 }
@@ -142,80 +148,104 @@ mod tests {
 
     #[test]
     fn test_report_invalid_becomes_validation() {
-        let e: ApiError = ReportError::InvalidReport("bad format".into()).into();
+        let e: AppError = ReportError::InvalidReport("bad format".into()).into();
         assert_eq!(e.code(), "VALIDATION_ERROR");
+        assert_eq!(e.error_response().status(), 400);
     }
 
     #[test]
     fn test_report_not_found_becomes_not_found() {
-        let e: ApiError = ReportError::NotFound("report missing".into()).into();
+        let e: AppError = ReportError::NotFound("report missing".into()).into();
         assert_eq!(e.code(), "NOT_FOUND");
+        assert_eq!(e.error_response().status(), 404);
     }
 
     #[test]
     fn test_report_service_error_becomes_internal() {
-        let e: ApiError = ReportError::ServiceError("db timeout".into()).into();
+        let e: AppError = ReportError::ServiceError("db timeout".into()).into();
         assert_eq!(e.code(), "INTERNAL_SERVER_ERROR");
+        assert_eq!(e.error_response().status(), 500);
     }
 
     // ── Service error conversion: StorageError ───────────────────────────
 
     #[test]
     fn test_storage_invalid_file_becomes_validation() {
-        let e: ApiError = StorageError::InvalidFile("empty".into()).into();
+        let e: AppError = StorageError::InvalidFile("empty".into()).into();
         assert_eq!(e.code(), "VALIDATION_ERROR");
+        assert_eq!(e.error_response().status(), 400);
     }
 
     #[test]
     fn test_storage_not_found_becomes_not_found() {
-        let e: ApiError = StorageError::NotFound("file gone".into()).into();
+        let e: AppError = StorageError::NotFound("file gone".into()).into();
         assert_eq!(e.code(), "NOT_FOUND");
+        assert_eq!(e.error_response().status(), 404);
     }
 
     #[test]
     fn test_storage_service_error_becomes_internal() {
-        let e: ApiError = StorageError::ServiceError("s3 error".into()).into();
+        let e: AppError = StorageError::ServiceError("s3 error".into()).into();
         assert_eq!(e.code(), "INTERNAL_SERVER_ERROR");
+        assert_eq!(e.error_response().status(), 500);
     }
 
     // ── Service error conversion: NotificationError ──────────────────────
 
     #[test]
     fn test_notification_invalid_token_becomes_validation() {
-        let e: ApiError = NotificationError::InvalidToken("bad token".into()).into();
+        let e: AppError = NotificationError::InvalidToken("bad token".into()).into();
         assert_eq!(e.code(), "VALIDATION_ERROR");
+        assert_eq!(e.error_response().status(), 400);
     }
 
     #[test]
     fn test_notification_not_found_becomes_not_found() {
-        let e: ApiError = NotificationError::NotFound("device gone".into()).into();
+        let e: AppError = NotificationError::NotFound("device gone".into()).into();
         assert_eq!(e.code(), "NOT_FOUND");
+        assert_eq!(e.error_response().status(), 404);
     }
 
     #[test]
     fn test_notification_service_error_becomes_internal() {
-        let e: ApiError = NotificationError::ServiceError("fcm error".into()).into();
+        let e: AppError = NotificationError::ServiceError("fcm error".into()).into();
         assert_eq!(e.code(), "INTERNAL_SERVER_ERROR");
+        assert_eq!(e.error_response().status(), 500);
     }
 
     // ── Service error conversion: EmailError ─────────────────────────────
 
     #[test]
     fn test_email_invalid_becomes_validation() {
-        let e: ApiError = EmailError::InvalidEmail("notanemail".into()).into();
+        let e: AppError = EmailError::InvalidEmail("notanemail".into()).into();
         assert_eq!(e.code(), "VALIDATION_ERROR");
+        assert_eq!(e.error_response().status(), 400);
     }
 
     #[test]
     fn test_email_template_error_becomes_internal() {
-        let e: ApiError = EmailError::TemplateError("template missing".into()).into();
+        let e: AppError = EmailError::TemplateError("template missing".into()).into();
         assert_eq!(e.code(), "INTERNAL_SERVER_ERROR");
+        assert_eq!(e.error_response().status(), 500);
     }
 
     #[test]
     fn test_email_service_error_becomes_internal() {
-        let e: ApiError = EmailError::ServiceError("sendgrid down".into()).into();
+        let e: AppError = EmailError::ServiceError("sendgrid down".into()).into();
         assert_eq!(e.code(), "INTERNAL_SERVER_ERROR");
+        assert_eq!(e.error_response().status(), 500);
+    }
+
+    // ── Service errors convert into the canonical AppError type ──────────
+
+    #[test]
+    fn test_service_errors_convert_to_app_error() {
+        // Compile-time proof that each service error implements Into<AppError>.
+        fn assert_into_app_error<E: Into<AppError>>() {}
+        assert_into_app_error::<ReportError>();
+        assert_into_app_error::<StorageError>();
+        assert_into_app_error::<NotificationError>();
+        assert_into_app_error::<EmailError>();
     }
 
     // ── Wire-format shape consistency ────────────────────────────────────

@@ -1,59 +1,18 @@
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+// Shared API playground types live in packages/ so they can be reused across
+// the frontend and any other consumers. Re-exported here for backwards
+// compatibility with existing imports from this module.
+export type {
+  HttpMethod,
+  Header,
+  QueryParam,
+  AuthConfig,
+  ApiRequest,
+  ApiResponse,
+  HistoryEntry,
+  ExampleRequest,
+} from '@greenledger/packages/api-playground-types';
 
-export interface Header {
-  key: string;
-  value: string;
-  enabled: boolean;
-}
-
-export interface QueryParam {
-  key: string;
-  value: string;
-  enabled: boolean;
-}
-
-export interface AuthConfig {
-  type: 'none' | 'bearer' | 'api_key' | 'stellar';
-  token?: string;
-  apiKey?: string;
-  stellarPublicKey?: string;
-}
-
-export interface ApiRequest {
-  id: string;
-  name: string;
-  method: HttpMethod;
-  url: string;
-  headers: Header[];
-  queryParams: QueryParam[];
-  body: string;
-  auth: AuthConfig;
-}
-
-export interface ApiResponse {
-  status: number;
-  statusText: string;
-  headers: Record<string, string>;
-  body: string;
-  durationMs: number;
-  timestamp: string;
-}
-
-export interface HistoryEntry {
-  id: string;
-  request: ApiRequest;
-  response: ApiResponse | null;
-  error: string | null;
-  timestamp: string;
-}
-
-export interface ExampleRequest {
-  id: string;
-  category: string;
-  name: string;
-  description: string;
-  request: Omit<ApiRequest, 'id' | 'name'>;
-}
+import type { ExampleRequest } from '@greenledger/packages/api-playground-types';
 
 export const EXAMPLE_REQUESTS: ExampleRequest[] = [
   {

@@ -39,6 +39,8 @@ use std::rc::Rc;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
+use tracing::warn;
+
 use crate::config::rate_limit::{RateLimitConfig, RateLimitSettings};
 use crate::redis::RedisClient;
 
@@ -304,6 +306,16 @@ where
 
         match check_result {
             Err(retry_after) => {
+                warn!(
+                    client = %client_ip,
+                    path = %path,
+                    tier = ?config,
+                    limit_minute = config.requests_per_minute,
+                    limit_hour = config.requests_per_hour,
+                    window = "minute/hour",
+                    retry_after_seconds = retry_after,
+                    "Rate limit exceeded"
+                );
                 let response = HttpResponse::TooManyRequests()
                     .insert_header(("Retry-After", retry_after.to_string()))
                     .insert_header(("X-RateLimit-Limit-Minute", rpm.clone()))

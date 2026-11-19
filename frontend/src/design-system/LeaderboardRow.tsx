@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { TierBadge } from './TierBadge'
 
 interface LeaderboardRowProps {
@@ -21,7 +22,7 @@ function getRankColor(rank: number): string {
   }
 }
 
-export function LeaderboardRow({
+function LeaderboardRowComponent({
   rank,
   address,
   points,
@@ -59,3 +60,6 @@ export function LeaderboardRow({
     </div>
   )
 }
+
+export const LeaderboardRow = memo(LeaderboardRowComponent)
+LeaderboardRow.displayName = 'LeaderboardRow'

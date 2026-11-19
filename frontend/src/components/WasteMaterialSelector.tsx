@@ -7,7 +7,7 @@ import {
 import { cn } from '@/lib/utils'
 import { handleListKeyboard } from '@/lib/accessibility'
 import { WasteType } from '@/api/types'
-import type { WasteFormValues } from './WasteSubmissionFields'
+import type { WasteFormValues } from '@/lib/schemas/waste'
 
 export const WASTE_TYPE_OPTIONS = [
   { value: WasteType.Paper, label: 'Paper', icon: Newspaper },
@@ -89,9 +89,10 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
       <Controller
         name="wasteType"
         control={control}
-        render={({ field }) => {
+        render={({ field, fieldState }) => {
           const onSelectOption = (value: WasteType) => {
             field.onChange(value)
+            field.onBlur()
             closeDropdown()
           }
 
@@ -103,13 +104,15 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
               onKeyDown={handleTriggerKeyDown}
               className={cn(
                 'flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                !selectedOption && 'text-muted-foreground'
+                !selectedOption && 'text-muted-foreground',
+                fieldState.error && 'border-destructive'
               )}
               aria-label="Select material type"
               aria-labelledby={`${baseId}-label`}
               aria-expanded={materialDropdownOpen}
               aria-haspopup="listbox"
               aria-controls={materialDropdownOpen ? listboxId : undefined}
+              aria-invalid={fieldState.invalid}
             >
               <span className="flex items-center gap-2">
                 {selectedOption ? (
@@ -194,6 +197,9 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
       />
       {errors.wasteType && (
         <p className="mt-1 text-sm text-destructive" role="alert">{errors.wasteType.message}</p>
+      )}
+      {!errors.wasteType && selectedType === '' && (
+        <p className="mt-1 text-xs text-muted-foreground">Choose the material you are submitting.</p>
       )}
     </section>
   )
