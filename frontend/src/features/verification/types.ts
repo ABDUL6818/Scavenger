@@ -3,6 +3,15 @@ export type StatusFilter = 'all' | 'pending' | 'verified'
 export type SortField = 'id' | 'date' | 'weight' | 'type'
 export type SortDirection = 'asc' | 'desc'
 
+export type VerificationDecision = 'approved' | 'rejected'
+
+export type TimelineEventType =
+  | 'submitted'
+  | 'transfer'
+  | 'verified'
+  | 'confirmed'
+  | 'deactivated'
+
 export interface VerificationFormData {
   grade: QualityGrade
   contaminated: boolean
@@ -11,7 +20,7 @@ export interface VerificationFormData {
 
 export interface VerificationRecord {
   materialId: number
-  decision: 'approved' | 'rejected'
+  decision: VerificationDecision
   notes: string
   contaminated: boolean
   grade: QualityGrade
@@ -21,7 +30,7 @@ export interface VerificationRecord {
 
 export interface TimelineEvent {
   id: string
-  type: 'submitted' | 'transfer' | 'verified' | 'confirmed' | 'deactivated'
+  type: TimelineEventType
   timestamp: number
   label: string
   detail?: string

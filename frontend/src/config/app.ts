@@ -1,4 +1,5 @@
 import { ContractConfig } from '../types';
+import { env } from './env';
 
 interface AppConfig {
   contract: ContractConfig;
@@ -17,35 +18,28 @@ interface AppConfig {
   };
 }
 
-function validateContractConfig(config: ContractConfig): void {
-  if (!config.contractId) throw new Error('VITE_CONTRACT_ID is required.');
-  if (!config.network) throw new Error('VITE_NETWORK is required.');
-  if (!config.rpcUrl) throw new Error('VITE_RPC_URL is required.');
-}
-
 function loadConfig(): AppConfig {
+  // Validation and defaults are handled by the zod-validated env module.
   const contractConfig: ContractConfig = {
-    contractId: import.meta.env.VITE_CONTRACT_ID || '',
-    network: (import.meta.env.VITE_NETWORK || 'TESTNET') as ContractConfig['network'],
-    rpcUrl: import.meta.env.VITE_RPC_URL || '',
+    contractId: env.VITE_CONTRACT_ID,
+    network: env.VITE_NETWORK as ContractConfig['network'],
+    rpcUrl: env.VITE_RPC_URL,
   };
-
-  validateContractConfig(contractConfig);
 
   return {
     contract: contractConfig,
     api: {
-      baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
-      timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000', 10),
+      baseUrl: env.VITE_API_BASE_URL,
+      timeout: env.VITE_API_TIMEOUT,
     },
     features: {
-      offlineMode: import.meta.env.VITE_OFFLINE_MODE === 'true',
-      analytics: import.meta.env.VITE_ANALYTICS === 'true',
-      notifications: import.meta.env.VITE_NOTIFICATIONS !== 'false',
+      offlineMode: env.VITE_OFFLINE_MODE,
+      analytics: env.VITE_ANALYTICS,
+      notifications: env.VITE_NOTIFICATIONS,
     },
     logging: {
-      level: (import.meta.env.VITE_LOG_LEVEL || 'info') as AppConfig['logging']['level'],
-      enableConsole: import.meta.env.VITE_LOG_CONSOLE !== 'false',
+      level: env.VITE_LOG_LEVEL,
+      enableConsole: env.VITE_LOG_CONSOLE,
     },
   };
 }

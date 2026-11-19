@@ -1,76 +1,71 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Incentive, WasteType } from '@/api/types'
-import { useContract } from '@/context/ContractContext'
-import { networkConfig } from '@/lib/stellar'
 import { useWallet } from '@/context/WalletContext'
 import { useToast } from '@/hooks/useToast'
-import { ScavengerClient } from '@/api/client'
 import { cacheKeys } from '@/lib/cacheKeys'
+import { useContractQuery, useContractMutation } from '@/hooks/useContractQuery'
 
 const INCENTIVES_STALE_TIME = 30 * 1000 // 30 seconds
 
+/**
+ * Hook contract: `useIncentives`
+ *
+ * Reads the list of incentives for a given waste type (or all active
+ * incentives when `wasteType` is omitted) and exposes mutations to create,
+ * update and deactivate incentives.
+ *
+ * Contract:
+ * - Data: `incentives` is always an array (empty while loading / on error).
+ * - Loading/error: `isLoading`, `isError` and `error` (string | null) mirror
+ *   the underlying query state.
+ * - Wallet: `address` is the connected wallet address (or null).
+ * - Mutations: `createIncentive`, `updateIncentive` and `deactivateIncentive`
+ *   return promises that reject when the wallet is not connected or the
+ *   contract call fails. Successful mutations invalidate the incentives cache
+ *   and surface a toast.
+ *
+ * Backwards compatibility: the returned shape is unchanged from the previous
+ * implementation; callers do not need to be updated.
+ */
 export function useIncentives(wasteType?: WasteType) {
-  const { config } = useContract()
   const { address } = useWallet()
-  const queryClient = useQueryClient()
   const toast = useToast()
 
-  const { data, isLoading, isError } = useQuery<Incentive[]>({
+  const { data, isLoading, isError } = useContractQuery<Incentive[]>({
     queryKey: cacheKeys.incentives(wasteType),
-    queryFn: async () => {
-      const client = new ScavengerClient({
-        rpcUrl: config.rpcUrl,
-        networkPassphrase: networkConfig.networkPassphrase,
-        contractId: config.contractId,
-      })
-      if (wasteType !== undefined) return client.getIncentives(wasteType)
-      return client.getActiveIncentives()
-    },
+    queryFn: (client) =>
+      wasteType !== undefined ? client.getIncentives(wasteType) : client.getActiveIncentives(),
     staleTime: INCENTIVES_STALE_TIME,
   })
 
-  const getClient = () =>
-    new ScavengerClient({
-      rpcUrl: config.rpcUrl,
-      networkPassphrase: networkConfig.networkPassphrase,
-      contractId: config.contractId,
-    })
+  const invalidate = cacheKeys.incentivesRoot()
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: cacheKeys.incentivesRoot() })
-
-  const createIncentive = useMutation({
-    mutationFn: ({ wt, rewardPoints, budget }: { wt: WasteType; rewardPoints: bigint; budget: bigint }) => {
+  const createIncentive = useContractMutation({
+    mutationFn: (client, { wt, rewardPoints, budget }: { wt: WasteType; rewardPoints: bigint; budget: bigint }) => {
       if (!address) throw new Error('Wallet not connected.')
-      return getClient().createIncentive(address, wt, rewardPoints, budget, address)
+      return client.createIncentive(address, wt, rewardPoints, budget, address)
     },
-    onSuccess: (incentive) => {
-      invalidate()
-      toast.success(`Incentive #${incentive.id} created successfully.`)
-    },
+    invalidateQueryKey: invalidate,
+    onSuccess: (incentive) => toast.success(`Incentive #${incentive.id} created successfully.`),
     onError: (error) => toast.error(error),
   })
 
-  const updateIncentive = useMutation({
-    mutationFn: ({ id, rewardPoints, budget }: { id: bigint; rewardPoints: bigint; budget: bigint }) => {
+  const updateIncentive = useContractMutation({
+    mutationFn: (client, { id, rewardPoints, budget }: { id: bigint; rewardPoints: bigint; budget: bigint }) => {
       if (!address) throw new Error('Wallet not connected.')
-      return getClient().updateIncentive(id, address, rewardPoints, budget, address)
+      return client.updateIncentive(id, address, rewardPoints, budget, address)
     },
-    onSuccess: (incentive) => {
-      invalidate()
-      toast.success(`Incentive #${incentive.id} updated successfully.`)
-    },
+    invalidateQueryKey: invalidate,
+    onSuccess: (incentive) => toast.success(`Incentive #${incentive.id} updated successfully.`),
     onError: (error) => toast.error(error),
   })
 
-  const deactivateIncentive = useMutation({
-    mutationFn: ({ id }: { id: bigint }) => {
+  const deactivateIncentive = useContractMutation({
+    mutationFn: (client, { id }: { id: bigint }) => {
       if (!address) throw new Error('Wallet not connected.')
-      return getClient().deactivateIncentive(id, address, address)
+      return client.deactivateIncentive(id, address, address)
     },
-    onSuccess: () => {
-      invalidate()
-      toast.success('Incentive deactivated.')
-    },
+    invalidateQueryKey: invalidate,
+    onSuccess: () => toast.success('Incentive deactivated.'),
     onError: (error) => toast.error(error),
   })
 

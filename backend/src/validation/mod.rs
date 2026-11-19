@@ -1,5 +1,6 @@
 use actix_web::{HttpResponse, ResponseError};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::errors::{AppError, FieldError, ValidationError as DomainValidationError};
 
@@ -237,6 +238,130 @@ pub fn sanitize_string(s: &str) -> String {
     s.trim().chars().filter(|c| !c.is_control()).collect()
 }
 
+/// A single field-level rule applied to a JSON payload, in the spirit of a
+/// zod schema. Each rule inspects the raw `serde_json::Value` for a field and
+/// returns an optional error message.
+pub type FieldRule = fn(&Value) -> Option<String>;
+
+/// A minimal, zod-style schema describing the expected shape of a JSON
+/// payload. Rules are evaluated in order and all failures are collected so the
+/// caller can report every problem at once.
+#[derive(Debug, Default)]
+pub struct Schema {
+    rules: Vec<(&'static str, FieldRule)>,
+}
+
+impl Schema {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Registers a rule for `field`. Rules run against the whole payload so
+    /// they can express cross-field constraints if needed.
+    pub fn field(mut self, field: &'static str, rule: FieldRule) -> Self {
+        self.rules.push((field, rule));
+        self
+    }
+
+    /// Runs every rule against `payload`, returning all collected errors.
+    pub fn validate(&self, payload: &Value) -> Vec<ValidationError> {
+        let mut errors = Vec::new();
+        for (field, rule) in &self.rules {
+            if let Some(message) = rule(payload) {
+                errors.push(ValidationError {
+                    field: field.to_string(),
+                    message,
+                });
+            }
+        }
+        errors
+    }
+
+    /// Runs every rule and converts failures into a typed `AppError`.
+    pub fn validate_typed(&self, payload: &Value) -> Result<(), AppError> {
+        let errors = self.validate(payload);
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(AppError::Validation(DomainValidationError::Multiple(
+                errors
+                    .into_iter()
+                    .map(|e| FieldError {
+                        field: e.field,
+                        message: e.message,
+                    })
+                    .collect(),
+            )))
+        }
+    }
+}
+
+/// Extracts a string field from a JSON object, returning `None` when the field
+/// is missing or not a string.
+pub fn get_str<'a>(payload: &'a Value, field: &str) -> Option<&'a str> {
+    payload.get(field).and_then(Value::as_str)
+}
+
+/// Rule: field must be present and a non-empty (after trimming) string.
+pub fn required_string(field: &'static str) -> FieldRule {
+    move |payload| match get_str(payload, field) {
+        Some(v) if !v.trim().is_empty() => None,
+        Some(_) => Some(format!("{} is required", field)),
+        None => Some(format!("{} is required", field)),
+    }
+}
+
+/// Rule: field, when present, must be a string of at least `min` characters.
+pub fn min_length(field: &'static str, min: usize) -> FieldRule {
+    move |payload| match get_str(payload, field) {
+        Some(v) if v.len() < min => {
+            Some(format!("{} must be at least {} characters", field, min))
+        }
+        _ => None,
+    }
+}
+
+/// Rule: field, when present, must be a string no longer than `max` chars.
+pub fn max_length(field: &'static str, max: usize) -> FieldRule {
+    move |payload| match get_str(payload, field) {
+        Some(v) if v.len() > max => {
+            Some(format!("{} must be at most {} characters", field, max))
+        }
+        _ => None,
+    }
+}
+
+/// Rule: field, when present, must be a valid email address.
+pub fn email(field: &'static str) -> FieldRule {
+    move |payload| match get_str(payload, field) {
+        Some(v) if validate_email(v).is_some() => Some("invalid email format".to_string()),
+        _ => None,
+    }
+}
+
+/// Rule: field, when present, must be a valid Stellar address.
+pub fn stellar_address(field: &'static str) -> FieldRule {
+    move |payload| match get_str(payload, field) {
+        Some(v) if validate_stellar_address(v).is_some() => Some(
+            "stellar address must be 56 characters starting with 'G' using base32 alphabet [A-Z2-7]"
+                .to_string(),
+        ),
+        _ => None,
+    }
+}
+
+/// Rule: field, when present, must be an integer within `[min, max]`.
+pub fn integer_range(field: &'static str, min: i64, max: i64) -> FieldRule {
+    move |payload| match payload.get(field) {
+        None | Some(Value::Null) => None,
+        Some(v) => match v.as_i64() {
+            Some(n) if n >= min && n <= max => None,
+            Some(_) => Some(format!("{} must be between {} and {}", field, min, max)),
+            None => Some(format!("{} must be an integer", field)),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -337,5 +462,79 @@ mod tests {
         assert!(!errs.is_empty());
         let resp = errs.to_response();
         assert!(resp["errors"].is_array());
+    }
+
+    #[test]
+    fn test_schema_valid_payload() {
+        let schema = Schema::new()
+            .field("name", required_string("name"))
+            .field("name", min_length("name", 2))
+            .field("email", email("email"))
+            .field("age", integer_range("age", 0, 150));
+        let payload = serde_json::json!({
+            "name": "Alice",
+            "email": "alice@example.com",
+            "age": 30
+        });
+        assert!(schema.validate(&payload).is_empty());
+        assert!(schema.validate_typed(&payload).is_ok());
+    }
+
+    #[test]
+    fn test_schema_invalid_payload_collects_all_errors() {
+        let schema = Schema::new()
+            .field("name", required_string("name"))
+            .field("email", email("email"))
+            .field("age", integer_range("age", 0, 150));
+        let payload = serde_json::json!({
+            "name": "   ",
+            "email": "not-an-email",
+            "age": 200
+        });
+        let errors = schema.validate(&payload);
+        assert_eq!(errors.len(), 3);
+        assert!(errors.iter().any(|e| e.field == "name"));
+        assert!(errors.iter().any(|e| e.field == "email"));
+        assert!(errors.iter().any(|e| e.field == "age"));
+    }
+
+    #[test]
+    fn test_schema_validate_typed_returns_validation_error() {
+        let schema = Schema::new().field("address", stellar_address("address"));
+        let payload = serde_json::json!({ "address": "GABC" });
+        let result = schema.validate_typed(&payload);
+        assert!(matches!(result, Err(AppError::Validation(_))));
+    }
+
+    #[test]
+    fn test_schema_missing_and_wrong_types() {
+        let schema = Schema::new()
+            .field("name", required_string("name"))
+            .field("age", integer_range("age", 0, 150));
+        // Missing name -> required error; age as string -> integer error.
+        let payload = serde_json::json!({ "age": "thirty" });
+        let errors = schema.validate(&payload);
+        assert_eq!(errors.len(), 2);
+    }
+
+    #[test]
+    fn test_schema_optional_fields_skip_when_absent() {
+        let schema = Schema::new()
+            .field("email", email("email"))
+            .field("age", integer_range("age", 0, 150));
+        let payload = serde_json::json!({});
+        assert!(schema.validate(&payload).is_empty());
+    }
+
+    #[test]
+    fn test_schema_max_length_rule() {
+        let schema = Schema::new().field("name", max_length("name", 3));
+        assert!(schema
+            .validate(&serde_json::json!({ "name": "abcd" }))
+            .iter()
+            .any(|e| e.field == "name"));
+        assert!(schema
+            .validate(&serde_json::json!({ "name": "abc" }))
+            .is_empty());
     }
 }

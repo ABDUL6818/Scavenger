@@ -183,6 +183,16 @@ function PageFallback() {
   )
 }
 
+// ─── Lazy route element helper ────────────────────────────────────────────────
+// Wraps a single lazy page in its own Suspense boundary so that a slow chunk
+// fetch only suspends that page (not the whole shell) and always shows the
+// shared PageSkeleton fallback.
+
+// eslint-disable-next-line react-refresh/only-export-components
+function LazyRoute({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+}
+
 // ─── Auth guard ───────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -202,57 +212,57 @@ function ProtectedLayout() {
 // renders a fallback in place of just that page — the app shell and every
 // other route stay unaffected, and navigating away recovers automatically.
 export const PROTECTED_ROUTES = [
-  { path: 'dashboard', element: <HomePage /> },
+  { path: 'dashboard', element: <LazyRoute><HomePage /></LazyRoute> },
   { path: 'submit', element: <div>Submit Waste</div> },
-  { path: 'collect', element: <CollectorDashboardPage /> },
-  { path: 'incentives', element: <IncentivesMarketplacePage /> },
-  { path: 'incentives/manage', element: <IncentivesPage /> },
-  { path: 'transfer', element: <MaterialTransferPage /> },
+  { path: 'collect', element: <LazyRoute><CollectorDashboardPage /></LazyRoute> },
+  { path: 'incentives', element: <LazyRoute><IncentivesMarketplacePage /></LazyRoute> },
+  { path: 'incentives/manage', element: <LazyRoute><IncentivesPage /></LazyRoute> },
+  { path: 'transfer', element: <LazyRoute><MaterialTransferPage /></LazyRoute> },
   { path: 'history', element: <div>History</div> },
-  { path: 'dashboard/recycler', element: <RecyclerDashboard /> },
-  { path: 'wastes', element: <WasteListPage /> },
-  { path: 'manufacturer', element: <ManufacturerDashboardPage /> },
-  { path: 'settings', element: <SettingsPage /> },
-  { path: 'settings/offline', element: <OfflineSettings /> },
-  { path: 'rewards', element: <RewardsPage /> },
-  { path: 'tracker', element: <SupplyChainTrackerPage /> },
-  { path: 'community', element: <CommunityPage /> },
-  { path: 'governance', element: <GovernancePage /> },
-  { path: 'analytics', element: <AnalyticsPage /> },
-  { path: 'map', element: <WasteMapPage /> },
-  { path: 'admin', element: <AdminDashboardPage /> },
-  { path: 'verify', element: <VerificationPage /> },
-  { path: 'route-planner', element: <RoutePlannerPage /> },
-  { path: 'messages', element: <MessagingPage /> },
-  { path: 'compare', element: <WasteComparisonPage /> },
-  { path: 'predictions', element: <PredictiveAnalyticsPage /> },
-  { path: 'marketplace', element: <WasteMarketplacePage /> },
-  { path: 'certifications', element: <WasteCertificationPage /> },
-  { path: 'recycling-guide', element: <RecyclingGuidePage /> },
-  { path: 'performance', element: <PerformanceMonitoringPage /> },
-  { path: 'achievements', element: <GamificationPage /> },
-  { path: 'offline', element: <OfflinePage /> },
-  { path: 'waste-history', element: <WasteHistoryPage /> },
-  { path: 'participant-search', element: <ParticipantSearchPage /> },
-  { path: 'waste-statistics', element: <WasteStatisticsPage /> },
-  { path: 'reward-tracking', element: <RewardTrackingPage /> },
-  { path: 'verification-dashboard', element: <WasteVerificationDashboardPage /> },
-  { path: 'register', element: <ParticipantRegistrationPage /> },
-  { path: 'test-reports', element: <TestReportsPage /> },
-  { path: 'compliance-reports', element: <ComplianceReportsPage /> },
-  { path: 'notifications', element: <NotificationCenterPage /> },
-  { path: 'batch-upload', element: <BatchUploadPage /> },
-  { path: 'feature-flags', element: <FeatureFlagsPage /> },
-  { path: 'health', element: <PlatformHealthDashboardPage /> },
-  { path: 'slas', element: <PerformanceSLAsPage /> },
+  { path: 'dashboard/recycler', element: <LazyRoute><RecyclerDashboard /></LazyRoute> },
+  { path: 'wastes', element: <LazyRoute><WasteListPage /></LazyRoute> },
+  { path: 'manufacturer', element: <LazyRoute><ManufacturerDashboardPage /></LazyRoute> },
+  { path: 'settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
+  { path: 'settings/offline', element: <LazyRoute><OfflineSettings /></LazyRoute> },
+  { path: 'rewards', element: <LazyRoute><RewardsPage /></LazyRoute> },
+  { path: 'tracker', element: <LazyRoute><SupplyChainTrackerPage /></LazyRoute> },
+  { path: 'community', element: <LazyRoute><CommunityPage /></LazyRoute> },
+  { path: 'governance', element: <LazyRoute><GovernancePage /></LazyRoute> },
+  { path: 'analytics', element: <LazyRoute><AnalyticsPage /></LazyRoute> },
+  { path: 'map', element: <LazyRoute><WasteMapPage /></LazyRoute> },
+  { path: 'admin', element: <LazyRoute><AdminDashboardPage /></LazyRoute> },
+  { path: 'verify', element: <LazyRoute><VerificationPage /></LazyRoute> },
+  { path: 'route-planner', element: <LazyRoute><RoutePlannerPage /></LazyRoute> },
+  { path: 'messages', element: <LazyRoute><MessagingPage /></LazyRoute> },
+  { path: 'compare', element: <LazyRoute><WasteComparisonPage /></LazyRoute> },
+  { path: 'predictions', element: <LazyRoute><PredictiveAnalyticsPage /></LazyRoute> },
+  { path: 'marketplace', element: <LazyRoute><WasteMarketplacePage /></LazyRoute> },
+  { path: 'certifications', element: <LazyRoute><WasteCertificationPage /></LazyRoute> },
+  { path: 'recycling-guide', element: <LazyRoute><RecyclingGuidePage /></LazyRoute> },
+  { path: 'performance', element: <LazyRoute><PerformanceMonitoringPage /></LazyRoute> },
+  { path: 'achievements', element: <LazyRoute><GamificationPage /></LazyRoute> },
+  { path: 'offline', element: <LazyRoute><OfflinePage /></LazyRoute> },
+  { path: 'waste-history', element: <LazyRoute><WasteHistoryPage /></LazyRoute> },
+  { path: 'participant-search', element: <LazyRoute><ParticipantSearchPage /></LazyRoute> },
+  { path: 'waste-statistics', element: <LazyRoute><WasteStatisticsPage /></LazyRoute> },
+  { path: 'reward-tracking', element: <LazyRoute><RewardTrackingPage /></LazyRoute> },
+  { path: 'verification-dashboard', element: <LazyRoute><WasteVerificationDashboardPage /></LazyRoute> },
+  { path: 'register', element: <LazyRoute><ParticipantRegistrationPage /></LazyRoute> },
+  { path: 'test-reports', element: <LazyRoute><TestReportsPage /></LazyRoute> },
+  { path: 'compliance-reports', element: <LazyRoute><ComplianceReportsPage /></LazyRoute> },
+  { path: 'notifications', element: <LazyRoute><NotificationCenterPage /></LazyRoute> },
+  { path: 'batch-upload', element: <LazyRoute><BatchUploadPage /></LazyRoute> },
+  { path: 'feature-flags', element: <LazyRoute><FeatureFlagsPage /></LazyRoute> },
+  { path: 'health', element: <LazyRoute><PlatformHealthDashboardPage /></LazyRoute> },
+  { path: 'slas', element: <LazyRoute><PerformanceSLAsPage /></LazyRoute> },
   // Previously unrouted pages — wired up with lazy loading
-  { path: 'profile', element: <ProfilePage /> },
-  { path: 'donations', element: <CharityDonationsPage /> },
-  { path: 'environmental-impact', element: <EnvironmentalImpactDashboardPage /> },
-  { path: 'impact-calculator', element: <ImpactCalculatorPage /> },
-  { path: 'search', element: <SearchResultsPage /> },
-  { path: 'subscriptions', element: <SubscriptionsPage /> },
-  { path: 'qr', element: <QRCodePage /> },
+  { path: 'profile', element: <LazyRoute><ProfilePage /></LazyRoute> },
+  { path: 'donations', element: <LazyRoute><CharityDonationsPage /></LazyRoute> },
+  { path: 'environmental-impact', element: <LazyRoute><EnvironmentalImpactDashboardPage /></LazyRoute> },
+  { path: 'impact-calculator', element: <LazyRoute><ImpactCalculatorPage /></LazyRoute> },
+  { path: 'search', element: <LazyRoute><SearchResultsPage /></LazyRoute> },
+  { path: 'subscriptions', element: <LazyRoute><SubscriptionsPage /></LazyRoute> },
+  { path: 'qr', element: <LazyRoute><QRCodePage /></LazyRoute> },
 ]
 
 export const router = createBrowserRouter([

@@ -1,8 +1,13 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { analytics, type EventCategory } from '@/lib/analyticsService'
 
 /**
  * Hook that exposes event tracking helpers bound to an optional userId.
+ *
+ * The returned helpers are memoized so their references stay stable across
+ * renders as long as `userId` does not change. This lets consumers safely use
+ * them in dependency arrays (e.g. `useEffect`, `useMemo`, `useCallback`)
+ * without triggering unnecessary re-runs or re-renders.
  */
 export function useAnalytics(userId?: string) {
   const track = useCallback(
@@ -19,5 +24,5 @@ export function useAnalytics(userId?: string) {
     [userId],
   )
 
-  return { track, pageView }
+  return useMemo(() => ({ track, pageView }), [track, pageView])
 }

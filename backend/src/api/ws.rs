@@ -34,30 +34,6 @@ pub enum WsMessage {
     Error { code: WsErrorCode, message: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WsAuthRequest {
-    pub token: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WsSubscribeRequest {
-    pub channel: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WsUnsubscribeRequest {
-    pub channel: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConnectionInfo {
-    pub connection_id: String,
-    pub user_id: Option<String>,
-    pub subscribed_channels: Vec<String>,
-    pub connected_at: String,
-    pub last_heartbeat: String,
-}
-
 // ── Connection manager ────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -87,11 +63,6 @@ impl WsConnectionManager {
 /// Serialise a `WsErrorFrame` to a JSON string for sending over the socket.
 fn error_frame(code: WsErrorCode) -> String {
     WsErrorFrame::new(code).to_json()
-}
-
-/// Serialise a `WsErrorFrame` with a custom message.
-fn error_frame_msg(code: WsErrorCode, message: &str) -> String {
-    WsErrorFrame::with_message(code, message).to_json()
 }
 
 /// Serialise an outgoing frame. The types here always serialise, so the
@@ -312,21 +283,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn connection_info_roundtrips() {
-        let info = ConnectionInfo {
-            connection_id: "conn-1".to_string(),
-            user_id: Some("user-1".to_string()),
-            subscribed_channels: vec!["channel-1".to_string()],
-            connected_at: "2024-01-01T00:00:00Z".to_string(),
-            last_heartbeat: "2024-01-01T00:00:10Z".to_string(),
-        };
-        let json = serde_json::to_string(&info).unwrap();
-        let deserialized: ConnectionInfo = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.connection_id, "conn-1");
-        assert_eq!(deserialized.user_id, Some("user-1".to_string()));
-    }
-
     // ── Structured error frame helpers ────────────────────────────────────────
 
     #[test]
@@ -346,14 +302,6 @@ mod tests {
         assert_eq!(parsed["type"], "error");
         assert_eq!(parsed["payload"]["code"], "auth.token_required");
         assert!(parsed["payload"]["message"].is_string());
-    }
-
-    #[test]
-    fn error_frame_msg_helper_overrides_message() {
-        let json = error_frame_msg(WsErrorCode::ChannelNotFound, "channel 'events' not found");
-        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed["payload"]["code"], "channel.not_found");
-        assert_eq!(parsed["payload"]["message"], "channel 'events' not found");
     }
 
     #[test]
