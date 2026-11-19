@@ -32,6 +32,10 @@ export function RouteErrorBoundary() {
     : message || t('errors.route.unexpected')
 
   useEffect(() => {
+    console.error('[RouteErrorBoundary]', error)
+  }, [error])
+
+  useEffect(() => {
     toast({
       variant: 'destructive',
       title: isChunkLoadError ? 'Failed to load this page' : 'Something went wrong on this page',

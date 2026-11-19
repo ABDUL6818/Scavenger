@@ -12,8 +12,9 @@ use chrono::Utc;
 
 use crate::{
     cache::Cache,
-    services::api::ApiBuilder,
-    services::export::ExportService,
+    error::ApiError,
+    services::api::{ApiBuilder, PaginatedResponse},
+    services::export::{ExportService, ExportServiceTrait},
     validation::{error_response, validate_date_range, validate_export_format, validate_pagination, ValidationError},
 };
 
@@ -79,6 +80,16 @@ pub async fn export_data(
     cache: web::Data<Cache>,
     body: web::Json<ExportRequest>,
 ) -> HttpResponse {
+    let service = ExportService::new(cache.get_ref().clone());
+    export_data_with_service(&service, body).await
+}
+
+/// Controller logic for `export_data`, decoupled from the concrete service
+/// so it can be unit tested with a mock implementation.
+async fn export_data_with_service<S: ExportServiceTrait>(
+    service: &S,
+    body: web::Json<ExportRequest>,
+) -> HttpResponse {
     let mut errors = Vec::new();
 
     if let Some(ref err) = validate_export_format(&body.format) {
@@ -98,48 +109,20 @@ pub async fn export_data(
         return error_response(&errors);
     }
 
-    let export_id = uuid::Uuid::new_v4().to_string();
-    let format = body.format.to_lowercase();
-
-    let sample_data = vec![
-        crate::services::export::ExportData {
-            id: "waste-001".to_string(),
-            waste_type: "plastic".to_string(),
-            weight: 100,
-            status: "pending".to_string(),
-            created_at: Utc::now().to_rfc3339(),
-        },
-        crate::services::export::ExportData {
-            id: "waste-002".to_string(),
-            waste_type: "metal".to_string(),
-            weight: 250,
-            status: "approved".to_string(),
-            created_at: Utc::now().to_rfc3339(),
-        },
-    ];
-
-    let content_bytes = match format.as_str() {
-        "csv" => ExportService::export_to_csv(sample_data).map(|s| s.into_bytes()),
-        "json" => ExportService::export_to_json(sample_data).map(|s| s.into_bytes()),
-        // PDF removed (legacy format)
-        _ => unreachable!(),
-    };
-
-    match content_bytes {
-        Ok(bytes) => {
-            let cache_key = format!("export:{}", export_id);
-            cache.set(cache_key, bytes);
-
+    match service
+        .create_export(&body.format, &body.data_type, body.start_date.as_deref(), body.end_date.as_deref())
+        .await
+    {
+        Ok(result) => {
             let response = ExportResponse {
-                id: export_id,
-                format: format.clone(),
-                data_type: body.data_type.clone(),
-                status: "completed".to_string(),
-                file_size: None,
-                created_at: Utc::now().to_rfc3339(),
-                expires_at: (Utc::now() + chrono::Duration::hours(24)).to_rfc3339(),
+                id: result.id,
+                format: result.format,
+                data_type: result.data_type,
+                status: result.status,
+                file_size: result.file_size,
+                created_at: result.created_at,
+                expires_at: result.expires_at,
             };
-
             HttpResponse::Ok().json(ApiBuilder::success_response(response))
         }
         Err(e) => HttpResponse::InternalServerError()
@@ -154,18 +137,29 @@ pub async fn download_export(
     cache: web::Data<Cache>,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let export_id = path.into_inner();
-    let cache_key = format!("export:{}", export_id);
+    let service = ExportService::new(cache.get_ref().clone());
+    download_export_with_service(&service, path).await
+}
 
-    match cache.get(&cache_key) {
-        Some(data) => HttpResponse::Ok()
+/// Controller logic for `download_export`, decoupled from the concrete service.
+async fn download_export_with_service<S: ExportServiceTrait>(
+    service: &S,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let export_id = path.into_inner();
+
+    match service.get_export_content(&export_id).await {
+        Ok(Some(data)) => HttpResponse::Ok()
             .insert_header(("Content-Type", "application/octet-stream"))
             .insert_header((
                 "Content-Disposition",
                 format!("attachment; filename=\"{}.csv\"", export_id),
             ))
             .body(data),
-        None => HttpResponse::NotFound().json(ApiBuilder::error_response::<String>("Export not found or expired")),
+        Ok(None) => HttpResponse::NotFound()
+            .json(ApiBuilder::error_response::<String>("Export not found or expired")),
+        Err(e) => HttpResponse::InternalServerError()
+            .json(ApiBuilder::error_response::<String>(format!("Export failed: {}", e))),
     }
 }
 
@@ -173,7 +167,19 @@ pub async fn download_export(
 /// 
 /// GET /api/exports
 /// Query: page, limit
-pub async fn list_exports(query: web::Query<ExportListQuery>) -> HttpResponse {
+pub async fn list_exports(
+    cache: web::Data<Cache>,
+    query: web::Query<ExportListQuery>,
+) -> HttpResponse {
+    let service = ExportService::new(cache.get_ref().clone());
+    list_exports_with_service(&service, query).await
+}
+
+/// Controller logic for `list_exports`, decoupled from the concrete service.
+async fn list_exports_with_service<S: ExportServiceTrait>(
+    service: &S,
+    query: web::Query<ExportListQuery>,
+) -> HttpResponse {
     let page = query.page.unwrap_or(1);
     let limit = query.limit.unwrap_or(20);
 
@@ -194,6 +200,95 @@ pub async fn list_exports(query: web::Query<ExportListQuery>) -> HttpResponse {
     HttpResponse::Ok().json(ApiBuilder::success_response(response))
 }
 
+/// Create scheduled export
+/// 
+/// POST /api/export/schedule
+pub async fn create_scheduled_export(
+    cache: web::Data<Cache>,
+    body: web::Json<ScheduledExportConfig>,
+) -> HttpResponse {
+    let service = ExportService::new(cache.get_ref().clone());
+    create_scheduled_export_with_service(&service, body).await
+}
+
+/// Controller logic for `create_scheduled_export`, decoupled from the concrete service.
+async fn create_scheduled_export_with_service<S: ExportServiceTrait>(
+    service: &S,
+    body: web::Json<ScheduledExportConfig>,
+) -> HttpResponse {
+    let mut errors = Vec::new();
+
+    if let Some(ref err) = validate_export_format(&body.format) {
+        errors.push(err.clone());
+    }
+    if body.data_type.trim().is_empty() {
+        errors.push(ValidationError {
+            field: "data_type".to_string(),
+            message: "data_type is required".to_string(),
+        });
+    }
+    if body.schedule.trim().is_empty() {
+        errors.push(ValidationError {
+            field: "schedule".to_string(),
+            message: "schedule is required".to_string(),
+        });
+    }
+    if body.recipients.is_empty() {
+        errors.push(ValidationError {
+            field: "recipients".to_string(),
+            message: "at least one recipient is required".to_string(),
+        });
+    }
+
+    if !errors.is_empty() {
+        return error_response(&errors);
+    }
+
+    match service
+        .create_scheduled_export(
+            &body.format,
+            &body.data_type,
+            &body.schedule,
+            &body.recipients,
+            body.subject.as_deref(),
+        )
+        .await
+    {
+        Ok(_) => HttpResponse::Ok().json(ApiBuilder::success_response("Scheduled export created")),
+        Err(e) => HttpResponse::InternalServerError().json(ApiBuilder::error_response::<String>(
+            format!("Failed to create scheduled export: {}", e),
+        )),
+    }
+}
+
+/// Delete scheduled export
+/// 
+/// DELETE /api/export/schedule/{id}
+pub async fn delete_scheduled_export(
+    cache: web::Data<Cache>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let service = ExportService::new(cache.get_ref().clone());
+    delete_scheduled_export_with_service(&service, path).await
+}
+
+/// Controller logic for `delete_scheduled_export`, decoupled from the concrete service.
+async fn delete_scheduled_export_with_service<S: ExportServiceTrait>(
+    service: &S,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let export_id = path.into_inner();
+
+    match service.delete_scheduled_export(&export_id).await {
+        Ok(_) => HttpResponse::Ok().json(ApiBuilder::success_response(format!(
+            "Scheduled export {} deleted",
+            export_id
+        ))),
+        Err(e) => HttpResponse::InternalServerError().json(ApiBuilder::error_response::<String>(
+            format!("Failed to delete scheduled export: {}", e),
+        )),
+    }
+}
 // ============================================
 # Route Registration
 // ============================================
@@ -312,5 +407,242 @@ mod tests {
         assert_eq!(request.data_type, "waste");
         assert!(request.start_date.is_none());
         assert!(request.end_date.is_none());
+    }
+
+    // ============================================
+    // Controller tests with mocked service
+    // ============================================
+
+    use crate::services::export::{ExportResult, ScheduledExportResult};
+    use async_trait::async_trait;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct MockExportService {
+        create_export_result: Mutex<Option<Result<ExportResult, String>>>,
+        get_content_result: Mutex<Option<Result<Option<Vec<u8>>, String>>>,
+        list_result: Mutex<Option<Result<PaginatedResponse<ExportHistoryEntry>, String>>>,
+        create_schedule_result: Mutex<Option<Result<ScheduledExportResult, String>>>,
+        delete_schedule_result: Mutex<Option<Result<(), String>>>,
+    }
+
+    #[async_trait]
+    impl ExportServiceTrait for MockExportService {
+        async fn create_export(
+            &self,
+            _format: &str,
+            _data_type: &str,
+            _start_date: Option<&str>,
+            _end_date: Option<&str>,
+        ) -> Result<ExportResult, String> {
+            self.create_export_result
+                .lock()
+                .unwrap()
+                .take()
+                .unwrap_or_else(|| Err("not configured".to_string()))
+        }
+
+        async fn get_export_content(&self, _export_id: &str) -> Result<Option<Vec<u8>>, String> {
+            self.get_content_result
+                .lock()
+                .unwrap()
+                .take()
+                .unwrap_or_else(|| Ok(None))
+        }
+
+        async fn list_exports(
+            &self,
+            _page: u32,
+            _limit: u32,
+        ) -> Result<PaginatedResponse<ExportHistoryEntry>, String> {
+            self.list_result
+                .lock()
+                .unwrap()
+                .take()
+                .unwrap_or_else(|| Err("not configured".to_string()))
+        }
+
+        async fn create_scheduled_export(
+            &self,
+            _format: &str,
+            _data_type: &str,
+            _schedule: &str,
+            _recipients: &[String],
+            _subject: Option<&str>,
+        ) -> Result<ScheduledExportResult, String> {
+            self.create_schedule_result
+                .lock()
+                .unwrap()
+                .take()
+                .unwrap_or_else(|| Err("not configured".to_string()))
+        }
+
+        async fn delete_scheduled_export(&self, _export_id: &str) -> Result<(), String> {
+            self.delete_schedule_result
+                .lock()
+                .unwrap()
+                .take()
+                .unwrap_or_else(|| Ok(()))
+        }
+    }
+
+    fn sample_export_result() -> ExportResult {
+        ExportResult {
+            id: "test-123".to_string(),
+            format: "csv".to_string(),
+            data_type: "waste".to_string(),
+            status: "completed".to_string(),
+            file_size: None,
+            created_at: Utc::now().to_rfc3339(),
+            expires_at: (Utc::now() + chrono::Duration::hours(24)).to_rfc3339(),
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_export_data_success() {
+        let service = MockExportService::default();
+        *service.create_export_result.lock().unwrap() = Some(Ok(sample_export_result()));
+
+        let body = web::Json(ExportRequest {
+            format: "csv".to_string(),
+            data_type: "waste".to_string(),
+            start_date: None,
+            end_date: None,
+        });
+
+        let resp = export_data_with_service(&service, body).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_export_data_validation_error() {
+        let service = MockExportService::default();
+        let body = web::Json(ExportRequest {
+            format: "xml".to_string(),
+            data_type: "".to_string(),
+            start_date: None,
+            end_date: None,
+        });
+
+        let resp = export_data_with_service(&service, body).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn test_export_data_service_error() {
+        let service = MockExportService::default();
+        *service.create_export_result.lock().unwrap() = Some(Err("boom".to_string()));
+
+        let body = web::Json(ExportRequest {
+            format: "csv".to_string(),
+            data_type: "waste".to_string(),
+            start_date: None,
+            end_date: None,
+        });
+
+        let resp = export_data_with_service(&service, body).await;
+        assert_eq!(
+            resp.status(),
+            actix_web::http::StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
+
+    #[actix_web::test]
+    async fn test_download_export_found() {
+        let service = MockExportService::default();
+        *service.get_content_result.lock().unwrap() = Some(Ok(Some(b"data".to_vec())));
+
+        let resp = download_export_with_service(&service, web::Path::from("abc".to_string())).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_download_export_not_found() {
+        let service = MockExportService::default();
+        *service.get_content_result.lock().unwrap() = Some(Ok(None));
+
+        let resp = download_export_with_service(&service, web::Path::from("abc".to_string())).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn test_list_exports_success() {
+        let service = MockExportService::default();
+        *service.list_result.lock().unwrap() = Some(Ok(PaginatedResponse {
+            items: Vec::new(),
+            page: 1,
+            limit: 20,
+            total: 0,
+            total_pages: 0,
+        }));
+
+        let resp = list_exports_with_service(
+            &service,
+            web::Query(ExportListQuery {
+                page: Some(1),
+                limit: Some(20),
+            }),
+        )
+        .await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_list_exports_invalid_pagination() {
+        let service = MockExportService::default();
+        let resp = list_exports_with_service(
+            &service,
+            web::Query(ExportListQuery {
+                page: Some(0),
+                limit: Some(0),
+            }),
+        )
+        .await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn test_create_scheduled_export_success() {
+        let service = MockExportService::default();
+        *service.create_schedule_result.lock().unwrap() = Some(Ok(ScheduledExportResult {
+            id: "sched-1".to_string(),
+        }));
+
+        let body = web::Json(ScheduledExportConfig {
+            format: "csv".to_string(),
+            data_type: "waste".to_string(),
+            schedule: "daily".to_string(),
+            recipients: vec!["a@example.com".to_string()],
+            subject: None,
+        });
+
+        let resp = create_scheduled_export_with_service(&service, body).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_create_scheduled_export_validation_error() {
+        let service = MockExportService::default();
+        let body = web::Json(ScheduledExportConfig {
+            format: "csv".to_string(),
+            data_type: "waste".to_string(),
+            schedule: "".to_string(),
+            recipients: vec![],
+            subject: None,
+        });
+
+        let resp = create_scheduled_export_with_service(&service, body).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn test_delete_scheduled_export_success() {
+        let service = MockExportService::default();
+        *service.delete_schedule_result.lock().unwrap() = Some(Ok(()));
+
+        let resp =
+            delete_scheduled_export_with_service(&service, web::Path::from("sched-1".to_string()))
+                .await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
     }
 }

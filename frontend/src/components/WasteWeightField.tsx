@@ -52,13 +52,14 @@ export function WasteWeightField({
       <label htmlFor="weight-input" className="block text-sm font-medium mb-2">
         {t('waste.form.weight.label')} <span className="text-destructive">*</span>
       </label>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 xs:flex-row tablet:gap-3">
         <Input
           id="weight-input"
           type="number"
           step="any"
           min="0"
           inputMode="decimal"
+          className="w-full min-w-0"
           placeholder={getWeightPlaceholder(weightUnit)}
           aria-invalid={hasError ? true : undefined}
           aria-describedby={hasError ? 'weight-error' : undefined}
@@ -67,7 +68,7 @@ export function WasteWeightField({
         <button
           type="button"
           onClick={() => setWeightUnit(nextWeightUnit)}
-          className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
+          className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent xs:w-auto tablet:px-5"
           aria-label={t('waste.form.weight.switchUnit', { unit: t(`waste.units.${nextWeightUnit}`) })}
           aria-pressed={weightUnit === 'kilograms'}
         >

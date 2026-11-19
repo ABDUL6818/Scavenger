@@ -26,14 +26,14 @@ export function WasteSubmissionSummary({
 
   return (
     <Card>
-      <CardContent className="py-12">
+      <CardContent className="px-4 py-8 text-center sm:px-6 sm:py-10 md:py-12">
         <EmptyState
-          icon={<Recycle className="h-8 w-8 text-green-600" />}
-          iconClassName="rounded-full bg-green-100 p-3"
+          icon={<Recycle className="h-8 w-8 text-success" aria-hidden="true" />}
+          iconClassName="rounded-full bg-success/10 p-3"
           title={resolvedTitle}
           description={resolvedDescription}
           action={
-            <Button variant="outline" onClick={onDone}>
+            <Button variant="outline" onClick={onDone} className="w-full sm:w-auto">
               {t('common.done')}
             </Button>
           }

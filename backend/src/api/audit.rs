@@ -1,16 +1,15 @@
-//! HTTP handlers for audit endpoints. Business logic lives in `services/audit.rs`; these handlers
-//! only parse the request, call the audit service and serialise the response.
+//! HTTP handlers for audit endpoints. Business logic lives in `services/audit.rs` and data access
+//! in `repositories/audit.rs`; these handlers only parse the request, call the audit service and
+//! serialise the response.
 
 use actix_web::{web, HttpResponse};
-use crate::api::pagination::paginate;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::DateTime;
 
-use crate::services::api::{ApiBuilder, PaginatedResponse};
+use crate::services::api::ApiBuilder;
 use crate::services::audit::{
     AlertRule, AuditAction, AuditEventType, AuditQuery, AuditService, RetentionPolicy,
 };
-use crate::validation::{error_response, validate_pagination, ValidationError};
+use crate::validation::{error_response, validate_pagination};
 
 #[derive(Debug, Deserialize)]
 pub struct AuditLogQueryParams {
@@ -49,6 +48,38 @@ pub struct RetentionPolicyRequest {
     pub archive_enabled: bool,
 }
 
+fn parse_event_type(value: &str) -> Option<AuditEventType> {
+    match value {
+        "contract" => Some(AuditEventType::Contract),
+        "admin" => Some(AuditEventType::Admin),
+        "system" => Some(AuditEventType::System),
+        "security" => Some(AuditEventType::Security),
+        "export" => Some(AuditEventType::Export),
+        _ => None,
+    }
+}
+
+fn parse_action(value: &str) -> Option<AuditAction> {
+    match value {
+        "create" => Some(AuditAction::Create),
+        "update" => Some(AuditAction::Update),
+        "delete" => Some(AuditAction::Delete),
+        "read" => Some(AuditAction::Read),
+        "approve" => Some(AuditAction::Approve),
+        "reject" => Some(AuditAction::Reject),
+        "login" => Some(AuditAction::Login),
+        "logout" => Some(AuditAction::Logout),
+        "export" => Some(AuditAction::Export),
+        _ => None,
+    }
+}
+
+fn parse_date(value: &Option<String>) -> Option<chrono::DateTime<chrono::Utc>> {
+    value
+        .as_ref()
+        .and_then(|d| DateTime::parse_from_rfc3339(d).ok().map(|dt| dt.to_utc()))
+}
+
 pub async fn list_audit_logs(audit: web::Data<AuditService>, query: web::Query<AuditLogQueryParams>) -> HttpResponse {
     let page = query.page.unwrap_or(1);
     let limit = query.limit.unwrap_or(20);
@@ -59,45 +90,18 @@ pub async fn list_audit_logs(audit: web::Data<AuditService>, query: web::Query<A
     }
 
     let audit_query = AuditQuery {
-        event_type: query.event_type.as_deref().and_then(|s| match s {
-            "contract" => Some(AuditEventType::Contract),
-            "admin" => Some(AuditEventType::Admin),
-            "system" => Some(AuditEventType::System),
-            "security" => Some(AuditEventType::Security),
-            "export" => Some(AuditEventType::Export),
-            _ => None,
-        }),
+        event_type: query.event_type.as_deref().and_then(parse_event_type),
         user_id: query.user_id.clone(),
-        action: query.action.as_ref().and_then(|s| match s.as_str() {
-            "create" => Some(AuditAction::Create),
-            "update" => Some(AuditAction::Update),
-            "delete" => Some(AuditAction::Delete),
-            "read" => Some(AuditAction::Read),
-            "approve" => Some(AuditAction::Approve),
-            "reject" => Some(AuditAction::Reject),
-            "login" => Some(AuditAction::Login),
-            "logout" => Some(AuditAction::Logout),
-            "export" => Some(AuditAction::Export),
-            _ => None,
-        }),
+        action: query.action.as_deref().and_then(parse_action),
         resource_type: query.resource_type.clone(),
-        start_date: query
-            .start_date
-            .as_ref()
-            .and_then(|d| DateTime::parse_from_rfc3339(d).ok().map(|dt| dt.to_utc())),
-        end_date: query
-            .end_date
-            .as_ref()
-            .and_then(|d| DateTime::parse_from_rfc3339(d).ok().map(|dt| dt.to_utc())),
+        start_date: parse_date(&query.start_date),
+        end_date: parse_date(&query.end_date),
         severity: query.severity.clone(),
         limit: Some(limit),
         offset: Some((page - 1) * limit),
     };
 
-    let entries = audit.query(audit_query);
-    let total = entries.len() as u32;
-
-    let response = paginate(&entries, page, limit);
+    let response = audit.list_paginated(audit_query, page, limit);
     HttpResponse::Ok().json(ApiBuilder::success_response(response))
 }
 
@@ -131,18 +135,10 @@ pub async fn generate_audit_report(
         }
     };
 
-    let event_types = body.event_types.as_ref().map(|v| {
-        v.iter()
-            .filter_map(|s| match s.as_str() {
-                "contract" => Some(AuditEventType::Contract),
-                "admin" => Some(AuditEventType::Admin),
-                "system" => Some(AuditEventType::System),
-                "security" => Some(AuditEventType::Security),
-                "export" => Some(AuditEventType::Export),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-    });
+    let event_types = body
+        .event_types
+        .as_ref()
+        .map(|v| v.iter().filter_map(|s| parse_event_type(s)).collect::<Vec<_>>());
 
     let report = audit.generate_report(start, end, event_types, body.group_by.clone());
 
@@ -155,36 +151,14 @@ pub async fn export_audit_logs(audit: web::Data<AuditService>, query: web::Query
         user_id: None,
         action: None,
         resource_type: None,
-        start_date: query
-            .start_date
-            .as_ref()
-            .and_then(|d| DateTime::parse_from_rfc3339(d).ok().map(|dt| dt.to_utc())),
-        end_date: query
-            .end_date
-            .as_ref()
-            .and_then(|d| DateTime::parse_from_rfc3339(d).ok().map(|dt| dt.to_utc())),
+        start_date: parse_date(&query.start_date),
+        end_date: parse_date(&query.end_date),
         severity: None,
         limit: None,
         offset: None,
     };
 
-    let entries = audit.query(audit_query);
-
-    let mut csv_content = String::from("ID,Event Type,Action,User ID,Resource,Details,Timestamp,IP Address,Severity\n");
-    for entry in &entries {
-        csv_content.push_str(&format!(
-            "{},{},{},{},{},{},{},{},{}\n",
-            entry.id,
-            entry.event_type,
-            entry.action,
-            entry.user_id,
-            entry.resource_type,
-            entry.details.replace(',', " "),
-            entry.timestamp.to_rfc3339(),
-            entry.ip_address,
-            entry.severity,
-        ));
-    }
+    let csv_content = audit.export_csv(audit_query);
 
     HttpResponse::Ok()
         .insert_header(("Content-Type", "text/csv"))
@@ -202,8 +176,8 @@ pub async fn create_alert_rule(audit: web::Data<AuditService>, body: web::Json<A
         enabled: body.enabled,
     };
 
-    audit.add_alert_rule(rule.clone());
-    HttpResponse::Created().json(ApiBuilder::success_response(rule))
+    let created = audit.create_alert_rule(rule);
+    HttpResponse::Created().json(ApiBuilder::success_response(created))
 }
 
 pub async fn list_alert_rules(audit: web::Data<AuditService>) -> HttpResponse {
@@ -226,16 +200,13 @@ pub async fn update_retention_policy(
         archive_enabled: body.archive_enabled,
     };
 
-    audit.set_retention_policy(policy.clone());
-    HttpResponse::Ok().json(ApiBuilder::success_response(policy))
+    let updated = audit.update_retention_policy(policy);
+    HttpResponse::Ok().json(ApiBuilder::success_response(updated))
 }
 
 pub async fn purge_old_logs(audit: web::Data<AuditService>) -> HttpResponse {
     let purged = audit.purge_old_entries();
-    HttpResponse::Ok().json(ApiBuilder::success_response(serde_json::json!({
-        "purged_count": purged,
-        "message": format!("Purged {} old audit log entries", purged)
-    })))
+    HttpResponse::Ok().json(ApiBuilder::success_response(audit.purge_summary(purged)))
 }
 
 #[cfg(test)]
@@ -359,6 +330,89 @@ mod tests {
     async fn test_purge_old_logs() {
         let audit = setup_audit_service();
         let resp = purge_old_logs(web::Data::new(audit)).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_list_audit_logs_invalid_pagination() {
+        let audit = setup_audit_service();
+        let query = web::Query(AuditLogQueryParams {
+            page: Some(0),
+            limit: Some(10),
+            event_type: None,
+            user_id: None,
+            action: None,
+            resource_type: None,
+            start_date: None,
+            end_date: None,
+            severity: None,
+        });
+        let resp = list_audit_logs(web::Data::new(audit), query).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn test_list_audit_logs_with_filters() {
+        let audit = setup_audit_service();
+        let query = web::Query(AuditLogQueryParams {
+            page: Some(1),
+            limit: Some(10),
+            event_type: Some("contract".to_string()),
+            user_id: Some("user-001".to_string()),
+            action: Some("create".to_string()),
+            resource_type: Some("waste".to_string()),
+            start_date: Some("2020-01-01T00:00:00Z".to_string()),
+            end_date: Some("2999-01-01T00:00:00Z".to_string()),
+            severity: Some("medium".to_string()),
+        });
+        let resp = list_audit_logs(web::Data::new(audit), query).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_get_audit_entry_not_found() {
+        let audit = AuditService::new();
+        let resp = get_audit_entry(web::Data::new(audit), web::Path::from("missing".to_string())).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn test_generate_audit_report_invalid_dates() {
+        let audit = setup_audit_service();
+        let body = web::Json(AuditReportRequest {
+            start_date: "not-a-date".to_string(),
+            end_date: "2024-01-01T00:00:00Z".to_string(),
+            event_types: None,
+            group_by: None,
+        });
+        let resp = generate_audit_report(web::Data::new(audit), body).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn test_generate_audit_report_success() {
+        let audit = setup_audit_service();
+        let body = web::Json(AuditReportRequest {
+            start_date: "2020-01-01T00:00:00Z".to_string(),
+            end_date: "2999-01-01T00:00:00Z".to_string(),
+            event_types: Some(vec!["contract".to_string(), "admin".to_string()]),
+            group_by: Some("event_type".to_string()),
+        });
+        let resp = generate_audit_report(web::Data::new(audit), body).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_list_alert_rules() {
+        let audit = AuditService::new();
+        let resp = list_alert_rules(web::Data::new(audit)).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn test_get_retention_policy() {
+        let audit = AuditService::new();
+        let resp = get_retention_policy(web::Data::new(audit)).await;
         assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
     }
 }

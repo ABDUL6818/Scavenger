@@ -64,6 +64,17 @@ export default {
       padding: '2rem',
       screens: { '2xl': '1400px' },
     },
+    screens: {
+      // Extra-small breakpoint for narrow phones (<360px)
+      xs: '360px',
+      sm: '640px',
+      md: '768px',
+      // Tablet breakpoint (portrait/landscape tablets)
+      tablet: '834px',
+      lg: '1024px',
+      xl: '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
         // Raw palette — available as e.g. `text-green-500`
@@ -105,6 +116,33 @@ export default {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
+        },
+        // Semantic surface tokens — use these instead of hard-coded colors
+        surface: {
+          DEFAULT: 'hsl(var(--surface))',
+          foreground: 'hsl(var(--surface-foreground))',
+          muted: 'hsl(var(--surface-muted))',
+          raised: 'hsl(var(--surface-raised))',
+        },
+        // Semantic text tokens
+        text: {
+          DEFAULT: 'hsl(var(--text))',
+          muted: 'hsl(var(--text-muted))',
+          subtle: 'hsl(var(--text-subtle))',
+          inverted: 'hsl(var(--text-inverted))',
+        },
+        // Semantic status tokens
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))',
+        },
+        info: {
+          DEFAULT: 'hsl(var(--info))',
+          foreground: 'hsl(var(--info-foreground))',
         },
       },
       fontFamily: typography.fontFamily,

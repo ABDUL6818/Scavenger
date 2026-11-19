@@ -24,19 +24,19 @@ export function AdminDashboardPage() {
   const { activeTab, setActiveTab, visibleTabs } = useAdminTabs({ isAdmin })
 
   return (
-    <div className="space-y-6 px-4 py-6 sm:space-y-8 sm:py-8">
+    <div className="space-y-6 px-3 py-6 xs:px-4 sm:space-y-8 sm:py-8">
       <div className="flex items-center gap-3">
-        <ShieldAlert className="h-6 w-6 text-destructive" />
-        <div>
+        <ShieldAlert className="h-6 w-6 shrink-0 text-destructive" />
+        <div className="min-w-0">
           <h1 className="text-xl font-bold sm:text-2xl">{t('admin.dashboard.title')}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{t('admin.dashboard.subtitle')}</p>
         </div>
       </div>
 
       {!isAdmin && (
-        <div className="flex items-center gap-2 rounded-md border border-yellow-400 bg-yellow-50 px-4 py-2 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          {t('admin.dashboard.restrictedNotice')}
+        <div className="flex items-start gap-2 rounded-md border border-warning bg-warning/10 px-3 py-2 text-sm text-warning-foreground xs:px-4 sm:items-center">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
+          <span className="min-w-0">{t('admin.dashboard.restrictedNotice')}</span>
         </div>
       )}
 
@@ -44,7 +44,7 @@ export function AdminDashboardPage() {
       <div
         role="tablist"
         aria-label={t('admin.dashboard.tabListLabel')}
-        className="flex flex-wrap gap-1 rounded-lg border bg-muted p-1"
+        className="flex flex-wrap gap-1 rounded-lg border bg-muted p-1 xs:flex-nowrap xs:overflow-x-auto tablet:flex-wrap tablet:overflow-visible"
       >
         {visibleTabs.map((tab) => (
           <Button
@@ -54,8 +54,10 @@ export function AdminDashboardPage() {
             variant={activeTab === tab.id ? 'secondary' : 'ghost'}
             size="sm"
             onClick={() => setActiveTab(tab.id)}
-            className={`gap-1.5 font-medium ${
-              activeTab === tab.id ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xs:px-3 ${
+              activeTab === tab.id
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab.icon}

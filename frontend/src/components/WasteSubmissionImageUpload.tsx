@@ -58,7 +58,7 @@ export function WasteSubmissionImageUpload({
       {photoError && (
         <p
           id={errorId}
-          className="mt-1 text-sm text-destructive"
+          className="mt-1 break-words text-xs text-destructive xs:text-sm tablet:text-sm"
           role="alert"
           aria-live="assertive"
         >

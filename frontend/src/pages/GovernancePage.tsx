@@ -56,7 +56,7 @@ function ProposalCard({
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className={`h-full transition-all ${choice === 'for' ? 'bg-green-500' : choice === 'against' ? 'bg-red-500' : 'bg-gray-400'}`}
+                  className={`h-full transition-all ${choice === 'for' ? 'bg-success' : choice === 'against' ? 'bg-destructive' : 'bg-muted-foreground'}`}
                   style={{ width: `${(tally[choice] / total) * 100}%` }}
                 />
               </div>
@@ -72,14 +72,14 @@ function ProposalCard({
         </div>
 
         {proposal.status === 'active' && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 xs:gap-1.5">
             {(['for', 'against', 'abstain'] as VoteChoice[]).map((choice) => (
               <Button
                 key={choice}
                 size="sm"
                 variant={choice === 'for' ? 'default' : 'outline'}
                 onClick={() => onVote(proposal.id, choice)}
-                className="capitalize text-xs"
+                className="capitalize text-xs xs:px-2"
               >
                 {choice === 'for' ? '✓' : choice === 'against' ? '✗' : '—'} {t(`governance.voteChoices.${choice}`)}
               </Button>
@@ -88,7 +88,7 @@ function ProposalCard({
               size="sm"
               variant="outline"
               onClick={() => onVeto(proposal.id)}
-              className="text-xs text-destructive border-destructive hover:bg-destructive/10"
+              className="text-xs text-destructive border-destructive hover:bg-destructive/10 xs:px-2"
             >
               <Shield className="h-3 w-3 mr-1" /> {t('governance.veto')}
             </Button>
@@ -201,9 +201,9 @@ export function GovernancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 xs:gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{t('governance.heading')}</h1>
+          <h1 className="text-3xl font-bold xs:text-2xl">{t('governance.heading')}</h1>
           <p className="mt-1 text-muted-foreground">
             {t('governance.subtitle')}
           </p>
@@ -212,7 +212,7 @@ export function GovernancePage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xs:gap-2 sm:grid-cols-4 tablet:grid-cols-4">
         {[
           { key: 'totalProposals', label: t('governance.stats.totalProposals'), value: stats.totalProposals },
           { key: 'active', label: t('governance.stats.active'), value: stats.activeProposals },
@@ -229,7 +229,7 @@ export function GovernancePage() {
       </div>
 
       {/* Filter */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap xs:gap-1.5">
         {(['all', 'active', 'passed', 'rejected'] as const).map((f) => (
           <Button
             key={f}
@@ -252,7 +252,7 @@ export function GovernancePage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 xs:gap-3 md:grid-cols-2 tablet:grid-cols-2">
           {proposals.map((p) => (
             <ProposalCard key={p.id} proposal={p} onVote={handleVote} onVeto={handleVeto} />
           ))}

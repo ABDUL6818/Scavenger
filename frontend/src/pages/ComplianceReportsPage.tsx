@@ -22,10 +22,10 @@ export function ComplianceReportsPage() {
   ]
 
   return (
-    <div className="space-y-6 px-4 py-6 sm:space-y-8 sm:py-8">
+    <div className="space-y-6 px-3 py-6 xs:px-4 sm:space-y-8 sm:py-8">
       <div className="flex items-center gap-3">
-        <FileText className="h-6 w-6 text-primary" />
-        <div>
+        <FileText className="h-6 w-6 shrink-0 text-primary" />
+        <div className="min-w-0">
           <h1 className="text-xl font-bold sm:text-2xl">{t('complianceReports.pageTitle')}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {t('complianceReports.pageDescription')}
@@ -44,14 +44,14 @@ export function ComplianceReportsPage() {
             role="tab"
             aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xs:flex-none xs:justify-start xs:px-3 ${
               activeTab === tab.id
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab.icon}
-            {tab.label}
+            <span className="truncate">{tab.label}</span>
           </button>
         ))}
       </div>

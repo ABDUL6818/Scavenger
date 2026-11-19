@@ -85,15 +85,15 @@ export function LoginPage() {
   const isbusy = walletLoading || checking
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="flex min-h-screen items-center justify-center bg-background px-3 xs:px-4 sm:px-6">
+      <div className="w-full max-w-sm space-y-5 xs:space-y-6 tablet:max-w-md tablet:space-y-8">
         {/* Logo */}
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Recycle className="h-6 w-6 text-primary" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 xs:h-12 xs:w-12">
+            <Recycle className="h-5 w-5 text-primary xs:h-6 xs:w-6" />
           </div>
-          <h1 className="text-2xl font-bold">{t('login.welcome')}</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-bold xs:text-2xl tablet:text-3xl">{t('login.welcome')}</h1>
+          <p className="text-xs text-muted-foreground xs:text-sm">
             {t('login.connectPrompt')}
           </p>
         </div>
@@ -106,7 +106,7 @@ export function LoginPage() {
               {walletLoading ? t('login.connecting') : t('login.connectWallet')}
             </Button>
             {walletError && (
-              <p role="alert" aria-live="assertive" className="text-center text-sm text-destructive">
+              <p role="alert" aria-live="assertive" className="text-center text-xs text-destructive xs:text-sm">
                 {walletError}
               </p>
             )}
@@ -115,15 +115,15 @@ export function LoginPage() {
 
         {/* Checking registration */}
         {isConnected && checking && (
-          <p role="status" aria-live="polite" className="text-center text-sm text-muted-foreground">
+          <p role="status" aria-live="polite" className="text-center text-xs text-muted-foreground xs:text-sm">
             {t('login.checkingRegistration')}
           </p>
         )}
 
         {/* Step 2: Registration form (not yet registered) */}
         {isConnected && !checking && isRegistered === false && (
-          <form onSubmit={handleRegister} className="space-y-4">
-            <p className="text-center text-sm text-muted-foreground">
+          <form onSubmit={handleRegister} className="space-y-3 xs:space-y-4 tablet:space-y-5">
+            <p className="text-center text-xs text-muted-foreground xs:text-sm">
               {t('login.notRegistered')}
             </p>
 
@@ -160,7 +160,7 @@ export function LoginPage() {
             </div>
 
             {registerMutation.isError && (
-              <p role="alert" aria-live="assertive" className="text-sm text-destructive">
+              <p role="alert" aria-live="assertive" className="text-xs text-destructive xs:text-sm">
                 {registerMutation.error?.message ?? t('login.registrationFailed')}
               </p>
             )}
