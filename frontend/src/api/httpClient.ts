@@ -16,6 +16,46 @@
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
+/**
+ * Well-known HTTP status codes used by the client and its consumers.
+ * Prefer these over magic numbers when branching on `ApiError.status`.
+ */
+export const HttpStatus = {
+  Ok: 200,
+  Created: 201,
+  NoContent: 204,
+  BadRequest: 400,
+  Unauthorized: 401,
+  Forbidden: 403,
+  NotFound: 404,
+  Conflict: 409,
+  UnprocessableEntity: 422,
+  TooManyRequests: 429,
+  InternalServerError: 500,
+  BadGateway: 502,
+  ServiceUnavailable: 503,
+  GatewayTimeout: 504,
+} as const
+
+export type HttpStatus = (typeof HttpStatus)[keyof typeof HttpStatus]
+
+/**
+ * Synthetic status used for client-side failures (network errors, timeouts).
+ * Kept at 0 so it never collides with a real HTTP status.
+ */
+export const CLIENT_ERROR_STATUS = 0
+
+/** Machine-readable error kinds, useful for retry decisions. */
+export const ApiErrorKind = {
+  Timeout: 'Timeout',
+  NetworkError: 'NetworkError',
+  Unknown: 'Unknown',
+  Http: 'Http',
+} as const
+
+export type ApiErrorKind = (typeof ApiErrorKind)[keyof typeof ApiErrorKind]
+=======
+
 export interface ApiClientOptions {
   /** Base URL prepended to every request path. */
   baseUrl?: string
@@ -46,12 +86,36 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly statusText: string,
     public readonly body: unknown,
-    message?: string
+    message?: string,
+    public readonly kind: ApiErrorKind = status === CLIENT_ERROR_STATUS
+      ? ApiErrorKind.Unknown
+      : ApiErrorKind.Http
   ) {
     super(message ?? `HTTP ${status} ${statusText}`)
     this.name = 'ApiError'
   }
+
+  /** True for client-side failures (network error, timeout) with no HTTP status. */
+  get isNetworkError(): boolean {
+    return this.status === CLIENT_ERROR_STATUS
+  }
+
+  /** True when the request timed out. */
+  get isTimeout(): boolean {
+    return this.kind === ApiErrorKind.Timeout
+  }
+
+  /**
+   * Whether this error is worth retrying. Aligns with TanStack Query's default
+   * retry policy: never retry 4xx (except 408/429), retry 5xx and network errors.
+   */
+  get isRetryable(): boolean {
+    if (this.isNetworkError) return true
+    if (this.status === HttpStatus.TooManyRequests) return true
+    return this.status >= HttpStatus.InternalServerError
+  }
 }
+=======
 
 /** Successful response envelope returned by every client method. */
 export interface ApiResult<T> {
@@ -133,10 +197,23 @@ export class ApiClient {
     } catch (err) {
       clearTimeout(timer)
       if ((err as Error).name === 'AbortError') {
-        throw new ApiError(0, 'Timeout', null, `Request timed out after ${timeout}ms`)
+        throw new ApiError(
+          CLIENT_ERROR_STATUS,
+          ApiErrorKind.Timeout,
+          null,
+          `Request timed out after ${timeout}ms`,
+          ApiErrorKind.Timeout
+        )
       }
-      throw new ApiError(0, 'NetworkError', null, (err as Error).message)
+      throw new ApiError(
+        CLIENT_ERROR_STATUS,
+        ApiErrorKind.NetworkError,
+        null,
+        (err as Error).message,
+        ApiErrorKind.NetworkError
+      )
     } finally {
+=======
       clearTimeout(timer)
     }
 
@@ -222,5 +299,17 @@ export const apiClient = createApiClient({
 export function normalizeApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
   const message = err instanceof Error ? err.message : String(err)
-  return new ApiError(0, 'Unknown', null, message)
+  return new ApiError(CLIENT_ERROR_STATUS, ApiErrorKind.Unknown, null, message, ApiErrorKind.Unknown)
 }
+
+/**
+ * Default retry predicate for TanStack Query `retry` options.
+ *
+ * @example
+ * useQuery({ queryKey, queryFn, retry: shouldRetryRequest })
+ */
+export function shouldRetryRequest(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 3) return false
+  return normalizeApiError(error).isRetryable
+}
+=======

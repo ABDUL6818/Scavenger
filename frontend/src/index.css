@@ -25,14 +25,6 @@
   white-space: normal;
 }
 
-/* High contrast mode */
-.high-contrast {
-  --background: 0 0% 0%;
-  --foreground: 0 0% 100%;
-  --primary: 0 0% 100%;
-  --primary-foreground: 0 0% 0%;
-}
-
 /* Reduced motion */
 .reduce-motion *,
 .reduce-motion *::before,
@@ -51,6 +43,10 @@
   font-size: 112.5%;
 }
 
+/* ── Design tokens ────────────────────────────────────────────────────────
+   Single source of truth for theme variables. Values mirror
+   `frontend/src/design-system/tokens.ts`; keep the two in sync.
+   ──────────────────────────────────────────────────────────────────────── */
 @layer base {
   :root {
     /* ── Light theme ─────────────────────────────────────────────────── */
@@ -181,9 +177,4 @@
   }
 }
 
-/* ── Utility layer extras ──────────────────────────────────────────────── */
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
+

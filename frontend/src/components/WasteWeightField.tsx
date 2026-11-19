@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { type UseFormRegister, type UseFormWatch, type FieldErrors } from 'react-hook-form'
 import { Input } from '@/components/ui/Input'
 import { convertWeight, type WeightUnit } from '@/lib/validation/wasteSubmission'
+import { formatWeightConversion, getWeightPlaceholder, getWeightUnitLabel } from '@/lib/format'
 import type { WasteFormValues } from './WasteSubmissionFields'
 
 interface WasteWeightFieldProps {
@@ -20,7 +21,11 @@ export function WasteWeightField({
   setWeightUnit,
 }: WasteWeightFieldProps) {
   const weightValue = watch('weight')
-  const convertedWeight = useMemo(() => convertWeight(weightValue, weightUnit), [weightValue, weightUnit])
+  const convertedWeight = useMemo(
+    () => formatWeightConversion(convertWeight(weightValue, weightUnit)),
+    [weightValue, weightUnit],
+  )
+  const nextWeightUnit: WeightUnit = weightUnit === 'grams' ? 'kilograms' : 'grams'
 
   return (
     <section>
@@ -33,16 +38,16 @@ export function WasteWeightField({
           type="number"
           step="any"
           min="0"
-          placeholder={weightUnit === 'grams' ? 'e.g. 500' : 'e.g. 0.5'}
+          placeholder={getWeightPlaceholder(weightUnit)}
           {...register('weight')}
         />
         <button
           type="button"
-          onClick={() => setWeightUnit(weightUnit === 'grams' ? 'kilograms' : 'grams')}
+          onClick={() => setWeightUnit(nextWeightUnit)}
           className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
-          aria-label={`Switch to ${weightUnit === 'grams' ? 'kilograms' : 'grams'}`}
+          aria-label={`Switch to ${nextWeightUnit}`}
         >
-          {weightUnit === 'grams' ? 'g' : 'kg'}
+          {getWeightUnitLabel(weightUnit)}
         </button>
       </div>
       {convertedWeight && (

@@ -18,9 +18,11 @@ import {
   WasteTransfer,
   ParticipantStats,
   GlobalMetrics,
+  SupplyChainStats,
   ContractError,
 } from './types'
 import { signTransactionXDR } from '@/features/wallet/service'
+import { ContractErrorCode, isRetryableError } from '@/lib/constants'
 
 export interface ClientOptions {
   rpcUrl: string
@@ -86,7 +88,9 @@ export class ScavengerClient {
     const sendResult = await this.server.sendTransaction(signed)
 
     if (sendResult.status === 'ERROR') {
-      throw this._parseError(sendResult.errorResult?.toXDR('base64') ?? 'Transaction failed')
+      throw this._parseError(
+        sendResult.errorResult?.toXDR('base64') ?? 'Transaction failed'
+      )
     }
 
     // Poll for confirmation
@@ -100,10 +104,10 @@ export class ScavengerClient {
         return scValToNative(retval) as T
       }
       if (status.status === SorobanRpc.Api.GetTransactionStatus.FAILED) {
-        throw new ContractError('Transaction failed on-chain')
+        throw new ContractError('Transaction failed on-chain', ContractErrorCode.TRANSACTION_FAILED)
       }
     }
-    throw new ContractError('Transaction confirmation timeout')
+    throw new ContractError('Transaction confirmation timeout', ContractErrorCode.TIMEOUT)
   }
 
   private _extractSimResult<T>(sim: SorobanRpc.Api.SimulateTransactionResponse): T {
@@ -120,6 +124,14 @@ export class ScavengerClient {
     const match = raw.match(/Error\(Contract, #(\d+)\)/)
     if (match) return new ContractError(`Contract error #${match[1]}`, Number(match[1]))
     return new ContractError(raw)
+  }
+
+  /**
+   * Whether an error thrown by this client should be retried by TanStack Query.
+   * Delegates to the shared retry convention so query defaults stay consistent.
+   */
+  static isRetryable(error: unknown): boolean {
+    return isRetryableError(error)
   }
 
   // =======================================================
@@ -186,7 +198,7 @@ export class ScavengerClient {
       'register_participant',
       [
         new Address(address).toScVal(),
-        nativeToScVal(role),
+        nativeToScVal(role, { type: 'u32' }),
         nativeToScVal(name, { type: 'string' }),
         nativeToScVal(lat, { type: 'i128' }),
         nativeToScVal(lon, { type: 'i128' }),
@@ -209,7 +221,7 @@ export class ScavengerClient {
   async updateRole(address: string, newRole: Role, signer: string) {
     return this.invoke<void>(
       'update_role',
-      [new Address(address).toScVal(), nativeToScVal(newRole)],
+      [new Address(address).toScVal(), nativeToScVal(newRole, { type: 'u32' })],
       signer
     )
   }
@@ -450,8 +462,8 @@ export class ScavengerClient {
     return this.invoke<ParticipantStats>('get_stats', [new Address(participant).toScVal()])
   }
 
-  async getSupplyChainStats(): Promise<{ total_wastes: bigint; total_weight: bigint; total_tokens: bigint }> {
-    return this.invoke<{ total_wastes: bigint; total_weight: bigint; total_tokens: bigint }>('get_supply_chain_stats', [])
+  async getSupplyChainStats(): Promise<SupplyChainStats> {
+    return this.invoke<SupplyChainStats>('get_supply_chain_stats', [])
   }
 
   // =======================================================

@@ -5,6 +5,7 @@ import { useWallet } from '@/context/WalletContext'
 import { useContract } from '@/context/ContractContext'
 import { networkConfig } from '@/lib/stellar'
 import { cacheKeys } from '@/lib/cacheKeys'
+import { queryCachePolicy } from '@/lib/queryClient'
 
 export interface WasteFilters {
   wasteType?: WasteType
@@ -38,6 +39,7 @@ export function useWastes(filters?: WasteFilters) {
       return wastes
     },
     enabled: !!address,
+    ...queryCachePolicy.wastes,
   })
 
   return { wastes: data ?? [], isLoading, isError }

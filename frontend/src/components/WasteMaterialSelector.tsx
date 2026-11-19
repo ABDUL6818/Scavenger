@@ -6,17 +6,24 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { WasteType } from '@/api/types'
+import { WASTE_TYPES } from '@/lib/constants'
 import type { WasteFormValues } from './WasteSubmissionFields'
 
-export const WASTE_TYPE_OPTIONS = [
-  { value: WasteType.Paper, label: 'Paper', icon: Newspaper },
-  { value: WasteType.PetPlastic, label: 'PET Plastic', icon: Recycle },
-  { value: WasteType.Plastic, label: 'Plastic', icon: Package },
-  { value: WasteType.Metal, label: 'Metal', icon: Wrench },
-  { value: WasteType.Glass, label: 'Glass', icon: GlassWater },
-  { value: WasteType.Organic, label: 'Organic', icon: Leaf },
-  { value: WasteType.Electronic, label: 'Electronic', icon: Cpu },
-] as const
+const WASTE_TYPE_ICONS = {
+  [WasteType.Paper]: Newspaper,
+  [WasteType.PetPlastic]: Recycle,
+  [WasteType.Plastic]: Package,
+  [WasteType.Metal]: Wrench,
+  [WasteType.Glass]: GlassWater,
+  [WasteType.Organic]: Leaf,
+  [WasteType.Electronic]: Cpu,
+} as const
+
+export const WASTE_TYPE_OPTIONS = WASTE_TYPES.map((wasteType) => ({
+  value: wasteType.value,
+  label: wasteType.label,
+  icon: WASTE_TYPE_ICONS[wasteType.value],
+}))
 
 interface WasteMaterialSelectorProps {
   control: Control<WasteFormValues>

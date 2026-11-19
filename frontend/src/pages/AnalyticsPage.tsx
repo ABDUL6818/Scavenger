@@ -15,6 +15,8 @@ import { TopMaterialsChart } from '@/components/analytics/TopMaterialsChart'
 import { ParticipantContributionChart } from '@/components/analytics/ParticipantContributionChart'
 import { QuickStatsCard } from '@/components/analytics/QuickStatsCard'
 import { useState, useCallback } from 'react'
+import { formatPercentage, formatDuration } from '@/lib/format'
+import { StatTrend } from '@/lib/constants'
 
 export function AnalyticsPage() {
   useAppTitle('Analytics')
@@ -69,7 +71,7 @@ export function AnalyticsPage() {
           icon={<Package className="h-4 w-4" />}
           label="Total Waste Processed"
           value={Number(totalWastes)}
-          trend="up"
+          trend={StatTrend.Up}
           trendLabel="+12% from last month"
           isLoading={isLoading}
           variant="primary"
@@ -78,7 +80,7 @@ export function AnalyticsPage() {
           icon={<Users className="h-4 w-4" />}
           label="Active Participants"
           value={0}
-          trend="up"
+          trend={StatTrend.Up}
           trendLabel="+5 new this week"
           isLoading={isLoading}
           variant="success"
@@ -86,8 +88,8 @@ export function AnalyticsPage() {
         <StatCard
           icon={<TrendingUp className="h-4 w-4" />}
           label="Recycling Rate"
-          value="87%"
-          trend="up"
+          value={formatPercentage(87)}
+          trend={StatTrend.Up}
           trendLabel="+3% improvement"
           isLoading={isLoading}
           variant="default"
@@ -95,8 +97,8 @@ export function AnalyticsPage() {
         <StatCard
           icon={<BarChart3 className="h-4 w-4" />}
           label="Avg Processing Time"
-          value="2.4 days"
-          trend="down"
+          value={formatDuration(2.4, 'days')}
+          trend={StatTrend.Down}
           trendLabel="15% faster"
           isLoading={isLoading}
           variant="warning"

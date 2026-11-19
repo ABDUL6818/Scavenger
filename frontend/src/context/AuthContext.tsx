@@ -8,6 +8,7 @@
  */
 import React, { type ReactNode } from 'react'
 import { useAuthStore, type AuthUser } from '@/store'
+import { ROLES } from '@/lib/constants'
 
 export type { AuthUser }
 
@@ -21,6 +22,10 @@ export interface AuthContextType {
 }
 
 const PROFILE_STORAGE_KEY = 'scavngr_profile'
+
+// Role values are sourced from the shared ROLES constants so that
+// hard-coded role strings are not duplicated across the codebase.
+const DEFAULT_ROLE = ROLES.USER
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -37,7 +42,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const stored = localStorage.getItem(PROFILE_STORAGE_KEY)
     if (stored) {
       const parsed = JSON.parse(stored) as Profile & { address: string }
-      setProfile(parsed.address === address ? { role: parsed.role, name: parsed.name } : null)
+      setProfile(
+        parsed.address === address
+          ? { role: parsed.role ?? DEFAULT_ROLE, name: parsed.name }
+          : null
+      )
     }
   }, [address])
 

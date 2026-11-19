@@ -5,6 +5,7 @@ import { useWallet } from '@/context/WalletContext'
 import { useContract } from '@/context/ContractContext'
 import { networkConfig } from '@/lib/stellar'
 import { cacheKeys } from '@/lib/cacheKeys'
+import { queryCachePolicy } from '@/lib/queryClient'
 
 export function useParticipant() {
   const { address } = useWallet()
@@ -22,7 +23,7 @@ export function useParticipant() {
       return client.getParticipant(address)
     },
     enabled: !!address,
-    retry: false,
+    ...queryCachePolicy,
   })
 
   return {

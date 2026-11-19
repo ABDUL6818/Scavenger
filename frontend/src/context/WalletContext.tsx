@@ -9,6 +9,7 @@
  */
 import React, { useEffect, type ReactNode } from 'react'
 import { useWalletStore } from '@/store'
+import { WalletActionType } from '@/constants'
 import {
   checkWalletInstalled,
   getWalletPublicKey,
@@ -29,23 +30,23 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   useEffect(() => {
     if (!isWalletEnvironment()) {
-      dispatch({ type: 'WALLET_READY' })
+      dispatch({ type: WalletActionType.WALLET_READY })
       return
     }
     ;(async () => {
       try {
         const isInstalled = await checkWalletInstalled()
-        dispatch({ type: 'WALLET_INSTALLED', payload: isInstalled })
+        dispatch({ type: WalletActionType.WALLET_INSTALLED, payload: isInstalled })
         if (isInstalled) {
           const addr = await getWalletPublicKey()
-          if (addr) dispatch({ type: 'WALLET_CONNECTED', payload: addr })
-          else dispatch({ type: 'WALLET_READY' })
+          if (addr) dispatch({ type: WalletActionType.WALLET_CONNECTED, payload: addr })
+          else dispatch({ type: WalletActionType.WALLET_READY })
         } else {
-          dispatch({ type: 'WALLET_READY' })
+          dispatch({ type: WalletActionType.WALLET_READY })
         }
       } catch {
-        dispatch({ type: 'WALLET_INSTALLED', payload: false })
-        dispatch({ type: 'WALLET_READY' })
+        dispatch({ type: WalletActionType.WALLET_INSTALLED, payload: false })
+        dispatch({ type: WalletActionType.WALLET_READY })
       }
     })()
   }, [dispatch])
@@ -55,8 +56,9 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     if (!isConnected) return
     return watchWalletAccount((next) => {
-      if (!next) dispatch({ type: 'WALLET_DISCONNECTED' })
-      else if (next !== address) dispatch({ type: 'WALLET_CONNECTED', payload: next })
+      if (!next) dispatch({ type: WalletActionType.WALLET_DISCONNECTED })
+      else if (next !== address)
+        dispatch({ type: WalletActionType.WALLET_CONNECTED, payload: next })
     })
   }, [isConnected, address, dispatch])
 

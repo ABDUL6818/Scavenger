@@ -1,4 +1,5 @@
 import { ContractConfig } from '../types';
+import { LogLevel, NetworkType } from '../lib/constants';
 
 interface AppConfig {
   contract: ContractConfig;
@@ -12,7 +13,7 @@ interface AppConfig {
     notifications: boolean;
   };
   logging: {
-    level: 'debug' | 'info' | 'warn' | 'error';
+    level: LogLevel;
     enableConsole: boolean;
   };
 }
@@ -26,7 +27,7 @@ function validateContractConfig(config: ContractConfig): void {
 function loadConfig(): AppConfig {
   const contractConfig: ContractConfig = {
     contractId: import.meta.env.VITE_CONTRACT_ID || '',
-    network: (import.meta.env.VITE_NETWORK || 'TESTNET') as ContractConfig['network'],
+    network: (import.meta.env.VITE_NETWORK || NetworkType.TESTNET) as ContractConfig['network'],
     rpcUrl: import.meta.env.VITE_RPC_URL || '',
   };
 
@@ -44,7 +45,7 @@ function loadConfig(): AppConfig {
       notifications: import.meta.env.VITE_NOTIFICATIONS !== 'false',
     },
     logging: {
-      level: (import.meta.env.VITE_LOG_LEVEL || 'info') as AppConfig['logging']['level'],
+      level: (import.meta.env.VITE_LOG_LEVEL || LogLevel.INFO) as LogLevel,
       enableConsole: import.meta.env.VITE_LOG_CONSOLE !== 'false',
     },
   };

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/cn'
-import { getDaysInMonth, getFirstDayOfWeek, isInMonth } from '@/lib/date'
+import { buildCalendarCells, getTodayDayInMonth } from '@/lib/date'
 
 interface Props {
   month: Date
@@ -19,18 +19,12 @@ export function CalendarGrid({
 }: Props) {
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
-  const daysInMonth = getDaysInMonth(year, monthIdx)
-  const firstDay = getFirstDayOfWeek(year, monthIdx)
 
-  const today = new Date()
-  const todayDay = isInMonth(today, year, monthIdx) ? today.getDate() : -1
+  const todayDay = getTodayDayInMonth(year, monthIdx)
 
   const cells: (number | null)[] = useMemo(
-    () => [
-      ...Array(firstDay).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    ],
-    [firstDay, daysInMonth]
+    () => buildCalendarCells(year, monthIdx),
+    [year, monthIdx]
   )
 
   return (

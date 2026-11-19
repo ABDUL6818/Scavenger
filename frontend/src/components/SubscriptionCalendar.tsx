@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { Subscription } from '@/lib/subscriptionStorage'
 import { CalendarGrid } from '@/components/CalendarGrid'
-import { getMonthLabel, isInMonth } from '@/lib/date'
+import { getMonthLabel, groupSubscriptionsByPickupDay } from '@/lib/date'
+import { SubscriptionStatus } from '@/lib/constants'
 
 interface Props {
   subscriptions: Subscription[]
@@ -12,19 +13,10 @@ export function SubscriptionCalendar({ subscriptions, month = new Date() }: Prop
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
 
-  const pickupsByDay = useMemo(() => {
-    const map: Record<number, Subscription[]> = {}
-    subscriptions
-      .filter((s) => s.status === 'active')
-      .forEach((s) => {
-        const d = new Date(s.nextPickup)
-        if (isInMonth(d, year, monthIdx)) {
-          const day = d.getDate()
-          map[day] = [...(map[day] ?? []), s]
-        }
-      })
-    return map
-  }, [subscriptions, year, monthIdx])
+  const pickupsByDay = useMemo(
+    () => groupSubscriptionsByPickupDay(subscriptions, year, monthIdx, SubscriptionStatus.Active),
+    [subscriptions, year, monthIdx]
+  )
 
   const monthLabel = getMonthLabel(month)
 

@@ -17,6 +17,7 @@ import { WasteType } from '@/api/types'
 import { useContract } from '@/context/ContractContext'
 import { getNetworkPassphrase } from '@/lib/stellar'
 import { cacheKeys } from '@/lib/cacheKeys'
+import { queryCachePolicy } from '@/lib/queryClient'
 
 function useClient() {
   const { config } = useContract()
@@ -37,7 +38,7 @@ export function useParticipantById(address: string | undefined) {
     queryKey: cacheKeys.participant(address ?? ''),
     queryFn: () => client.getParticipant(address!),
     enabled: !!address,
-    staleTime: 60_000,
+    ...queryCachePolicy.participant,
   })
 }
 
@@ -61,7 +62,7 @@ export function useWaste(id: bigint | undefined) {
     queryKey: cacheKeys.waste(id?.toString() ?? ''),
     queryFn: () => client.getWaste(id!),
     enabled: id !== undefined,
-    staleTime: 30_000,
+    ...queryCachePolicy.waste,
   })
 }
 
@@ -78,7 +79,7 @@ export function useIncentives(wasteType: WasteType | undefined) {
     queryKey: cacheKeys.incentives(wasteType),
     queryFn: () => client.getIncentives(wasteType!),
     enabled: wasteType !== undefined,
-    staleTime: 5 * 60_000,
+    ...queryCachePolicy.incentives,
   })
 }
 

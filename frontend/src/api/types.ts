@@ -1,18 +1,6 @@
-export enum Role {
-  Recycler = 'Recycler',
-  Collector = 'Collector',
-  Manufacturer = 'Manufacturer'
-}
+import { Role, WasteType, WasteStatus, TransferStatus } from '../constants'
 
-export enum WasteType {
-  Paper = 0,
-  PetPlastic = 1,
-  Plastic = 2,
-  Metal = 3,
-  Glass = 4,
-  Organic = 5,
-  Electronic = 6
-}
+export { Role, WasteType, WasteStatus, TransferStatus }
 
 export interface Participant {
   address: string
@@ -58,6 +46,7 @@ export interface Waste {
   is_active: boolean
   is_confirmed: boolean
   confirmer: string
+  status?: WasteStatus
 }
 
 export interface WasteTransfer {
@@ -65,6 +54,7 @@ export interface WasteTransfer {
   from: string
   to: string
   transferred_at: number
+  status?: TransferStatus
 }
 
 export interface ParticipantStats {

@@ -7,6 +7,8 @@ import { useImageUpload } from '@/hooks/useImageUpload'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { wasteSubmissionSchema, toWeightInGrams, type WeightUnit } from '@/lib/validation/wasteSubmission'
+import { STATUSES, type Status } from '@/lib/constants'
+import { getSubmitErrorMessage, getPhotoError } from '@/lib/format'
 import { WasteSubmissionFields, type WasteFormValues } from './WasteSubmissionFields'
 import { WasteSubmissionImageUpload } from './WasteSubmissionImageUpload'
 import { WasteSubmissionSummary } from './WasteSubmissionSummary'
@@ -32,7 +34,7 @@ interface WasteSubmissionFormProps {
 export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormProps) {
   const { images, addImages, removeImage, uploadIds, isUploading, validationError: imageValidationError } = useImageUpload()
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('grams')
-  const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [submitState, setSubmitState] = useState<Status>(STATUSES.IDLE)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const schema = useMemo(() => wasteSubmissionSchema(weightUnit), [weightUnit])
@@ -45,7 +47,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
   const onFormSubmit = handleSubmit(async (data) => {
     if (uploadIds.length === 0) return
     const weightInGrams = toWeightInGrams(data.weight, weightUnit)
-    setSubmitState('loading')
+    setSubmitState(STATUSES.LOADING)
     setSubmitError(null)
 
     try {
@@ -57,18 +59,21 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
         notes: data.notes,
         photoCids: uploadIds,
       })
-      setSubmitState('success')
+      setSubmitState(STATUSES.SUCCESS)
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Submission failed')
-      setSubmitState('error')
+      setSubmitError(getSubmitErrorMessage(e))
+      setSubmitState(STATUSES.ERROR)
     }
   })
 
-  const photoError = submitState !== 'idle' || Object.keys(errors).length > 0
-    ? uploadIds.length === 0 && images.length === 0 ? 'At least one photo is required' : null
-    : null
+  const photoError = getPhotoError({
+    submitState,
+    hasFieldErrors: Object.keys(errors).length > 0,
+    uploadCount: uploadIds.length,
+    imageCount: images.length,
+  })
 
-  if (submitState === 'success') {
+  if (submitState === STATUSES.SUCCESS) {
     return <WasteSubmissionSummary onDone={onCancel} />
   }
 
@@ -102,8 +107,8 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
             <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={submitState === 'loading' || isUploading}>
-              {submitState === 'loading' ? (
+            <Button type="submit" className="flex-1" disabled={submitState === STATUSES.LOADING || isUploading}>
+              {submitState === STATUSES.LOADING ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</>
               ) : isUploading ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Uploading photos...</>

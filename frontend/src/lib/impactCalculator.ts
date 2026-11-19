@@ -43,6 +43,22 @@ export interface WasteInput {
   weight: bigint | number
 }
 
+/**
+ * Normalise a weight expressed in grams to kilograms.
+ * Accepts bigint or number and guards against invalid values.
+ */
+export function gramsToKg(weight: bigint | number): number {
+  const grams = typeof weight === 'bigint' ? Number(weight) : weight
+  if (!Number.isFinite(grams) || grams <= 0) return 0
+  return grams / 1000
+}
+
+/** Round a number to two decimal places. */
+export function round2(n: number): number {
+  if (!Number.isFinite(n)) return 0
+  return Math.round(n * 100) / 100
+}
+
 export interface ImpactResult {
   co2Kg: number       // kg CO2 saved
   energyKwh: number   // kWh energy saved
@@ -56,7 +72,7 @@ export function calculateImpact(wastes: WasteInput[]): ImpactResult {
   let waterLitres = 0
 
   for (const w of wastes) {
-    const kg = Number(w.weight) / 1000
+    const kg = gramsToKg(w.weight)
     co2Kg += kg * (CO2_PER_KG[w.waste_type] ?? 0)
     energyKwh += kg * (ENERGY_PER_KG[w.waste_type] ?? 0)
     waterLitres += kg * (WATER_PER_KG[w.waste_type] ?? 0)
@@ -68,10 +84,6 @@ export function calculateImpact(wastes: WasteInput[]): ImpactResult {
     waterLitres: round2(waterLitres),
     treesEquivalent: round2(co2Kg / KG_CO2_PER_TREE_YEAR),
   }
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100
 }
 
 // ── Everyday equivalents ──────────────────────────────────────────────────────
