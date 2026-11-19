@@ -12,11 +12,11 @@ interface LeaderboardRowProps {
 function getRankColor(rank: number): string {
   switch (rank) {
     case 1:
-      return 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+      return 'bg-warning/20 text-warning'
     case 2:
-      return 'bg-gray-400/20 text-gray-600 dark:text-gray-400'
+      return 'bg-muted text-muted-foreground'
     case 3:
-      return 'bg-orange-500/20 text-orange-600 dark:text-orange-400'
+      return 'bg-accent text-accent-foreground'
     default:
       return 'bg-muted text-muted-foreground'
   }

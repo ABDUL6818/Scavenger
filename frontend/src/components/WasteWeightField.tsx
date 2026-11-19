@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { type UseFormRegister, type UseFormWatch, type FieldErrors } from 'react-hook-form'
 import { Input } from '@/components/ui/Input'
 import { convertWeight, type WeightUnit } from '@/lib/validation/wasteSubmission'
+import { formatWeightConversion, getWeightPlaceholder, getWeightUnitLabel } from '@/lib/format'
 import type { WasteFormValues } from './WasteSubmissionFields'
 
 /**
@@ -37,9 +38,12 @@ export function WasteWeightField({
   setWeightUnit,
 }: WasteWeightFieldProps) {
   const weightValue = watch('weight')
-  const convertedWeight = useMemo(() => convertWeight(weightValue, weightUnit), [weightValue, weightUnit])
+  const convertedWeight = useMemo(
+    () => formatWeightConversion(convertWeight(weightValue, weightUnit)),
+    [weightValue, weightUnit],
+  )
   const hasError = Boolean(errors.weight)
-  const nextUnit = weightUnit === 'grams' ? 'kilograms' : 'grams'
+  const nextWeightUnit: WeightUnit = weightUnit === 'grams' ? 'kilograms' : 'grams'
 
   return (
     <section>
@@ -53,19 +57,19 @@ export function WasteWeightField({
           step="any"
           min="0"
           inputMode="decimal"
-          placeholder={weightUnit === 'grams' ? 'e.g. 500' : 'e.g. 0.5'}
-          aria-invalid={hasError}
+          placeholder={getWeightPlaceholder(weightUnit)}
+          aria-invalid={hasError ? true : undefined}
           aria-describedby={hasError ? 'weight-error' : undefined}
           {...register('weight', { valueAsNumber: true })}
         />
         <button
           type="button"
-          onClick={() => setWeightUnit(nextUnit)}
+          onClick={() => setWeightUnit(nextWeightUnit)}
           className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
-          aria-label={`Weight unit: ${weightUnit}. Switch to ${nextUnit}`}
+          aria-label={`Weight unit: ${weightUnit}. Switch to ${nextWeightUnit}`}
           aria-pressed={weightUnit === 'kilograms'}
         >
-          {weightUnit === 'grams' ? 'g' : 'kg'}
+          {getWeightUnitLabel(weightUnit)}
         </button>
       </div>
       {convertedWeight && (

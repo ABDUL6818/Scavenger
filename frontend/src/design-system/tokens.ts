@@ -212,7 +212,196 @@ export const semanticTokens = {
   },
 } as const
 
-export const tokens = { colors, typography, spacing, borderRadius, shadows, animation, semanticTokens }
+/**
+ * Flattened CSS custom property mappings derived from the token definitions.
+ * These are the single source of truth for CSS variables consumed by
+ * `frontend/src/styles` — do not redefine these values in stylesheets.
+ */
+export const cssVariables = {
+  colors: {
+    '--color-green-50': colors.green[50],
+    '--color-green-100': colors.green[100],
+    '--color-green-200': colors.green[200],
+    '--color-green-300': colors.green[300],
+    '--color-green-400': colors.green[400],
+    '--color-green-500': colors.green[500],
+    '--color-green-600': colors.green[600],
+    '--color-green-700': colors.green[700],
+    '--color-green-800': colors.green[800],
+    '--color-green-900': colors.green[900],
+    '--color-green-950': colors.green[950],
+    '--color-blue-50': colors.blue[50],
+    '--color-blue-100': colors.blue[100],
+    '--color-blue-200': colors.blue[200],
+    '--color-blue-300': colors.blue[300],
+    '--color-blue-400': colors.blue[400],
+    '--color-blue-500': colors.blue[500],
+    '--color-blue-600': colors.blue[600],
+    '--color-blue-700': colors.blue[700],
+    '--color-blue-800': colors.blue[800],
+    '--color-blue-900': colors.blue[900],
+    '--color-blue-950': colors.blue[950],
+    '--color-amber-50': colors.amber[50],
+    '--color-amber-100': colors.amber[100],
+    '--color-amber-200': colors.amber[200],
+    '--color-amber-300': colors.amber[300],
+    '--color-amber-400': colors.amber[400],
+    '--color-amber-500': colors.amber[500],
+    '--color-amber-600': colors.amber[600],
+    '--color-amber-700': colors.amber[700],
+    '--color-amber-800': colors.amber[800],
+    '--color-amber-900': colors.amber[900],
+    '--color-amber-950': colors.amber[950],
+    '--color-red-50': colors.red[50],
+    '--color-red-100': colors.red[100],
+    '--color-red-200': colors.red[200],
+    '--color-red-300': colors.red[300],
+    '--color-red-400': colors.red[400],
+    '--color-red-500': colors.red[500],
+    '--color-red-600': colors.red[600],
+    '--color-red-700': colors.red[700],
+    '--color-red-800': colors.red[800],
+    '--color-red-900': colors.red[900],
+    '--color-red-950': colors.red[950],
+    '--color-neutral-0': colors.neutral[0],
+    '--color-neutral-50': colors.neutral[50],
+    '--color-neutral-100': colors.neutral[100],
+    '--color-neutral-200': colors.neutral[200],
+    '--color-neutral-300': colors.neutral[300],
+    '--color-neutral-400': colors.neutral[400],
+    '--color-neutral-500': colors.neutral[500],
+    '--color-neutral-600': colors.neutral[600],
+    '--color-neutral-700': colors.neutral[700],
+    '--color-neutral-800': colors.neutral[800],
+    '--color-neutral-900': colors.neutral[900],
+    '--color-neutral-950': colors.neutral[950],
+    '--color-neutral-1000': colors.neutral[1000],
+  },
+  spacing: {
+    '--spacing-0': spacing[0],
+    '--spacing-0-5': spacing[0.5],
+    '--spacing-1': spacing[1],
+    '--spacing-1-5': spacing[1.5],
+    '--spacing-2': spacing[2],
+    '--spacing-2-5': spacing[2.5],
+    '--spacing-3': spacing[3],
+    '--spacing-3-5': spacing[3.5],
+    '--spacing-4': spacing[4],
+    '--spacing-5': spacing[5],
+    '--spacing-6': spacing[6],
+    '--spacing-7': spacing[7],
+    '--spacing-8': spacing[8],
+    '--spacing-9': spacing[9],
+    '--spacing-10': spacing[10],
+    '--spacing-12': spacing[12],
+    '--spacing-14': spacing[14],
+    '--spacing-16': spacing[16],
+    '--spacing-20': spacing[20],
+    '--spacing-24': spacing[24],
+    '--spacing-32': spacing[32],
+    '--spacing-40': spacing[40],
+    '--spacing-48': spacing[48],
+    '--spacing-64': spacing[64],
+  },
+  typography: {
+    '--font-sans': typography.fontFamily.sans.join(', '),
+    '--font-mono': typography.fontFamily.mono.join(', '),
+    '--font-size-xs': typography.fontSize.xs[0],
+    '--font-size-sm': typography.fontSize.sm[0],
+    '--font-size-base': typography.fontSize.base[0],
+    '--font-size-lg': typography.fontSize.lg[0],
+    '--font-size-xl': typography.fontSize.xl[0],
+    '--font-size-2xl': typography.fontSize['2xl'][0],
+    '--font-size-3xl': typography.fontSize['3xl'][0],
+    '--font-size-4xl': typography.fontSize['4xl'][0],
+    '--font-weight-normal': typography.fontWeight.normal,
+    '--font-weight-medium': typography.fontWeight.medium,
+    '--font-weight-semibold': typography.fontWeight.semibold,
+    '--font-weight-bold': typography.fontWeight.bold,
+    '--letter-spacing-tight': typography.letterSpacing.tight,
+    '--letter-spacing-normal': typography.letterSpacing.normal,
+    '--letter-spacing-wide': typography.letterSpacing.wide,
+    '--letter-spacing-wider': typography.letterSpacing.wider,
+  },
+  borderRadius: {
+    '--radius-none': borderRadius.none,
+    '--radius-sm': borderRadius.sm,
+    '--radius-default': borderRadius.DEFAULT,
+    '--radius-md': borderRadius.md,
+    '--radius-lg': borderRadius.lg,
+    '--radius-xl': borderRadius.xl,
+    '--radius-2xl': borderRadius['2xl'],
+    '--radius-full': borderRadius.full,
+  },
+  shadows: {
+    '--shadow-sm': shadows.sm,
+    '--shadow-default': shadows.DEFAULT,
+    '--shadow-md': shadows.md,
+    '--shadow-lg': shadows.lg,
+    '--shadow-xl': shadows.xl,
+    '--shadow-none': shadows.none,
+  },
+  animation: {
+    '--duration-fast': animation.duration.fast,
+    '--duration-normal': animation.duration.normal,
+    '--duration-slow': animation.duration.slow,
+    '--ease-default': animation.easing.default,
+    '--ease-in': animation.easing.in,
+    '--ease-out': animation.easing.out,
+  },
+} as const
+
+/** Semantic CSS variables for a given theme mode. */
+export function semanticCssVariables(mode: 'light' | 'dark'): Record<string, string> {
+  const vars: Record<string, string> = {}
+  for (const [key, value] of Object.entries(semanticTokens[mode])) {
+    vars[`--${key}`] = value
+  }
+  return vars
+}
+
+/** All CSS variables for a theme, flattened into a single record. */
+export function themeCssVariables(mode: 'light' | 'dark'): Record<string, string> {
+  const flat: Record<string, string> = {}
+  for (const group of Object.values(cssVariables)) {
+    Object.assign(flat, group)
+  }
+  Object.assign(flat, semanticCssVariables(mode))
+  return flat
+}
+
+export type ColorScale = typeof colors
+export type TypographyTokens = typeof typography
+export type SpacingTokens = typeof spacing
+export type BorderRadiusTokens = typeof borderRadius
+export type ShadowTokens = typeof shadows
+export type AnimationTokens = typeof animation
+export type SemanticTokens = typeof semanticTokens
+export type CssVariables = typeof cssVariables
+
+/** The complete, typed design token object — the single source of truth. */
+export interface DesignTokens {
+  colors: ColorScale
+  typography: TypographyTokens
+  spacing: SpacingTokens
+  borderRadius: BorderRadiusTokens
+  shadows: ShadowTokens
+  animation: AnimationTokens
+  semanticTokens: SemanticTokens
+  cssVariables: CssVariables
+}
+
+export const tokens: DesignTokens = {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
+  animation,
+  semanticTokens,
+  cssVariables,
+}
+
 export default tokens
 
 /**

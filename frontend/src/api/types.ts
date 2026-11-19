@@ -11,21 +11,15 @@
  * imports from `frontend/src/api/types` continue to work unchanged.
  */
 
+import { WasteType, WasteStatus, TransferStatus } from '../constants'
+
 export enum Role {
   Recycler = 'Recycler',
   Collector = 'Collector',
   Manufacturer = 'Manufacturer'
 }
 
-export enum WasteType {
-  Paper = 0,
-  PetPlastic = 1,
-  Plastic = 2,
-  Metal = 3,
-  Glass = 4,
-  Organic = 5,
-  Electronic = 6
-}
+export { WasteType, WasteStatus, TransferStatus }
 
 export interface Participant {
   address: string
@@ -107,6 +101,7 @@ export interface Waste {
   is_active: boolean
   is_confirmed: boolean
   confirmer: string
+  status?: WasteStatus
 }
 
 /** Raw waste payload as returned by the contract (numeric waste type). */
@@ -128,6 +123,7 @@ export interface WasteTransfer {
   from: string
   to: string
   transferred_at: number
+  status?: TransferStatus
 }
 
 /** Raw waste-transfer payload as returned by the contract. */

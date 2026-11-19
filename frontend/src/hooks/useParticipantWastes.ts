@@ -4,6 +4,7 @@ import { ScavengerClient } from '@/api/client'
 import { Waste, WasteType } from '@/api/types'
 import { useWallet } from '@/context/WalletContext'
 import { cacheKeys } from '@/lib/cacheKeys'
+import { queryCachePolicy } from '@/lib/queryClient'
 import { useContractQuery } from './useContractQuery'
 import { WasteFilters, applyWasteFilters } from './wasteFilters'
 
@@ -41,6 +42,7 @@ export function useParticipantWastes(filters?: WasteFilters) {
       const wastes = results.filter((w): w is Waste => w !== null)
       return applyWasteFilters(wastes, filters)
     },
+    ...queryCachePolicy,
   })
 
   // Memoize the selector so consumers receive a stable array reference when
