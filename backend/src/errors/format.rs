@@ -1,4 +1,4 @@
-use super::types::{AppError, ValidationError};
+use super::types::{AppError, ErrorCategory, ValidationError};
 use std::fmt;
 
 /// Human-readable multi-line error report, suitable for logs.
@@ -42,8 +42,6 @@ pub fn format_validation(e: &ValidationError) -> String {
 }
 
 // Keep ErrorCategory display logic alongside format helpers
-use super::types::ErrorCategory;
-
 impl ErrorCategory {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -62,5 +60,82 @@ impl ErrorCategory {
             ErrorCategory::RateLimit => "rate_limit",
             ErrorCategory::BadRequest => "bad_request",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::errors::types::FieldError;
+
+    #[test]
+    fn report_includes_category_message_and_code() {
+        let err = AppError::NotFound("user".to_string());
+        let report = ErrorReport(&err).to_string();
+        assert!(report.contains("[not_found]"));
+        assert!(report.contains(&err.code()));
+        assert!(report.contains(&err.to_string()));
+    }
+
+    #[test]
+    fn report_expands_multiple_validation_fields() {
+        let err = AppError::Validation(ValidationError::Multiple(vec![
+            FieldError {
+                field: "email".to_string(),
+                message: "invalid".to_string(),
+            },
+            FieldError {
+                field: "name".to_string(),
+                message: "required".to_string(),
+            },
+        ]));
+        let report = ErrorReport(&err).to_string();
+        assert!(report.contains("fields:"));
+        assert!(report.contains("email=invalid"));
+        assert!(report.contains("name=required"));
+    }
+
+    #[test]
+    fn error_label_combines_category_and_code() {
+        let err = AppError::RateLimit("slow down".to_string());
+        let label = error_label(&err);
+        assert_eq!(label, format!("rate_limit:{}", err.code()));
+    }
+
+    #[test]
+    fn format_validation_handles_all_variants() {
+        let field = ValidationError::Field {
+            field: "age".to_string(),
+            message: "must be positive".to_string(),
+        };
+        assert_eq!(format_validation(&field), "• age: must be positive");
+
+        let format_err = ValidationError::Format {
+            field: "date".to_string(),
+            expected: "YYYY-MM-DD".to_string(),
+        };
+        assert_eq!(
+            format_validation(&format_err),
+            "• date: expected YYYY-MM-DD"
+        );
+
+        let multiple = ValidationError::Multiple(vec![
+            FieldError {
+                field: "a".to_string(),
+                message: "one".to_string(),
+            },
+            FieldError {
+                field: "b".to_string(),
+                message: "two".to_string(),
+            },
+        ]);
+        assert_eq!(format_validation(&multiple), "• a: one\n• b: two");
+    }
+
+    #[test]
+    fn category_as_str_is_stable() {
+        assert_eq!(ErrorCategory::Auth.as_str(), "auth");
+        assert_eq!(ErrorCategory::BadRequest.as_str(), "bad_request");
+        assert_eq!(ErrorCategory::Internal.as_str(), "internal");
     }
 }

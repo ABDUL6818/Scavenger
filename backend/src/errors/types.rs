@@ -50,6 +50,37 @@ pub enum AppError {
 
     #[error("Bad request: {0}")]
     BadRequest(String),
+
+    #[error("Conflict: {0}")]
+    Conflict(String),
+}
+
+// ── From conversions ──────────────────────────────────────────────────────────
+//
+// Domain errors already convert via `#[from]` on the `AppError` variants above.
+// The impls below cover the remaining infrastructure-level conversions so that
+// `?` works uniformly across the backend.
+
+impl From<anyhow::Error> for AppError {
+    fn from(err: anyhow::Error) -> Self {
+        // Preserve a typed `AppError` if one is wrapped inside the `anyhow::Error`.
+        match err.downcast::<AppError>() {
+            Ok(app_err) => app_err,
+            Err(other) => AppError::Internal(other.to_string()),
+        }
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self {
+        AppError::Internal(format!("io error: {err}"))
+    }
+}
+
+impl From<serde_json::Error> for AppError {
+    fn from(err: serde_json::Error) -> Self {
+        AppError::Serialization(SerializationError::Json(err.to_string()))
+    }
 }
 
 // ── Domain error enums ────────────────────────────────────────────────────────
@@ -200,6 +231,7 @@ pub enum ErrorCategory {
     Internal,
     RateLimit,
     BadRequest,
+    Conflict,
 }
 
 impl AppError {
@@ -219,6 +251,7 @@ impl AppError {
             AppError::Internal(_) => ErrorCategory::Internal,
             AppError::RateLimitExceeded => ErrorCategory::RateLimit,
             AppError::BadRequest(_) => ErrorCategory::BadRequest,
+            AppError::Conflict(_) => ErrorCategory::Conflict,
         }
     }
 
@@ -234,6 +267,7 @@ impl AppError {
             AppError::NotFound { .. } => 404,
             AppError::RateLimitExceeded => 429,
             AppError::BadRequest(_) => 400,
+            AppError::Conflict(_) => 409,
             AppError::Contract(ContractError::Unauthorized(_)) => 403,
             AppError::Contract(ContractError::NotFound(_)) => 404,
             AppError::Contract(ContractError::InsufficientBalance { .. }) => 402,
@@ -258,6 +292,7 @@ impl AppError {
             AppError::Internal(_) => "internal".to_string(),
             AppError::RateLimitExceeded => "rate_limit.exceeded".to_string(),
             AppError::BadRequest(_) => "bad_request".to_string(),
+            AppError::Conflict(_) => "conflict".to_string(),
         }
     }
 
@@ -354,5 +389,196 @@ fn analytics_code(e: &AnalyticsError) -> &'static str {
         AnalyticsError::ComputationFailed(_) => "computation_failed",
         AnalyticsError::InvalidTimeRange(_) => "invalid_time_range",
         AnalyticsError::DataSourceUnavailable(_) => "data_source_unavailable",
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_auth_error_sets_category_and_status() {
+        let err: AppError = AuthError::Unauthorized("nope".into()).into();
+        assert_eq!(err.category(), ErrorCategory::Auth);
+        assert_eq!(err.status_code(), 401);
+        assert_eq!(err.code(), "auth.unauthorized");
+        assert!(err.is_client_error());
+    }
+
+    #[test]
+    fn from_validation_error_maps_to_422() {
+        let err: AppError = ValidationError::Field {
+            field: "email".into(),
+            message: "invalid".into(),
+        }
+        .into();
+        assert_eq!(err.category(), ErrorCategory::Validation);
+        assert_eq!(err.status_code(), 422);
+        assert_eq!(err.code(), "validation.field_error");
+        assert!(err.is_client_error());
+    }
+
+    #[test]
+    fn from_export_error_maps_to_500() {
+        let err: AppError = ExportError::Csv("boom".into()).into();
+        assert_eq!(err.category(), ErrorCategory::Export);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "export.csv_error");
+        assert!(!err.is_client_error());
+    }
+
+    #[test]
+    fn from_email_error_maps_to_500() {
+        let err: AppError = EmailError::Delivery("boom".into()).into();
+        assert_eq!(err.category(), ErrorCategory::Email);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "email.delivery_failed");
+    }
+
+    #[test]
+    fn from_storage_error_maps_to_500() {
+        let err: AppError = StorageError::QuotaExceeded.into();
+        assert_eq!(err.category(), ErrorCategory::Storage);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "storage.quota_exceeded");
+    }
+
+    #[test]
+    fn from_contract_error_maps_statuses() {
+        let unauthorized: AppError = ContractError::Unauthorized("x".into()).into();
+        assert_eq!(unauthorized.status_code(), 403);
+        assert_eq!(unauthorized.code(), "contract.unauthorized");
+
+        let not_found: AppError = ContractError::NotFound("x".into()).into();
+        assert_eq!(not_found.status_code(), 404);
+        assert_eq!(not_found.code(), "contract.not_found");
+
+        let balance: AppError = ContractError::InsufficientBalance {
+            required: 10,
+            available: 5,
+        }
+        .into();
+        assert_eq!(balance.status_code(), 402);
+        assert_eq!(balance.code(), "contract.insufficient_balance");
+    }
+
+    #[test]
+    fn from_webhook_error_maps_to_500() {
+        let err: AppError = WebhookError::SignatureMismatch.into();
+        assert_eq!(err.category(), ErrorCategory::Webhook);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "webhook.signature_mismatch");
+    }
+
+    #[test]
+    fn from_notification_error_maps_to_500() {
+        let err: AppError = NotificationError::PushFailed("x".into()).into();
+        assert_eq!(err.category(), ErrorCategory::Notification);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "notification.push_failed");
+    }
+
+    #[test]
+    fn from_serialization_error_maps_to_500() {
+        let err: AppError = SerializationError::Decode("x".into()).into();
+        assert_eq!(err.category(), ErrorCategory::Serialization);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "serialization.decode_error");
+    }
+
+    #[test]
+    fn from_analytics_error_maps_to_500() {
+        let err: AppError = AnalyticsError::InvalidTimeRange("x".into()).into();
+        assert_eq!(err.category(), ErrorCategory::Analytics);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "analytics.invalid_time_range");
+    }
+
+    #[test]
+    fn not_found_status_and_code() {
+        let err = AppError::NotFound {
+            resource: "user",
+            id: "42".into(),
+        };
+        assert_eq!(err.category(), ErrorCategory::NotFound);
+        assert_eq!(err.status_code(), 404);
+        assert_eq!(err.code(), "not_found.user");
+        assert!(err.is_client_error());
+    }
+
+    #[test]
+    fn internal_status_and_code() {
+        let err = AppError::Internal("boom".into());
+        assert_eq!(err.category(), ErrorCategory::Internal);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "internal");
+        assert!(!err.is_client_error());
+    }
+
+    #[test]
+    fn rate_limit_status_and_code() {
+        let err = AppError::RateLimitExceeded;
+        assert_eq!(err.category(), ErrorCategory::RateLimit);
+        assert_eq!(err.status_code(), 429);
+        assert_eq!(err.code(), "rate_limit.exceeded");
+        assert!(err.is_client_error());
+    }
+
+    #[test]
+    fn bad_request_status_and_code() {
+        let err = AppError::BadRequest("bad".into());
+        assert_eq!(err.category(), ErrorCategory::BadRequest);
+        assert_eq!(err.status_code(), 400);
+        assert_eq!(err.code(), "bad_request");
+        assert!(err.is_client_error());
+    }
+
+    #[test]
+    fn conflict_status_and_code() {
+        let err = AppError::Conflict("duplicate".into());
+        assert_eq!(err.category(), ErrorCategory::Conflict);
+        assert_eq!(err.status_code(), 409);
+        assert_eq!(err.code(), "conflict");
+        assert!(err.is_client_error());
+    }
+
+    #[test]
+    fn from_anyhow_wraps_as_internal() {
+        let err: AppError = anyhow::anyhow!("kaboom").into();
+        assert_eq!(err.category(), ErrorCategory::Internal);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "internal");
+        assert!(err.to_string().contains("kaboom"));
+    }
+
+    #[test]
+    fn from_anyhow_preserves_typed_app_error() {
+        let original = AppError::BadRequest("bad".into());
+        let wrapped: anyhow::Error = original.into();
+        let err: AppError = wrapped.into();
+        assert_eq!(err.category(), ErrorCategory::BadRequest);
+        assert_eq!(err.status_code(), 400);
+        assert_eq!(err.code(), "bad_request");
+    }
+
+    #[test]
+    fn from_serde_json_error_maps_to_serialization() {
+        let json_err = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+        let err: AppError = json_err.into();
+        assert_eq!(err.category(), ErrorCategory::Serialization);
+        assert_eq!(err.status_code(), 500);
+        assert_eq!(err.code(), "serialization.json_error");
+    }
+
+    #[test]
+    fn display_includes_variant_context() {
+        let err = AppError::NotFound {
+            resource: "user",
+            id: "7".into(),
+        };
+        assert!(err.to_string().contains("user"));
+        assert!(err.to_string().contains('7'));
     }
 }
