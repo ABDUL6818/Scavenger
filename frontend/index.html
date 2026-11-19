@@ -4,6 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Scavngr</title>
+
+    <!--
+      Asset optimization (#1690):
+      - Raster images in frontend/public are converted to WebP/AVIF with
+        original-format fallbacks (older browsers fall back to the original
+        formats via <picture>/srcset).
+      - Web fonts are subset (subfont/glyphhanger) and declared with
+        font-display: swap to avoid invisible text during load.
+      - Non-critical images use loading="lazy" and decoding="async".
+    -->
+
+    <!-- Preload subset fonts (font-display: swap set in CSS) -->
+    <link
+      rel="preload"
+      href="/fonts/scavngr-subset.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+
+    <!-- Preload critical above-the-fold image (AVIF preferred, WebP fallback) -->
+    <link
+      rel="preload"
+      href="/images/hero.avif"
+      as="image"
+      type="image/avif"
+      imagesrcset="/images/hero.avif 1x, /images/hero@2x.avif 2x"
+      imagesizes="100vw"
+    />
+    <link
+      rel="preload"
+      href="/images/hero.webp"
+      as="image"
+      type="image/webp"
+      imagesrcset="/images/hero.webp 1x, /images/hero@2x.webp 2x"
+      imagesizes="100vw"
+    />
   </head>
   <body>
     <div id="root"></div>

@@ -260,11 +260,10 @@ pub async fn get_job(service: web::Data<Arc<ArchivalService>>, job_id: web::Path
 
     Ok(HttpResponse::Ok().json(job))
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::{ArchiveJob, ArchiveRecord, ArchivalError};
+    use crate::services::{ArchiveRecord, ArchivalError};
     use actix_web::{test, web, App};
     use chrono::Utc;
     use std::sync::Mutex;
@@ -275,7 +274,6 @@ mod tests {
     #[derive(Default)]
     struct FakeArchivalService {
         records: Mutex<Vec<ArchiveRecord>>,
-        jobs: Mutex<Vec<ArchiveJob>>,
         policies: Mutex<Vec<RetentionPolicy>>,
         /// When set, the next `archive_data` call fails after the storage
         /// write has already happened, simulating a partial failure where
@@ -361,23 +359,6 @@ mod tests {
                 return Err(ArchivalError::NotFound);
             }
             Ok(())
-        }
-
-        fn list_jobs(&self, status: Option<ArchiveStatus>) -> Result<Vec<ArchiveJob>, ArchivalError> {
-            let jobs = self.jobs.lock().unwrap();
-            Ok(jobs
-                .iter()
-                .filter(|j| status.as_ref().map_or(true, |s| &j.status == s))
-                .cloned()
-                .collect())
-        }
-
-        fn get_job(&self, job_id: &str) -> Result<ArchiveJob, ArchivalError> {
-            let jobs = self.jobs.lock().unwrap();
-            jobs.iter()
-                .find(|j| j.id == job_id)
-                .cloned()
-                .ok_or(ArchivalError::NotFound)
         }
 
         fn record_count(&self) -> usize {

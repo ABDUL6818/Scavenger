@@ -16,8 +16,8 @@ use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, ResponseError};
 use services::WebhookManager;
 // Removed unused imports: RecommendationEngine, NFTManager, ChainAbstraction (#906)
 use api::{
-    archival as archival_api, audit, compliance_api, contracts, export, search as search_api, signing_api,
-    verification, ws,
+    archival as archival_api, audit, compliance_api, contracts, export, openapi as openapi_api,
+    search as search_api, signing_api, verification, ws,
 };
 // #1697: Route handlers are now thin controllers that resolve their
 // service/repository dependencies from the DI container.  The `api` modules
@@ -33,7 +33,7 @@ use rpc::{StellarRpcClient, StellarRpcConfig};
 use container::AppContainer;
 use errors::AppError;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[actix_web::main]
@@ -44,6 +44,10 @@ async fn main() -> std::io::Result<()> {
         .validate()
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
+    // #1699: Structured logging via `tracing`. JSON output is the default in
+    // production (and whenever `LOG_FORMAT=json`); pretty output is used for
+    // local development. All `println!`/`eprintln!` calls have been replaced
+    // with structured `tracing` events so logs are machine-parseable.
     let use_json = app_config.log_format.to_lowercase() == "json";
 
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
@@ -51,7 +55,7 @@ async fn main() -> std::io::Result<()> {
     if use_json {
         tracing_subscriber::registry()
             .with(filter)
-            .with(fmt::layer().json().with_current_span(true))
+            .with(fmt::layer().json().with_current_span(true).with_span_list(true))
             .init();
     } else {
         tracing_subscriber::registry()
@@ -60,7 +64,12 @@ async fn main() -> std::io::Result<()> {
             .init();
     }
 
-    info!(service = "backend", "Starting Scavenger Backend Server on 0.0.0.0:8080");
+    info!(
+        service = "backend",
+        version = env!("CARGO_PKG_VERSION"),
+        log_format = %app_config.log_format,
+        "Starting Scavenger Backend Server on 0.0.0.0:8080"
+    );
 
     // Build the DI container (#914) — all services are constructed here.
     // #1697: Controllers resolve services (and, transitively, repositories)
@@ -91,6 +100,14 @@ async fn main() -> std::io::Result<()> {
         "Stellar RPC client ready"
     );
     info!("All services initialized via AppContainer (archival, cache, audit, websocket, verification)");
+
+    // #1700: Warn (rather than silently ignore) when deprecated routes are
+    // requested. The deprecated endpoints themselves have been removed from
+    // the router; this keeps operators informed of the change.
+    warn!(
+        "Deprecated endpoints (signing sign/multisig/revoke/events/revocations, analytics) \
+         are no longer registered; clients should migrate to the SDK"
+    );
 
     let rate_limit_config = RateLimitConfig::default();
     let ws_manager = ws::WsConnectionManager::new();
@@ -144,6 +161,9 @@ async fn main() -> std::io::Result<()> {
             // registered *last* in the `.wrap()` chain so it executes *first*.
             .wrap(IdempotencyMiddleware::new())
             .wrap(RateLimitMiddleware::new(rate_limit_config.clone()))
+            // #1701: ValidationMiddleware rejects malformed Content-Type /
+            // payloads before they reach handlers. Registered here so it runs
+            // after RequestIdMiddleware (which is registered last, below).
             .wrap(ValidationMiddleware)
             .wrap(RequestIdMiddleware)
             // #1697: Expose the container itself so controllers can resolve
@@ -172,6 +192,9 @@ async fn main() -> std::io::Result<()> {
             // Controllers delegate to the service layer, which in turn talks to
             // repositories.  Paths, methods and middleware are unchanged, so the
             // public API remains backward compatible.
+            // OpenAPI reference (#1664) — served from the same builder that
+            // `backend/src/bin/openapi.rs` uses to publish docs/api/openapi.json.
+            .route("/api/v1/openapi.json", web::get().to(openapi_api::openapi_json))
             // Contract Queries (Task 1)
             .route("/api/v1/contracts/wastes", web::get().to(contracts::list_wastes))
             .route("/api/v1/contracts/wastes/{id}", web::get().to(contracts::get_waste))
@@ -295,7 +318,7 @@ async fn main() -> std::io::Result<()> {
                 "/api/v1/compliance/report",
                 web::post().to(compliance_api::generate_compliance_report),
             )
-            // Transaction Signing (#1090)
+            // Transaction Signing (#1090, #1700)
             // sign/multisig/revoke/events/revocations removed — superseded by
             // packages/scavenger-sdk/src/signing.ts client-side signing.
             // Only stateless verify and documentation remain server-side.
@@ -345,6 +368,8 @@ async fn main() -> std::io::Result<()> {
 /// Central fallback for unmatched routes — keeps 404s in the same
 /// unified JSON error envelope as handler-returned `AppError`s.
 async fn not_found(req: HttpRequest) -> HttpResponse {
+    // #1699: structured logging instead of println!.
+    tracing::debug!(path = %req.path(), method = %req.method(), "Unmatched route");
     AppError::NotFound {
         resource: "route",
         id: req.path().to_string(),
@@ -355,6 +380,8 @@ async fn not_found(req: HttpRequest) -> HttpResponse {
 /// Central fallback for malformed JSON request bodies — keeps 400s in
 /// the same unified JSON error envelope instead of actix's plaintext default.
 fn json_error_handler(err: actix_web::error::JsonPayloadError, _req: &HttpRequest) -> actix_web::Error {
+    // #1699: structured logging instead of eprintln!.
+    tracing::warn!(error = %err, "Malformed JSON request body");
     let response = AppError::BadRequest(err.to_string()).error_response();
     actix_web::error::InternalError::from_response(err, response).into()
 }
@@ -366,4 +393,32 @@ async fn health_check() -> HttpResponse {
         "version": "1.0.0",
         "services": ["contracts", "websocket", "export", "audit", "cache"]
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{http::StatusCode, test, App};
+
+    #[actix_web::test]
+    async fn health_check_returns_ok() {
+        let app = test::init_service(App::new().route("/health", web::get().to(health_check))).await;
+        let req = test::TestRequest::get().uri("/health").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn openapi_route_serves_document() {
+        let app = test::init_service(
+            App::new().route("/api/v1/openapi.json", web::get().to(openapi_api::openapi_json)),
+        )
+        .await;
+        let req = test::TestRequest::get().uri("/api/v1/openapi.json").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["openapi"], "3.0.3");
+        assert!(body["components"]["schemas"]["ErrorBody"].is_object());
+    }
 }

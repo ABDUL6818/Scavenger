@@ -1,35 +1,40 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useWallet } from '@/context/WalletContext'
-import { useContract } from '@/context/ContractContext'
-import { ScavengerClient } from '@/api/client'
 import { Material } from '@/api/types'
-import { getNetworkPassphrase } from '@/lib/stellar'
 import { useToast } from '@/hooks/useToast'
+import { useScavengerClient } from '@/hooks/useScavengerClient'
+import { useAsyncData } from '@/hooks/useAsyncData'
 
+/**
+ * Contract for `useWasteList`:
+ *
+ * - Reads the connected wallet address from `WalletContext` and the contract
+ *   client from the consolidated `useScavengerClient` hook.
+ * - Loads the participant's waste materials plus the contract admin address
+ *   via `useAsyncData` (which owns loading/error state and reload semantics).
+ * - Exposes mutation helpers (`confirmWaste`, `transferWaste`, and the
+ *   `batch*` variants) that perform optimistic updates where applicable and
+ *   reload the list afterwards.
+ * - The returned object shape is stable for backwards compatibility:
+ *   `{ wastes, isLoading, error, isAdmin, reload, confirmWaste, transferWaste,
+ *      batchConfirmWastes, batchVerifyWastes, batchTransferWastes,
+ *      batchDeactivateWastes }`.
+ */
 export function useWasteList() {
   const { address } = useWallet()
-  const { config } = useContract()
   const toast = useToast()
-  const [wastes, setWastes] = useState<Material[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const getClient = useScavengerClient()
   const [adminAddress, setAdminAddress] = useState<string | null>(null)
 
-  const getClient = useCallback(
-    () =>
-      new ScavengerClient({
-        rpcUrl: config.rpcUrl,
-        networkPassphrase: getNetworkPassphrase(config.network),
-        contractId: config.contractId,
-      }),
-    [config]
-  )
-
-  const load = useCallback(async () => {
-    if (!address) return
-    setIsLoading(true)
-    setError(null)
-    try {
+  const {
+    data: wastes,
+    isLoading,
+    error,
+    reload: load,
+    setData: setWastes,
+  } = useAsyncData<Material[]>(
+    async () => {
+      if (!address) return []
       const client = getClient()
       const [admin, ids] = await Promise.all([
         client.getAdmin().catch(() => null),
@@ -37,15 +42,11 @@ export function useWasteList() {
       ])
       const materials = await Promise.all(ids.map((id) => client.getMaterial(id)))
       setAdminAddress(admin)
-      setWastes(materials.filter((m): m is Material => m !== null))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load wastes')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [address, getClient])
-
-  useEffect(() => { load() }, [load])
+      return materials.filter((m): m is Material => m !== null)
+    },
+    [address, getClient],
+    { enabled: Boolean(address), initialData: [], errorMessage: 'Failed to load wastes' }
+  )
 
   const confirmWaste = useCallback(async (wasteId: number | bigint) => {
     if (!address) return
@@ -62,7 +63,7 @@ export function useWasteList() {
       await load()
       toast.error(err)
     }
-  }, [address, getClient, load, toast])
+  }, [address, getClient, load, toast, setWastes])
 
   const transferWaste = useCallback(async (wasteId: number | bigint, to: string) => {
     if (!address) return
@@ -111,7 +112,7 @@ export function useWasteList() {
 
       return { succeeded, failed: total - succeeded, errors }
     },
-    [address, getClient, load, toast]
+    [address, getClient, load, toast, setWastes]
   )
 
   const batchVerifyWastes = useCallback(
@@ -227,17 +228,51 @@ export function useWasteList() {
     [address, adminAddress, getClient, load, toast]
   )
 
-  return {
-    wastes,
-    isLoading,
-    error,
-    isAdmin: Boolean(address && adminAddress && String(address) === String(adminAddress)),
-    reload: load,
-    confirmWaste,
-    transferWaste,
-    batchConfirmWastes,
-    batchVerifyWastes,
-    batchTransferWastes,
-    batchDeactivateWastes,
-  }
+  const isAdmin = useMemo(
+    () => Boolean(address && adminAddress && String(address) === String(adminAddress)),
+    [address, adminAddress]
+  )
+
+  const confirmedWastes = useMemo(
+    () => wastes.filter((w) => w.is_confirmed),
+    [wastes]
+  )
+
+  const unconfirmedWastes = useMemo(
+    () => wastes.filter((w) => !w.is_confirmed),
+    [wastes]
+  )
+
+  return useMemo(
+    () => ({
+      wastes,
+      confirmedWastes,
+      unconfirmedWastes,
+      isLoading,
+      error,
+      isAdmin,
+      reload: load,
+      confirmWaste,
+      transferWaste,
+      batchConfirmWastes,
+      batchVerifyWastes,
+      batchTransferWastes,
+      batchDeactivateWastes,
+    }),
+    [
+      wastes,
+      confirmedWastes,
+      unconfirmedWastes,
+      isLoading,
+      error,
+      isAdmin,
+      load,
+      confirmWaste,
+      transferWaste,
+      batchConfirmWastes,
+      batchVerifyWastes,
+      batchTransferWastes,
+      batchDeactivateWastes,
+    ]
+  )
 }

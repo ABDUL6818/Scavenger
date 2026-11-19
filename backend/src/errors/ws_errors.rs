@@ -35,6 +35,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::errors::AppError;
+
 /// Stable, machine-readable WebSocket error codes.
 ///
 /// All variants serialize to snake_case dot-separated strings so that
@@ -82,6 +84,23 @@ impl WsErrorCode {
             Self::ServerHeartbeatTimeout => "Heartbeat timeout: connection closed",
         }
     }
+
+    /// Maps a canonical [`AppError`] onto the closest WebSocket error code.
+    ///
+    /// This keeps the WebSocket wire format stable while ensuring that
+    /// errors originating in shared application code are surfaced to
+    /// clients with a machine-readable code rather than free text.
+    pub fn from_app_error(err: &AppError) -> Self {
+        match err {
+            AppError::Unauthorized(_) | AppError::Forbidden(_) => Self::AuthInvalidToken,
+            AppError::NotFound(_) => Self::ChannelNotFound,
+            AppError::Validation(_) | AppError::BadRequest(_) => Self::MessageParseError,
+            AppError::ServiceUnavailable(_) => Self::ServerShuttingDown,
+            AppError::Internal(_) | AppError::Database(_) | AppError::Other(_) => {
+                Self::MessageUnknownType
+            }
+        }
+    }
 }
 
 /// A structured WebSocket error frame, ready to be serialised and sent.
@@ -124,6 +143,14 @@ impl WsErrorFrame {
                 message: message.into(),
             },
         }
+    }
+
+    /// Build a frame from a canonical [`AppError`].
+    ///
+    /// The error code is derived via [`WsErrorCode::from_app_error`] and the
+    /// message uses the `AppError`'s human-readable description.
+    pub fn from_app_error(err: &AppError) -> Self {
+        Self::with_message(WsErrorCode::from_app_error(err), err.to_string())
     }
 
     /// Serialise the frame to a JSON string, falling back to a plain-text
@@ -184,6 +211,43 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["type"], "error");
         assert_eq!(parsed["payload"]["code"], "message.unknown_type");
+        assert!(parsed["payload"]["message"].is_string());
+    }
+
+    #[test]
+    fn app_error_maps_to_ws_error_code() {
+        assert_eq!(
+            WsErrorCode::from_app_error(&AppError::Unauthorized("no token".into())),
+            WsErrorCode::AuthInvalidToken
+        );
+        assert_eq!(
+            WsErrorCode::from_app_error(&AppError::NotFound("channel".into())),
+            WsErrorCode::ChannelNotFound
+        );
+        assert_eq!(
+            WsErrorCode::from_app_error(&AppError::Validation("bad json".into())),
+            WsErrorCode::MessageParseError
+        );
+        assert_eq!(
+            WsErrorCode::from_app_error(&AppError::ServiceUnavailable("drain".into())),
+            WsErrorCode::ServerShuttingDown
+        );
+        assert_eq!(
+            WsErrorCode::from_app_error(&AppError::Internal("boom".into())),
+            WsErrorCode::MessageUnknownType
+        );
+    }
+
+    #[test]
+    fn frame_from_app_error_keeps_wire_format() {
+        let frame = WsErrorFrame::from_app_error(&AppError::Unauthorized("no token".into()));
+        assert_eq!(frame.frame_type, "error");
+        assert_eq!(frame.payload.code, WsErrorCode::AuthInvalidToken);
+        assert!(!frame.payload.message.is_empty());
+
+        let parsed: serde_json::Value = serde_json::from_str(&frame.to_json()).unwrap();
+        assert_eq!(parsed["type"], "error");
+        assert_eq!(parsed["payload"]["code"], "auth.invalid_token");
         assert!(parsed["payload"]["message"].is_string());
     }
 

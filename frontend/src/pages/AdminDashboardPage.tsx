@@ -2,6 +2,7 @@ import { ShieldAlert, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useAdminTabs } from '@/hooks/useAdminTabs'
+import { Button } from '@/components/ui/Button'
 import {
   OverviewTab,
   UsersTab,
@@ -43,10 +44,12 @@ export function AdminDashboardPage() {
         className="flex flex-wrap gap-1 rounded-lg border bg-muted p-1 xs:flex-nowrap xs:overflow-x-auto tablet:flex-wrap tablet:overflow-visible"
       >
         {visibleTabs.map((tab) => (
-          <button
+          <Button
             key={tab.id}
             role="tab"
             aria-selected={activeTab === tab.id}
+            variant={activeTab === tab.id ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab(tab.id)}
             className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xs:px-3 ${
               activeTab === tab.id
@@ -56,7 +59,7 @@ export function AdminDashboardPage() {
           >
             {tab.icon}
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -74,4 +77,3 @@ export function AdminDashboardPage() {
     </div>
   )
 }
-

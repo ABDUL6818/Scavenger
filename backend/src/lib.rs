@@ -13,6 +13,7 @@ pub mod compliance;
 pub mod container;
 pub mod controller;
 pub mod errors;
+pub mod logger;
 pub mod middleware;
 pub mod repository;
 pub mod rpc;

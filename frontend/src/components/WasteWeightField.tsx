@@ -4,6 +4,23 @@ import { Input } from '@/components/ui/Input'
 import { convertWeight, type WeightUnit } from '@/lib/validation/wasteSubmission'
 import type { WasteFormValues } from './WasteSubmissionFields'
 
+/**
+ * WasteWeightField
+ *
+ * Numeric weight entry with a unit toggle (grams/kilograms) and a live
+ * converted-weight hint. Validation is driven by the zod schema in
+ * `@/lib/validation/wasteSubmission` via react-hook-form registration.
+ *
+ * @example
+ * <WasteWeightField
+ *   register={register}
+ *   watch={watch}
+ *   errors={errors}
+ *   weightUnit={weightUnit}
+ *   setWeightUnit={setWeightUnit}
+ * />
+ */
+
 interface WasteWeightFieldProps {
   register: UseFormRegister<WasteFormValues>
   watch: UseFormWatch<WasteFormValues>
@@ -36,7 +53,9 @@ export function WasteWeightField({
           inputMode="decimal"
           className="w-full min-w-0"
           placeholder={weightUnit === 'grams' ? 'e.g. 500' : 'e.g. 0.5'}
-          {...register('weight')}
+          aria-invalid={errors.weight ? true : undefined}
+          aria-describedby={errors.weight ? 'weight-error' : undefined}
+          {...register('weight', { valueAsNumber: true })}
         />
         <button
           type="button"
@@ -51,7 +70,9 @@ export function WasteWeightField({
         <p className="mt-1 text-xs text-muted-foreground">= {convertedWeight}</p>
       )}
       {errors.weight && (
-        <p className="mt-1 text-sm text-destructive" role="alert">{errors.weight.message}</p>
+        <p id="weight-error" className="mt-1 text-sm text-destructive" role="alert">
+          {errors.weight.message}
+        </p>
       )}
     </section>
   )

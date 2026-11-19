@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { cn } from '@/lib/cn'
 import { getDaysInMonth, getFirstDayOfWeek, isInMonth } from '@/lib/date'
 
@@ -10,7 +10,7 @@ interface Props {
   dayClassName?: string
 }
 
-export function CalendarGrid({
+function CalendarGridComponent({
   month,
   activeDay,
   onDayHover,
@@ -19,19 +19,20 @@ export function CalendarGrid({
 }: Props) {
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
-  const daysInMonth = getDaysInMonth(year, monthIdx)
-  const firstDay = getFirstDayOfWeek(year, monthIdx)
 
-  const today = new Date()
-  const todayDay = isInMonth(today, year, monthIdx) ? today.getDate() : -1
-
-  const cells: (number | null)[] = useMemo(
-    () => [
-      ...Array(firstDay).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    ],
-    [firstDay, daysInMonth]
-  )
+  const { cells, todayDay } = useMemo(() => {
+    const daysInMonth = getDaysInMonth(year, monthIdx)
+    const firstDay = getFirstDayOfWeek(year, monthIdx)
+    const today = new Date()
+    const todayDay = isInMonth(today, year, monthIdx) ? today.getDate() : -1
+    return {
+      cells: [
+        ...Array(firstDay).fill(null),
+        ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+      ] as (number | null)[],
+      todayDay,
+    }
+  }, [year, monthIdx])
 
   return (
     <div className="grid grid-cols-7 gap-0.5 xs:gap-1 tablet:gap-1.5 text-center text-[10px] xs:text-xs text-muted-foreground">
@@ -61,3 +62,6 @@ export function CalendarGrid({
     </div>
   )
 }
+
+export const CalendarGrid = memo(CalendarGridComponent)
+CalendarGrid.displayName = 'CalendarGrid'

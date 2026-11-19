@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ScavengerClient } from '@/api/client'
 import { WasteTransfer } from '@/api/types'
@@ -21,9 +22,14 @@ export function useTransferHistory(wasteId: number | bigint | undefined) {
     enabled: wasteId !== undefined,
   })
 
-  return {
-    history: data ?? [],
-    isLoading,
-    isError,
-  }
+  const history = useMemo<WasteTransfer[]>(() => data ?? [], [data])
+
+  return useMemo(
+    () => ({
+      history,
+      isLoading,
+      isError,
+    }),
+    [history, isLoading, isError],
+  )
 }

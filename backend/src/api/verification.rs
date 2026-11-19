@@ -393,10 +393,6 @@ mod tests {
             })
         }
 
-        async fn verify_document(&self, _doc_id: String) -> Result<Document, String> {
-            Err("not found".to_string())
-        }
-
         async fn submit_checklist(
             &self,
             participant_id: String,

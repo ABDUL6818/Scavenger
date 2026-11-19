@@ -1,19 +1,11 @@
 import { type Control, type FieldErrors, type UseFormRegister, type UseFormSetValue, type UseFormWatch } from 'react-hook-form'
-import { WasteType } from '@/api/types'
-import { type WeightUnit } from '@/lib/validation/wasteSubmission'
+import { type WeightUnit, type WasteFormValues } from '@/lib/validation/wasteSubmission'
 import { WasteMaterialSelector, WASTE_TYPE_OPTIONS } from './WasteMaterialSelector'
 import { WasteWeightField } from './WasteWeightField'
 import { WasteLocationFields } from './WasteLocationFields'
 
 export { WASTE_TYPE_OPTIONS }
-
-export interface WasteFormValues {
-  wasteType: WasteType | ''
-  weight: string
-  latitude: string
-  longitude: string
-  notes: string
-}
+export type { WasteFormValues }
 
 export interface WasteSubmissionFieldsProps {
   control: Control<WasteFormValues>
