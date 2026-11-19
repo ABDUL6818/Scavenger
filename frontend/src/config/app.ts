@@ -1,4 +1,5 @@
 import { ContractConfig } from '../types';
+import { LogLevel, NetworkType } from '../lib/constants';
 import { env } from './env';
 
 interface AppConfig {
@@ -13,7 +14,7 @@ interface AppConfig {
     notifications: boolean;
   };
   logging: {
-    level: 'debug' | 'info' | 'warn' | 'error';
+    level: LogLevel;
     enableConsole: boolean;
   };
 }

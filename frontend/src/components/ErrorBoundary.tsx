@@ -1,8 +1,13 @@
-import React, { Component, ReactNode, useCallback, useState } from 'react'
+import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
+import { EmptyState } from './EmptyState'
 
 interface Props {
   children: ReactNode
   fallback?: ReactNode
+  onError?: (error: Error, info: ErrorInfo) => void
+  resetKeys?: unknown[]
 }
 
 interface State {
@@ -10,76 +15,75 @@ interface State {
   error: Error | null
 }
 
-interface ErrorBoundaryInnerProps extends Props {
-  onError: (error: Error, info: React.ErrorInfo) => void
+function keysChanged(prev: unknown[] | undefined, next: unknown[] | undefined): boolean {
+  if (!prev || !next) return false
+  if (prev.length !== next.length) return true
+  return prev.some((value, index) => !Object.is(value, next[index]))
 }
 
-/**
- * Internal class component used only to capture errors.
- * React does not yet provide a hook equivalent for componentDidCatch /
- * getDerivedStateFromError, so a minimal class is still required to catch
- * render errors from descendants. All rendering logic lives in the
- * function component below.
- */
-class ErrorCatcher extends Component<ErrorBoundaryInnerProps, State> {
+interface DefaultFallbackProps {
+  error: Error | null
+  onRetry: () => void
+}
+
+function DefaultFallback({ error, onRetry }: DefaultFallbackProps) {
+  const { t } = useTranslation()
+  return (
+    <EmptyState
+      role="alert"
+      title={t('errorBoundary.title', 'Something went wrong.')}
+      description={error?.message ?? t('errorBoundary.description', 'An unexpected error occurred.')}
+      actionLabel={t('errorBoundary.tryAgain', 'Try again')}
+      onAction={onRetry}
+    />
+  )
+}
+
+export class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false, error: null }
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    this.props.onError(error, info)
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // Visible feedback for users via the shared toast strategy.
+    try {
+      toast.error(error.message || 'Something went wrong.')
+    } catch {
+      // Toast may be unavailable (e.g. outside a Toaster); never throw from here.
+    }
+
+    // Development-only logging to keep production consoles clean.
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[ErrorBoundary]', error, info.componentStack)
+    }
+
+    this.props.onError?.(error, info)
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.hasError && keysChanged(prevProps.resetKeys, this.props.resetKeys)) {
+      this.reset()
+    }
   }
 
   reset = () => {
     this.setState({ hasError: false, error: null })
   }
 
+  private handleRetry = () => {
+    this.setState({ hasError: false, error: null })
+  }
+
   render() {
     if (this.state.hasError) {
-      return this.props.fallback
+      return (
+        this.props.fallback ?? (
+          <DefaultFallback error={this.state.error} onRetry={this.handleRetry} />
+        )
+      )
     }
     return this.props.children
   }
-}
-
-export function ErrorBoundary({ children, fallback }: Props) {
-  const [hasError, setHasError] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-
-  const handleError = useCallback((err: Error, info: React.ErrorInfo) => {
-    console.error('[ErrorBoundary]', err, info.componentStack)
-    setError(err)
-    setHasError(true)
-  }, [])
-
-  const handleReset = useCallback(() => {
-    setHasError(false)
-    setError(null)
-  }, [])
-
-  const renderFallback = () => {
-    if (fallback !== undefined) {
-      return fallback
-    }
-    return (
-      <div role="alert" className="flex min-h-[200px] flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-destructive font-medium">Something went wrong.</p>
-        <p className="text-muted-foreground text-sm">{error?.message}</p>
-        <button
-          className="rounded-sm text-sm text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={handleReset}
-        >
-          Try again
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <ErrorCatcher fallback={renderFallback()} onError={handleError}>
-      {children}
-    </ErrorCatcher>
-  )
 }

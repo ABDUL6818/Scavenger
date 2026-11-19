@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Vote, FileText, Shield, BarChart2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -27,6 +28,7 @@ function ProposalCard({
   onVote: (id: string, choice: VoteChoice) => void
   onVeto: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const tally = tallyVotes(proposal)
   const total = tally.total || 1
 
@@ -49,7 +51,7 @@ function ProposalCard({
           {(['for', 'against', 'abstain'] as VoteChoice[]).map((choice) => (
             <div key={choice} className="space-y-0.5">
               <div className="flex justify-between">
-                <span className="capitalize">{choice}</span>
+                <span className="capitalize">{t(`governance.voteChoices.${choice}`)}</span>
                 <span>{tally[choice]} ({Math.round((tally[choice] / total) * 100)}%)</span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -61,7 +63,11 @@ function ProposalCard({
             </div>
           ))}
           <p className="text-muted-foreground">
-            Quorum: {tally.total}/{proposal.quorum} {tally.quorumMet ? '✓' : '✗'}
+            {t('governance.quorumProgress', {
+              total: tally.total,
+              quorum: proposal.quorum,
+              status: tally.quorumMet ? '✓' : '✗',
+            })}
           </p>
         </div>
 
@@ -75,7 +81,7 @@ function ProposalCard({
                 onClick={() => onVote(proposal.id, choice)}
                 className="capitalize text-xs xs:px-2"
               >
-                {choice === 'for' ? '✓' : choice === 'against' ? '✗' : '—'} {choice}
+                {choice === 'for' ? '✓' : choice === 'against' ? '✗' : '—'} {t(`governance.voteChoices.${choice}`)}
               </Button>
             ))}
             <Button
@@ -84,7 +90,7 @@ function ProposalCard({
               onClick={() => onVeto(proposal.id)}
               className="text-xs text-destructive border-destructive hover:bg-destructive/10 xs:px-2"
             >
-              <Shield className="h-3 w-3 mr-1" /> Veto
+              <Shield className="h-3 w-3 mr-1" /> {t('governance.veto')}
             </Button>
           </div>
         )}
@@ -94,6 +100,7 @@ function ProposalCard({
 }
 
 function NewProposalForm({ onCreated }: { onCreated: () => void }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -112,7 +119,7 @@ function NewProposalForm({ onCreated }: { onCreated: () => void }) {
   if (!open) {
     return (
       <Button onClick={() => setOpen(true)} size="sm">
-        <FileText className="h-4 w-4 mr-2" /> New Proposal
+        <FileText className="h-4 w-4 mr-2" /> {t('governance.newProposal')}
       </Button>
     )
   }
@@ -120,14 +127,14 @@ function NewProposalForm({ onCreated }: { onCreated: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Create Proposal</CardTitle>
+        <CardTitle className="text-base">{t('governance.createProposal')}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Proposal title"
+            placeholder={t('governance.proposalTitlePlaceholder')}
             className="w-full rounded border px-3 py-1.5 text-sm bg-background"
             required
           />
@@ -137,20 +144,20 @@ function NewProposalForm({ onCreated }: { onCreated: () => void }) {
             className="w-full rounded border px-3 py-1.5 text-sm bg-background"
           >
             {(['protocol', 'community', 'treasury', 'technical', 'other'] as ProposalCategory[]).map((c) => (
-              <option key={c} value={c} className="capitalize">{c}</option>
+              <option key={c} value={c} className="capitalize">{t(`governance.categories.${c}`)}</option>
             ))}
           </select>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe the proposal..."
+            placeholder={t('governance.proposalDescriptionPlaceholder')}
             className="w-full rounded border px-3 py-1.5 text-sm bg-background resize-none"
             rows={3}
             required
           />
           <div className="flex gap-2">
-            <Button type="submit" size="sm">Submit</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" size="sm">{t('common.submit')}</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
           </div>
         </form>
       </CardContent>
@@ -161,7 +168,8 @@ function NewProposalForm({ onCreated }: { onCreated: () => void }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function GovernancePage() {
-  useAppTitle('Governance')
+  const { t } = useTranslation()
+  useAppTitle(t('governance.title'))
   const [refresh, setRefresh] = useState(0)
   const [filter, setFilter] = useState<'all' | 'active' | 'passed' | 'rejected'>('all')
 
@@ -195,9 +203,9 @@ export function GovernancePage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 xs:gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold xs:text-2xl">Community Governance</h1>
+          <h1 className="text-3xl font-bold xs:text-2xl">{t('governance.heading')}</h1>
           <p className="mt-1 text-muted-foreground">
-            Vote on proposals and shape the direction of Scavngr
+            {t('governance.subtitle')}
           </p>
         </div>
         <NewProposalForm onCreated={() => setRefresh((r) => r + 1)} />
@@ -206,12 +214,12 @@ export function GovernancePage() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 xs:gap-2 sm:grid-cols-4 tablet:grid-cols-4">
         {[
-          { label: 'Total Proposals', value: stats.totalProposals },
-          { label: 'Active', value: stats.activeProposals },
-          { label: 'Passed', value: stats.passedProposals },
-          { label: 'Participation', value: `${Math.round(stats.participationRate * 100)}%` },
-        ].map(({ label, value }) => (
-          <Card key={label}>
+          { key: 'totalProposals', label: t('governance.stats.totalProposals'), value: stats.totalProposals },
+          { key: 'active', label: t('governance.stats.active'), value: stats.activeProposals },
+          { key: 'passed', label: t('governance.stats.passed'), value: stats.passedProposals },
+          { key: 'participation', label: t('governance.stats.participation'), value: `${Math.round(stats.participationRate * 100)}%` },
+        ].map(({ key, label, value }) => (
+          <Card key={key}>
             <CardContent className="pt-4 text-center">
               <div className="text-2xl font-bold">{value}</div>
               <div className="text-xs text-muted-foreground">{label}</div>
@@ -230,7 +238,7 @@ export function GovernancePage() {
             onClick={() => setFilter(f)}
             className="capitalize"
           >
-            {f}
+            {t(`governance.filters.${f}`)}
           </Button>
         ))}
       </div>
@@ -240,7 +248,7 @@ export function GovernancePage() {
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             <Vote className="mx-auto mb-2 h-8 w-8 opacity-40" />
-            <p>No proposals yet. Create the first one!</p>
+            <p>{t('governance.emptyState')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -256,14 +264,14 @@ export function GovernancePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart2 className="h-4 w-4" />
-            Governance Model
+            {t('governance.model.title')}
           </CardTitle>
         </CardHeader>
         <CardContent className="prose prose-sm dark:prose-invert max-w-none text-sm space-y-2 text-muted-foreground">
-          <p><strong className="text-foreground">Quorum:</strong> 5 votes required for a proposal to be valid.</p>
-          <p><strong className="text-foreground">Passing threshold:</strong> &gt;50% of decisive votes (for/against).</p>
-          <p><strong className="text-foreground">Veto:</strong> Any admin can veto an active proposal with a stated reason.</p>
-          <p><strong className="text-foreground">Voting period:</strong> 7 days from proposal creation.</p>
+          <p><strong className="text-foreground">{t('governance.model.quorumLabel')}</strong> {t('governance.model.quorumDescription')}</p>
+          <p><strong className="text-foreground">{t('governance.model.thresholdLabel')}</strong> {t('governance.model.thresholdDescription')}</p>
+          <p><strong className="text-foreground">{t('governance.model.vetoLabel')}</strong> {t('governance.model.vetoDescription')}</p>
+          <p><strong className="text-foreground">{t('governance.model.votingPeriodLabel')}</strong> {t('governance.model.votingPeriodDescription')}</p>
         </CardContent>
       </Card>
     </div>

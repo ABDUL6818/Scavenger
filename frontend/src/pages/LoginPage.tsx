@@ -18,6 +18,7 @@ import { ScavengerClient } from '@/lib/contract'
 import { Role } from '@/api/types'
 import { config } from '@/config'
 import { networkConfig } from '@/lib/stellar'
+import { useTranslation } from '@/i18n/useTranslation'
 
 const client = new ScavengerClient({
   rpcUrl: networkConfig.rpcUrl,
@@ -26,13 +27,14 @@ const client = new ScavengerClient({
 })
 
 const ROLES = [
-  { value: Role.Recycler, label: 'Recycler' },
-  { value: Role.Collector, label: 'Collector' },
-  { value: Role.Manufacturer, label: 'Manufacturer' },
+  { value: Role.Recycler, labelKey: 'login.roles.recycler' },
+  { value: Role.Collector, labelKey: 'login.roles.collector' },
+  { value: Role.Manufacturer, labelKey: 'login.roles.manufacturer' },
 ]
 
 export function LoginPage() {
-  useAppTitle('Scavngr — Sign In')
+  const { t } = useTranslation()
+  useAppTitle(t('login.title'))
 
   const navigate = useNavigate()
   const { address, isConnected, connect, isLoading: walletLoading, error: walletError } = useWallet()
@@ -90,9 +92,9 @@ export function LoginPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 xs:h-12 xs:w-12">
             <Recycle className="h-5 w-5 text-primary xs:h-6 xs:w-6" />
           </div>
-          <h1 className="text-xl font-bold xs:text-2xl tablet:text-3xl">Welcome to Scavngr</h1>
+          <h1 className="text-xl font-bold xs:text-2xl tablet:text-3xl">{t('login.welcome')}</h1>
           <p className="text-xs text-muted-foreground xs:text-sm">
-            Connect your Freighter wallet to get started.
+            {t('login.connectPrompt')}
           </p>
         </div>
 
@@ -101,7 +103,7 @@ export function LoginPage() {
           <div className="space-y-3">
             <Button className="w-full" size="lg" onClick={connect} disabled={isbusy}>
               <Wallet className="mr-2 h-4 w-4" />
-              {walletLoading ? 'Connecting…' : 'Connect Wallet'}
+              {walletLoading ? t('login.connecting') : t('login.connectWallet')}
             </Button>
             {walletError && (
               <p role="alert" aria-live="assertive" className="text-center text-xs text-destructive xs:text-sm">
@@ -114,7 +116,7 @@ export function LoginPage() {
         {/* Checking registration */}
         {isConnected && checking && (
           <p role="status" aria-live="polite" className="text-center text-xs text-muted-foreground xs:text-sm">
-            Checking registration…
+            {t('login.checkingRegistration')}
           </p>
         )}
 
@@ -122,16 +124,16 @@ export function LoginPage() {
         {isConnected && !checking && isRegistered === false && (
           <form onSubmit={handleRegister} className="space-y-3 xs:space-y-4 tablet:space-y-5">
             <p className="text-center text-xs text-muted-foreground xs:text-sm">
-              You're not registered yet. Fill in your details to join.
+              {t('login.notRegistered')}
             </p>
 
             <div className="space-y-1">
               <label htmlFor="display-name-input" className="text-sm font-medium">
-                Display name
+                {t('login.displayName')}
               </label>
               <Input
                 id="display-name-input"
-                placeholder="Your name"
+                placeholder={t('login.namePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoFocus
@@ -141,7 +143,7 @@ export function LoginPage() {
 
             <div className="space-y-1">
               <label htmlFor="role-select-trigger" className="text-sm font-medium">
-                Role
+                {t('login.role')}
               </label>
               <Select value={role} onValueChange={(v) => setRole(v as Role)}>
                 <SelectTrigger id="role-select-trigger" className="w-full">
@@ -150,7 +152,7 @@ export function LoginPage() {
                 <SelectContent>
                   {ROLES.map((r) => (
                     <SelectItem key={r.value} value={r.value}>
-                      {r.label}
+                      {t(r.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -159,12 +161,12 @@ export function LoginPage() {
 
             {registerMutation.isError && (
               <p role="alert" aria-live="assertive" className="text-xs text-destructive xs:text-sm">
-                {registerMutation.error?.message ?? 'Registration failed. Please try again.'}
+                {registerMutation.error?.message ?? t('login.registrationFailed')}
               </p>
             )}
 
             <Button type="submit" className="w-full" disabled={registerMutation.isPending || !name.trim()}>
-              {registerMutation.isPending ? 'Registering…' : 'Create Account'}
+              {registerMutation.isPending ? t('login.registering') : t('login.createAccount')}
             </Button>
           </form>
         )}

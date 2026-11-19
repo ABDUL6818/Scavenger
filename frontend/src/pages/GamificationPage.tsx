@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useGamification } from '@/hooks/useGamification'
 import { Badge as BadgeType, Challenge, LeaderboardEntry, Level } from '@/lib/gamification'
@@ -58,18 +59,19 @@ function useConfetti(trigger: boolean) {
 // ── Level progress bar ────────────────────────────────────────────────────────
 
 function LevelCard({ level }: { level: Level }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Star className="h-4 w-4 text-warning" />
-          Level {level.level} — {level.title}
+          {t('gamification.level.title', { level: level.level, title: level.title })}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{level.xp.toLocaleString()} XP</span>
-          <span>Next: {level.xpForNext.toLocaleString()} XP</span>
+          <span>{t('gamification.level.xp', { xp: level.xp.toLocaleString() })}</span>
+          <span>{t('gamification.level.next', { xp: level.xpForNext.toLocaleString() })}</span>
         </div>
         <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
           <div
@@ -77,7 +79,9 @@ function LevelCard({ level }: { level: Level }) {
             style={{ width: `${level.progressPct}%` }}
           />
         </div>
-        <p className="text-xs text-muted-foreground text-right">{level.progressPct}% to next level</p>
+        <p className="text-xs text-muted-foreground text-right">
+          {t('gamification.level.progress', { pct: level.progressPct })}
+        </p>
       </CardContent>
     </Card>
   )
@@ -86,10 +90,11 @@ function LevelCard({ level }: { level: Level }) {
 // ── Badge grid ────────────────────────────────────────────────────────────────
 
 function BadgeGrid({ badges }: { badges: BadgeType[] }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Badges</CardTitle>
+        <CardTitle className="text-base">{t('gamification.badges.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-2 xs:grid-cols-3 xs:gap-3 tablet:grid-cols-5">
@@ -104,7 +109,11 @@ function BadgeGrid({ badges }: { badges: BadgeType[] }) {
             >
               <span className="text-2xl">{b.icon}</span>
               <span className="break-words text-xs font-medium leading-tight">{b.name}</span>
-              {b.earned && <Badge variant="default" className="px-1 py-0 text-[10px]">Earned</Badge>}
+              {b.earned && (
+                <Badge variant="default" className="px-1 py-0 text-[10px]">
+                  {t('gamification.badges.earned')}
+                </Badge>
+              )}
             </div>
           ))}
         </div>
@@ -116,12 +125,18 @@ function BadgeGrid({ badges }: { badges: BadgeType[] }) {
 // ── Challenge card ────────────────────────────────────────────────────────────
 
 function ChallengeRow({ challenge }: { challenge: Challenge }) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-1 rounded-md border px-3 py-3 xs:px-4">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="min-w-0 break-words font-medium">{challenge.title}</span>
         <Badge variant={challenge.completed ? 'default' : 'secondary'} className="shrink-0 text-xs">
-          {challenge.completed ? '✓ Done' : `${challenge.current}/${challenge.target}`}
+          {challenge.completed
+            ? t('gamification.challenges.done')
+            : t('gamification.challenges.progress', {
+                current: challenge.current,
+                target: challenge.target,
+              })}
         </Badge>
       </div>
       <p className="text-xs text-muted-foreground">{challenge.description}</p>
@@ -138,12 +153,13 @@ function ChallengeRow({ challenge }: { challenge: Challenge }) {
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 
 function LeaderboardSection({ entries }: { entries: LeaderboardEntry[] }) {
+  const { t } = useTranslation()
   const MEDALS = ['🥇', '🥈', '🥉']
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Trophy className="h-4 w-4 text-warning" /> Leaderboard
+          <Trophy className="h-4 w-4 text-warning" /> {t('gamification.leaderboard.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -155,9 +171,13 @@ function LeaderboardSection({ entries }: { entries: LeaderboardEntry[] }) {
             <div className="flex min-w-0 items-center gap-2">
               <span>{MEDALS[e.rank - 1] ?? `#${e.rank}`}</span>
               <span className="truncate font-medium">{e.displayName}</span>
-              <Badge variant="outline" className="shrink-0 text-xs">Lv {e.level}</Badge>
+              <Badge variant="outline" className="shrink-0 text-xs">
+                {t('gamification.leaderboard.level', { level: e.level })}
+              </Badge>
             </div>
-            <span className="shrink-0 font-bold">{e.xp.toLocaleString()} XP</span>
+            <span className="shrink-0 font-bold">
+              {t('gamification.level.xp', { xp: e.xp.toLocaleString() })}
+            </span>
           </div>
         ))}
       </CardContent>
@@ -168,6 +188,7 @@ function LeaderboardSection({ entries }: { entries: LeaderboardEntry[] }) {
 // ── Achievement toast ─────────────────────────────────────────────────────────
 
 function NewBadgeToast({ badges, onDismiss }: { badges: BadgeType[]; onDismiss: () => void }) {
+  const { t } = useTranslation()
   useEffect(() => {
     if (badges.length === 0) return
     const t = setTimeout(onDismiss, 4000)
@@ -184,7 +205,7 @@ function NewBadgeToast({ badges, onDismiss }: { badges: BadgeType[]; onDismiss: 
         >
           <span className="text-2xl">{b.icon}</span>
           <div>
-            <p className="text-sm font-semibold">Badge Unlocked!</p>
+            <p className="text-sm font-semibold">{t('gamification.badges.unlocked')}</p>
             <p className="text-xs text-muted-foreground">{b.name}</p>
           </div>
         </div>
@@ -196,7 +217,8 @@ function NewBadgeToast({ badges, onDismiss }: { badges: BadgeType[]; onDismiss: 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function GamificationPage() {
-  useAppTitle('Achievements')
+  const { t } = useTranslation()
+  useAppTitle(t('gamification.pageTitle'))
   const { badges, level, challenges, leaderboard, newBadges, clearNewBadges, isLoading } =
     useGamification()
 
@@ -221,7 +243,7 @@ export function GamificationPage() {
       {/* Confetti canvas */}
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-40" />
 
-      <h1 className="text-xl font-bold xs:text-2xl">Achievements</h1>
+      <h1 className="text-xl font-bold xs:text-2xl sm:text-2xl">{t('gamification.pageTitle')}</h1>
 
       {/* Level */}
       <LevelCard level={level} />
@@ -233,7 +255,7 @@ export function GamificationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Zap className="h-4 w-4 text-warning" /> Daily Challenges
+            <Zap className="h-4 w-4 text-warning" /> {t('gamification.challenges.daily')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -244,7 +266,7 @@ export function GamificationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Calendar className="h-4 w-4 text-info" /> Weekly Challenges
+            <Calendar className="h-4 w-4 text-info" /> {t('gamification.challenges.weekly')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">

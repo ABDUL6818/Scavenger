@@ -21,6 +21,13 @@ export interface Level {
   progressPct: number
 }
 
+export const CHALLENGE_TYPE = {
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+} as const
+
+export type ChallengeType = (typeof CHALLENGE_TYPE)[keyof typeof CHALLENGE_TYPE]
+
 export interface Challenge {
   id: string
   title: string
@@ -29,7 +36,7 @@ export interface Challenge {
   current: number
   progressPct: number
   completed: boolean
-  type: 'daily' | 'weekly'
+  type: ChallengeType
   expiresAt: number
 }
 
@@ -40,4 +47,3 @@ export interface LeaderboardEntry {
   xp: number
   level: number
 }
-</｜｜DSML｜｜ parameter>

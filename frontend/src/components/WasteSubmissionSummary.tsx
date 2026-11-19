@@ -1,6 +1,8 @@
 import { Recycle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export interface WasteSubmissionSummaryProps {
   onDone: () => void
@@ -8,22 +10,34 @@ export interface WasteSubmissionSummaryProps {
   description?: string
 }
 
+export const WASTE_SUBMISSION_SUMMARY_DEFAULT_TITLE = 'Waste Submitted Successfully'
+export const WASTE_SUBMISSION_SUMMARY_DEFAULT_DESCRIPTION =
+  'Your waste submission has been recorded.'
+
 export function WasteSubmissionSummary({
   onDone,
-  title = 'Waste Submitted Successfully',
-  description = 'Your waste submission has been recorded.',
+  title,
+  description,
 }: WasteSubmissionSummaryProps) {
+  const { t } = useTranslation()
+
+  const resolvedTitle = title ?? t('waste.submissionSummary.title')
+  const resolvedDescription = description ?? t('waste.submissionSummary.description')
+
   return (
     <Card>
-      <CardContent className="flex flex-col items-center gap-4 px-4 py-8 text-center sm:px-6 sm:py-10 md:py-12">
-        <div className="rounded-full bg-success/10 p-3">
-          <Recycle className="h-8 w-8 text-success" aria-hidden="true" />
-        </div>
-        <h2 className="text-lg font-semibold break-words sm:text-xl">{title}</h2>
-        <p className="max-w-prose text-sm text-muted-foreground break-words">{description}</p>
-        <Button variant="outline" onClick={onDone} className="w-full sm:w-auto">
-          Done
-        </Button>
+      <CardContent className="px-4 py-8 text-center sm:px-6 sm:py-10 md:py-12">
+        <EmptyState
+          icon={<Recycle className="h-8 w-8 text-success" aria-hidden="true" />}
+          iconClassName="rounded-full bg-success/10 p-3"
+          title={resolvedTitle}
+          description={resolvedDescription}
+          action={
+            <Button variant="outline" onClick={onDone} className="w-full sm:w-auto">
+              {t('common.done')}
+            </Button>
+          }
+        />
       </CardContent>
     </Card>
   )

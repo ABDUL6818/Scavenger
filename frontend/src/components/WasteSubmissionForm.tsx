@@ -1,15 +1,20 @@
 import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { WasteType } from '@/api/types'
 import { useImageUpload } from '@/hooks/useImageUpload'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { LoadingState } from '@/components/ui/LoadingState'
 import { wasteSubmissionSchema, toWeightInGrams, type WeightUnit } from '@/lib/validation/wasteSubmission'
+import { STATUSES, type Status } from '@/lib/constants'
+import { getSubmitErrorMessage, getPhotoError } from '@/lib/format'
 import { WasteSubmissionFields, type WasteFormValues } from './WasteSubmissionFields'
 import { WasteSubmissionImageUpload } from './WasteSubmissionImageUpload'
 import { WasteSubmissionSummary } from './WasteSubmissionSummary'
+import { useToast } from '@/components/ui/Toast'
 
 export { WasteSubmissionFields } from './WasteSubmissionFields'
 export { WasteSubmissionImageUpload } from './WasteSubmissionImageUpload'
@@ -39,10 +44,12 @@ interface WasteSubmissionFormProps {
 }
 
 export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormProps) {
+  const { t } = useTranslation()
   const { images, addImages, removeImage, uploadIds, isUploading, validationError: imageValidationError } = useImageUpload()
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('grams')
-  const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [submitState, setSubmitState] = useState<Status>(STATUSES.IDLE)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const schema = useMemo(() => wasteSubmissionSchema(weightUnit), [weightUnit])
 
@@ -54,7 +61,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
   const onFormSubmit = handleSubmit(async (data) => {
     if (uploadIds.length === 0) return
     const weightInGrams = toWeightInGrams(data.weight, weightUnit)
-    setSubmitState('loading')
+    setSubmitState(STATUSES.LOADING)
     setSubmitError(null)
 
     try {
@@ -66,27 +73,31 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
         notes: data.notes,
         photoCids: uploadIds,
       })
-      setSubmitState('success')
+      setSubmitState(STATUSES.SUCCESS)
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Submission failed')
-      setSubmitState('error')
+      const message = getSubmitErrorMessage(e)
+      setSubmitError(message)
+      setSubmitState(STATUSES.ERROR)
+      toast({ title: 'Submission failed', description: message, variant: 'destructive' })
     }
   })
 
-  const hasFieldErrors = Object.keys(errors).length > 0
-  const photoError = submitState !== 'idle' || hasFieldErrors
-    ? uploadIds.length === 0 && images.length === 0 ? 'At least one photo is required' : null
-    : null
+  const photoError = getPhotoError({
+    submitState,
+    hasFieldErrors: Object.keys(errors).length > 0,
+    uploadCount: uploadIds.length,
+    imageCount: images.length,
+  })
 
-  if (submitState === 'success') {
+  if (submitState === STATUSES.SUCCESS) {
     return <WasteSubmissionSummary onDone={onCancel} />
   }
 
   return (
-    <form onSubmit={onFormSubmit} noValidate>
+    <form onSubmit={onFormSubmit} noValidate aria-label="Submit waste" aria-busy={submitState === 'loading'}>
       <Card>
         <CardHeader>
-          <CardTitle>Submit Waste</CardTitle>
+          <CardTitle id="waste-submission-title">{t('wasteSubmission.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 xs:space-y-5 sm:space-y-6">
           <WasteSubmissionFields
@@ -106,23 +117,23 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
             photoError={photoError}
           />
           {submitError && (
-            <p className="text-sm text-destructive" role="alert">{submitError}</p>
+            <p className="text-sm text-destructive" role="alert" aria-live="assertive">{submitError}</p>
           )}
           <div className="flex flex-col gap-2 pt-2 xs:flex-row xs:gap-3 tablet:gap-4">
             <Button type="button" variant="outline" onClick={onCancel} className="w-full xs:flex-1">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
               className="w-full xs:flex-1"
-              disabled={submitState === 'loading' || isUploading}
+              disabled={submitState === STATUSES.LOADING || isUploading}
             >
-              {submitState === 'loading' ? (
+              {submitState === STATUSES.LOADING ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Submitting...</>
               ) : isUploading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Uploading photos...</>
+                <LoadingState variant="inline" label={t('wasteSubmission.actions.uploadingPhotos')} />
               ) : (
-                'Submit Waste'
+                t('wasteSubmission.actions.submit')
               )}
             </Button>
           </div>
@@ -131,4 +142,3 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
     </form>
   )
 }
-

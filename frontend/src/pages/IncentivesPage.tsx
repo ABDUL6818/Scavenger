@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Trash2, Loader2, Zap } from 'lucide-react'
 import { useIncentives } from '@/hooks/useIncentives'
 import { Incentive, WasteType, Role } from '@/api/types'
@@ -25,14 +26,14 @@ import {
   DialogFooter
 } from '@/components/ui/Dialog'
 
-const WASTE_LABELS: Record<WasteType, string> = {
-  [WasteType.Paper]: 'Paper',
-  [WasteType.PetPlastic]: 'PET Plastic',
-  [WasteType.Plastic]: 'Plastic',
-  [WasteType.Metal]: 'Metal',
-  [WasteType.Glass]: 'Glass',
-  [WasteType.Organic]: 'Organic',
-  [WasteType.Electronic]: 'Electronic',
+const WASTE_LABEL_KEYS: Record<WasteType, string> = {
+  [WasteType.Paper]: 'incentives.wasteTypes.paper',
+  [WasteType.PetPlastic]: 'incentives.wasteTypes.petPlastic',
+  [WasteType.Plastic]: 'incentives.wasteTypes.plastic',
+  [WasteType.Metal]: 'incentives.wasteTypes.metal',
+  [WasteType.Glass]: 'incentives.wasteTypes.glass',
+  [WasteType.Organic]: 'incentives.wasteTypes.organic',
+  [WasteType.Electronic]: 'incentives.wasteTypes.electronic',
 }
 
 const ALL_WASTE_TYPES = Object.values(WasteType).filter(
@@ -43,6 +44,7 @@ type FormState = { wasteType: string; rewardPoints: string; budget: string }
 const EMPTY_FORM: FormState = { wasteType: String(WasteType.Paper), rewardPoints: '', budget: '' }
 
 export function IncentivesPage() {
+  const { t } = useTranslation()
   const {
     incentives,
     isLoading,
@@ -111,20 +113,20 @@ export function IncentivesPage() {
   return (
     <div className="space-y-6 overflow-x-hidden px-3 py-6 xs:px-4 tablet:px-0 tablet:py-0">
       <div className="flex flex-col gap-3 tablet:flex-row tablet:flex-wrap tablet:items-center tablet:justify-between">
-        <h1 className="text-lg font-bold xs:text-xl tablet:text-2xl">Incentives</h1>
+        <h1 className="text-lg font-bold xs:text-xl tablet:text-2xl">{t('incentives.title')}</h1>
         <div className="flex w-full flex-col gap-3 xs:flex-row xs:items-center tablet:w-auto">
           <label htmlFor="incentive-type-filter" className="sr-only">
-            Filter incentives by waste type
+            {t('incentives.filterLabel')}
           </label>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger id="incentive-type-filter" className="w-full xs:w-36">
-              <SelectValue placeholder="All types" />
+              <SelectValue placeholder={t('incentives.allTypes')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="all">{t('incentives.allTypes')}</SelectItem>
               {ALL_WASTE_TYPES.map((wt) => (
                 <SelectItem key={wt} value={String(wt)}>
-                  {WASTE_LABELS[wt]}
+                  {t(WASTE_LABEL_KEYS[wt])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -132,7 +134,7 @@ export function IncentivesPage() {
           {isManufacturer && (
             <Button onClick={openCreate} className="w-full xs:w-auto">
               <Plus className="mr-2 h-4 w-4" />
-              Create Incentive
+              {t('incentives.createIncentive')}
             </Button>
           )}
         </div>
@@ -172,12 +174,16 @@ export function IncentivesPage() {
           {filtered.length === 0 ? (
             <EmptyState
               icon={Zap}
-              title="No incentives found"
+              title={t('incentives.empty.title')}
               description={
-                typeFilter !== 'all' ? 'No incentives for this waste type' : 'No incentives yet'
+                typeFilter !== 'all'
+                  ? t('incentives.empty.filteredDescription')
+                  : t('incentives.empty.description')
               }
               action={
-                isManufacturer ? { label: 'Create Incentive', onClick: openCreate } : undefined
+                isManufacturer
+                  ? { label: t('incentives.createIncentive'), onClick: openCreate }
+                  : undefined
               }
             />
           ) : (
@@ -188,19 +194,27 @@ export function IncentivesPage() {
                 return (
                   <Card key={wt}>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-base">{WASTE_LABELS[wt]}</CardTitle>
+                      <CardTitle className="text-base">{t(WASTE_LABEL_KEYS[wt])}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead className="text-left text-muted-foreground">
                             <tr>
-                              <th className="pb-2 pr-2 font-medium xs:pr-4">ID</th>
-                              <th className="pb-2 pr-2 font-medium xs:pr-4">Rewarder</th>
-                              <th className="pb-2 pr-2 font-medium xs:pr-4">Pts / unit</th>
-                              <th className="pb-2 pr-2 font-medium xs:pr-4">Budget remaining</th>
+                              <th className="pb-2 pr-2 font-medium xs:pr-4">{t('incentives.table.id')}</th>
+                              <th className="pb-2 pr-2 font-medium xs:pr-4">
+                                {t('incentives.table.rewarder')}
+                              </th>
+                              <th className="pb-2 pr-2 font-medium xs:pr-4">
+                                {t('incentives.table.pointsPerUnit')}
+                              </th>
+                              <th className="pb-2 pr-2 font-medium xs:pr-4">
+                                {t('incentives.table.budgetRemaining')}
+                              </th>
                               {isManufacturer && (
-                                <th className="pb-2 font-medium text-right">Actions</th>
+                                <th className="pb-2 font-medium text-right">
+                                  {t('incentives.table.actions')}
+                                </th>
                               )}
                             </tr>
                           </thead>
@@ -226,8 +240,10 @@ export function IncentivesPage() {
                                           <Button
                                             size="sm"
                                             variant="ghost"
-                                            aria-label={`Edit incentive #${inc.id}`}
-                                            title="Edit"
+                                            aria-label={t('incentives.actions.editAria', {
+                                              id: inc.id
+                                            })}
+                                            title={t('incentives.actions.edit')}
                                             onClick={() => openEdit(inc)}
                                           >
                                             <Pencil className="h-4 w-4" />
@@ -235,8 +251,10 @@ export function IncentivesPage() {
                                           <Button
                                             size="sm"
                                             variant="ghost"
-                                            aria-label={`Deactivate incentive #${inc.id}`}
-                                            title="Deactivate"
+                                            aria-label={t('incentives.actions.deactivateAria', {
+                                              id: inc.id
+                                            })}
+                                            title={t('incentives.actions.deactivate')}
                                             className="text-destructive hover:text-destructive"
                                             onClick={() => deactivateIncentive(inc.id)}
                                           >
@@ -265,13 +283,15 @@ export function IncentivesPage() {
       <Dialog open={createOpen} onOpenChange={(o) => !o && setCreateOpen(false)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editTarget ? 'Edit Incentive' : 'Create Incentive'}</DialogTitle>
+            <DialogTitle>
+              {editTarget ? t('incentives.dialog.editTitle') : t('incentives.dialog.createTitle')}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2 xs:space-y-4">
             {!editTarget && (
               <div className="space-y-1.5">
                 <label htmlFor="incentive-waste-type" className="text-sm font-medium">
-                  Waste Type
+                  {t('incentives.dialog.wasteType')}
                 </label>
                 <Select
                   value={form.wasteType}
@@ -283,7 +303,7 @@ export function IncentivesPage() {
                   <SelectContent>
                     {ALL_WASTE_TYPES.map((wt) => (
                       <SelectItem key={wt} value={String(wt)}>
-                        {WASTE_LABELS[wt]}
+                        {t(WASTE_LABEL_KEYS[wt])}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -292,13 +312,13 @@ export function IncentivesPage() {
             )}
             <div className="space-y-1.5">
               <label htmlFor="incentive-reward-points" className="text-sm font-medium">
-                Reward Points (per unit)
+                {t('incentives.dialog.rewardPoints')}
               </label>
               <Input
                 id="incentive-reward-points"
                 type="number"
                 min="1"
-                placeholder="e.g. 100"
+                placeholder={t('incentives.dialog.rewardPointsPlaceholder')}
                 value={form.rewardPoints}
                 onChange={(e) => setForm((f) => ({ ...f, rewardPoints: e.target.value }))}
                 autoFocus={!!editTarget}
@@ -306,13 +326,16 @@ export function IncentivesPage() {
             </div>
             <div className="space-y-1.5">
               <label htmlFor="incentive-budget" className="text-sm font-medium">
-                {editTarget ? 'Budget to add' : 'Total Budget'} (tokens)
+                {editTarget
+                  ? t('incentives.dialog.budgetToAdd')
+                  : t('incentives.dialog.totalBudget')}{' '}
+                {t('incentives.dialog.budgetUnit')}
               </label>
               <Input
                 id="incentive-budget"
                 type="number"
                 min="1"
-                placeholder="e.g. 10000"
+                placeholder={t('incentives.dialog.budgetPlaceholder')}
                 value={form.budget}
                 onChange={(e) => setForm((f) => ({ ...f, budget: e.target.value }))}
               />
@@ -320,7 +343,7 @@ export function IncentivesPage() {
           </div>
           <DialogFooter className="flex-col gap-2 xs:flex-row">
             <Button variant="outline" onClick={() => setCreateOpen(false)} className="w-full xs:w-auto">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleSubmit}
@@ -328,7 +351,7 @@ export function IncentivesPage() {
               className="w-full xs:w-auto"
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editTarget ? 'Save' : 'Create'}
+              {editTarget ? t('common.save') : t('common.create')}
             </Button>
           </DialogFooter>
         </DialogContent>

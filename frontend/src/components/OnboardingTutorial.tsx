@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Joyride, { CallBackProps, STATUS, EVENTS } from 'react-joyride'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { getOnboardingSteps, getOnboardingStyles } from '@/lib/onboardingSteps'
@@ -6,6 +7,7 @@ import { UserRole } from '@/hooks/useOnboarding'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { Play } from 'lucide-react'
 
 interface OnboardingTutorialProps {
@@ -15,12 +17,32 @@ interface OnboardingTutorialProps {
 }
 
 export function OnboardingTutorial({ userRole, isVisible, onComplete }: OnboardingTutorialProps) {
+  const { t } = useTranslation('onboarding')
   const { state, startOnboarding, completeOnboarding, skipOnboarding, updateStep } = useOnboarding()
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
 
+  const titleId = useId()
+  const descriptionId = useId()
+  const dialogContentRef = useRef<HTMLDivElement>(null)
+  const startButtonRef = useRef<HTMLButtonElement>(null)
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
+
+  // Trap focus inside the welcome dialog and restore it on close (WCAG 2.1 AA)
+  useFocusTrap({
+    active: showWelcomeDialog,
+    containerRef: dialogContentRef,
+    initialFocusRef: startButtonRef,
+    onEscape: () => setShowWelcomeDialog(false),
+    restoreFocusRef: previouslyFocusedRef,
+  })
+
   useEffect(() => {
     if (isVisible && userRole && !state.completed && !state.skipped) {
+      // Remember the trigger element so focus can be restored when the dialog closes
+      if (typeof document !== 'undefined') {
+        previouslyFocusedRef.current = document.activeElement as HTMLElement | null
+      }
       setShowWelcomeDialog(true)
     }
   }, [isVisible, userRole, state.completed, state.skipped])
@@ -64,15 +86,21 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
     <>
       {/* Welcome Dialog */}
       <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          ref={dialogContentRef}
+          className="sm:max-w-md"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
+        >
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Play className="h-5 w-5" />
-              Welcome to Scavenger!
+            <DialogTitle id={titleId} className="flex items-center gap-2">
+              <Play className="h-5 w-5" aria-hidden="true" />
+              {t('welcome.title')}
             </DialogTitle>
-            <DialogDescription>
-              Let's take a quick interactive tour to help you get familiar with the platform.
-              We'll highlight key features and show you how to make the most of your {userRole.toLowerCase()} role.
+            <DialogDescription id={descriptionId}>
+              {t('welcome.description', { role: t(`roles.${userRole.toLowerCase()}`) })}
             </DialogDescription>
           </DialogHeader>
 
@@ -82,21 +110,22 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
                 id="dont-show-again"
                 checked={dontShowAgain}
                 onCheckedChange={(checked) => setDontShowAgain(checked as boolean)}
+                aria-label="Don't show this again"
               />
               <label
                 htmlFor="dont-show-again"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Don't show this again
+                {t('welcome.dontShowAgain')}
               </label>
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleSkipTutorial}>
-                Skip Tutorial
+              <Button variant="outline" onClick={handleSkipTutorial} aria-label="Skip tutorial">
+                {t('welcome.skipTutorial')}
               </Button>
-              <Button onClick={handleStartTutorial}>
-                Start Tour
+              <Button ref={startButtonRef} onClick={handleStartTutorial} aria-label="Start tour">
+                {t('welcome.startTour')}
               </Button>
             </div>
           </div>
@@ -115,13 +144,14 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
         disableCloseOnEsc
         styles={getOnboardingStyles()}
         locale={{
-          back: 'Previous',
-          close: 'Close',
-          last: 'Finish',
-          next: 'Next',
-          open: 'Open',
-          skip: 'Skip tutorial',
+          back: t('joyride.back'),
+          close: t('joyride.close'),
+          last: t('joyride.last'),
+          next: t('joyride.next'),
+          open: t('joyride.open'),
+          skip: t('joyride.skip'),
         }}
+        aria-label="Onboarding tutorial"
       />
     </>
   )

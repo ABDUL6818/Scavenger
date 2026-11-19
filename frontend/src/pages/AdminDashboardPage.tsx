@@ -1,7 +1,9 @@
 import { ShieldAlert, AlertTriangle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/context/AuthContext'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useAdminTabs } from '@/hooks/useAdminTabs'
+import { ROLES } from '@/lib/constants'
 import { Button } from '@/components/ui/Button'
 import {
   OverviewTab,
@@ -15,9 +17,10 @@ import {
 } from '@/components/admin'
 
 export function AdminDashboardPage() {
-  useAppTitle('Admin Dashboard')
+  const { t } = useTranslation()
+  useAppTitle(t('admin.dashboard.title'))
   const { user } = useAuth()
-  const isAdmin = user?.role === 'Admin'
+  const isAdmin = user?.role === ROLES.ADMIN
   const { activeTab, setActiveTab, visibleTabs } = useAdminTabs({ isAdmin })
 
   return (
@@ -25,22 +28,22 @@ export function AdminDashboardPage() {
       <div className="flex items-center gap-3">
         <ShieldAlert className="h-6 w-6 shrink-0 text-destructive" />
         <div className="min-w-0">
-          <h1 className="text-xl font-bold sm:text-2xl">Admin Dashboard</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">System management and oversight.</p>
+          <h1 className="text-xl font-bold sm:text-2xl">{t('admin.dashboard.title')}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{t('admin.dashboard.subtitle')}</p>
         </div>
       </div>
 
       {!isAdmin && (
         <div className="flex items-start gap-2 rounded-md border border-warning bg-warning/10 px-3 py-2 text-sm text-warning-foreground xs:px-4 sm:items-center">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
-          <span className="min-w-0">Some sections are restricted to admin accounts only.</span>
+          <span className="min-w-0">{t('admin.dashboard.restrictedNotice')}</span>
         </div>
       )}
 
       {/* Tab bar */}
       <div
         role="tablist"
-        aria-label="Admin sections"
+        aria-label={t('admin.dashboard.tabListLabel')}
         className="flex flex-wrap gap-1 rounded-lg border bg-muted p-1 xs:flex-nowrap xs:overflow-x-auto tablet:flex-wrap tablet:overflow-visible"
       >
         {visibleTabs.map((tab) => (
