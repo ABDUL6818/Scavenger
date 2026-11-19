@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/context/AuthContext'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useAdminTabs } from '@/hooks/useAdminTabs'
+import { ROLES } from '@/lib/constants'
 import { Button } from '@/components/ui/Button'
 import {
   OverviewTab,
@@ -19,7 +20,7 @@ export function AdminDashboardPage() {
   const { t } = useTranslation()
   useAppTitle(t('admin.dashboard.title'))
   const { user } = useAuth()
-  const isAdmin = user?.role === 'Admin'
+  const isAdmin = user?.role === ROLES.ADMIN
   const { activeTab, setActiveTab, visibleTabs } = useAdminTabs({ isAdmin })
 
   return (
@@ -77,4 +78,3 @@ export function AdminDashboardPage() {
     </div>
   )
 }
-

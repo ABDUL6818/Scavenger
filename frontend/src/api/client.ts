@@ -18,6 +18,7 @@ import {
   WasteTransfer,
   ParticipantStats,
   GlobalMetrics,
+  SupplyChainStats,
   ContractError,
   ParticipantInfo,
   SupplyChainStats,
@@ -28,6 +29,7 @@ import {
   pollTransactionStatus,
   TransactionStatusError,
 } from '@/features/transaction-status'
+import { ContractErrorCode, isRetryableError } from '@/lib/constants'
 
 export interface ClientOptions {
   rpcUrl: string
@@ -99,7 +101,9 @@ export class ScavengerClient {
     const sendResult = await this.server.sendTransaction(signed)
 
     if (sendResult.status === 'ERROR') {
-      throw this._parseError(sendResult.errorResult?.toXDR('base64') ?? 'Transaction failed')
+      throw this._parseError(
+        sendResult.errorResult?.toXDR('base64') ?? 'Transaction failed'
+      )
     }
 
     // Poll for confirmation via the shared transaction-status module
@@ -114,10 +118,11 @@ export class ScavengerClient {
       return scValToNative(retval) as T
     } catch (err) {
       if (err instanceof TransactionStatusError) {
-        throw new ContractError(err.message)
+        throw new ContractError(err.message, ContractErrorCode.TRANSACTION_FAILED)
       }
       throw err
     }
+    throw new ContractError('Transaction confirmation timeout', ContractErrorCode.TIMEOUT)
   }
 
   private _extractSimResult<T>(sim: SorobanRpc.Api.SimulateTransactionResponse): InvokeResult<T> {
@@ -133,6 +138,14 @@ export class ScavengerClient {
     const match = raw.match(/Error\(Contract, #(\d+)\)/)
     if (match) return new ContractError(`Contract error #${match[1]}`, Number(match[1]))
     return new ContractError(raw)
+  }
+
+  /**
+   * Whether an error thrown by this client should be retried by TanStack Query.
+   * Delegates to the shared retry convention so query defaults stay consistent.
+   */
+  static isRetryable(error: unknown): boolean {
+    return isRetryableError(error)
   }
 
   // =======================================================
@@ -199,7 +212,7 @@ export class ScavengerClient {
       'register_participant',
       [
         new Address(address).toScVal(),
-        nativeToScVal(role),
+        nativeToScVal(role, { type: 'u32' }),
         nativeToScVal(name, { type: 'string' }),
         nativeToScVal(lat, { type: 'i128' }),
         nativeToScVal(lon, { type: 'i128' }),
@@ -222,7 +235,7 @@ export class ScavengerClient {
   async updateRole(address: string, newRole: Role, signer: string) {
     return this.invoke<void>(
       'update_role',
-      [new Address(address).toScVal(), nativeToScVal(newRole)],
+      [new Address(address).toScVal(), nativeToScVal(newRole, { type: 'u32' })],
       signer
     )
   }

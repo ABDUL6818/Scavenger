@@ -9,15 +9,9 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { WasteType, Material } from '@/api/types'
 import { formatTokenAmount, wasteTypeLabel, formatDate, formatAddress } from '@/lib/helpers'
+import { ROUTES } from '@/constants/routes'
+import { ALL_WASTE_TYPES } from '@/constants/wasteTypes'
 import { Coins, ArrowDownToLine, Package, BarChart3 } from 'lucide-react'
-
-const ALL_WASTE_TYPES = [
-  WasteType.Paper,
-  WasteType.PetPlastic,
-  WasteType.Plastic,
-  WasteType.Metal,
-  WasteType.Glass
-]
 
 function WasteRow({
   material,
@@ -63,7 +57,7 @@ export function CollectorDashboardPage() {
   } = useCollectorDashboard()
 
   const handleTransfer = (wasteId: number) => {
-    navigate(`/wastes?transfer=${wasteId}`)
+    navigate(`${ROUTES.WASTES}?transfer=${wasteId}`)
   }
 
   if (!address) {

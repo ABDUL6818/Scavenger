@@ -6,6 +6,7 @@ import { useWallet } from '@/context/WalletContext'
 import { useContract } from '@/context/ContractContext'
 import { networkConfig } from '@/lib/stellar'
 import { cacheKeys } from '@/lib/cacheKeys'
+import { queryCachePolicy } from '@/lib/queryClient'
 
 /**
  * Filters applied to the participant's waste list.
@@ -69,6 +70,7 @@ export function useWastes(filters?: WasteFilters): UseWastesResult {
       return wastes
     },
     enabled: !!address,
+    ...queryCachePolicy.wastes,
   })
 
   const wastes = useMemo<Waste[]>(() => data ?? [], [data])

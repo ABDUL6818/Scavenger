@@ -16,6 +16,8 @@ import { ParticipantContributionChart } from '@/components/analytics/Participant
 import { QuickStatsCard } from '@/components/analytics/QuickStatsCard'
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { formatPercentage, formatDuration } from '@/lib/format'
+import { StatTrend } from '@/lib/constants'
 
 export function AnalyticsPage() {
   const { t } = useTranslation()
@@ -71,7 +73,7 @@ export function AnalyticsPage() {
           icon={<Package className="h-4 w-4" />}
           label={t('analytics.kpi.totalWasteProcessed')}
           value={Number(totalWastes)}
-          trend="up"
+          trend={StatTrend.Up}
           trendLabel={t('analytics.kpi.totalWasteTrend')}
           isLoading={isLoading}
           variant="primary"
@@ -80,7 +82,7 @@ export function AnalyticsPage() {
           icon={<Users className="h-4 w-4" />}
           label={t('analytics.kpi.activeParticipants')}
           value={0}
-          trend="up"
+          trend={StatTrend.Up}
           trendLabel={t('analytics.kpi.activeParticipantsTrend')}
           isLoading={isLoading}
           variant="success"
@@ -88,8 +90,8 @@ export function AnalyticsPage() {
         <StatCard
           icon={<TrendingUp className="h-4 w-4" />}
           label={t('analytics.kpi.recyclingRate')}
-          value="87%"
-          trend="up"
+          value={formatPercentage(87)}
+          trend={StatTrend.Up}
           trendLabel={t('analytics.kpi.recyclingRateTrend')}
           isLoading={isLoading}
           variant="default"
@@ -97,8 +99,8 @@ export function AnalyticsPage() {
         <StatCard
           icon={<BarChart3 className="h-4 w-4" />}
           label={t('analytics.kpi.avgProcessingTime')}
-          value={t('analytics.kpi.avgProcessingTimeValue')}
-          trend="down"
+          value={formatDuration(2.4, 'days')}
+          trend={StatTrend.Down}
           trendLabel={t('analytics.kpi.avgProcessingTimeTrend')}
           isLoading={isLoading}
           variant="warning"

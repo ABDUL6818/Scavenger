@@ -39,7 +39,16 @@ export interface UseAsyncReturn<T, Args extends unknown[]> extends AsyncState<T>
  * completions from superseded calls are ignored. Unmount semantics: state is
  * never updated after unmount (no "setState on unmounted component" warnings).
  *
- * @deprecated Prefer the consolidated generic async hook exported from
+ * @deprecated For **server state** (fetching data from the API) use TanStack
+ * Query instead — see `frontend/src/lib/queryClient.ts` and the hooks in
+ * `frontend/src/hooks/queries/`. Query provides caching, retries,
+ * invalidation and request de-duplication out of the box.
+ *
+ * This hook remains supported only for **non-server, imperative side effects**
+ * (e.g. submitting a form, triggering a one-off mutation-like action) where
+ * there is no cacheable resource to key on. Do not use it to read API data.
+ *
+ * Prefer the consolidated generic async hook exported from
  * `frontend/src/hooks` (see `useAsyncOperation`). This hook remains as a thin
  * backwards-compatible re-export with identical behaviour; existing imports
  * keep working and will be migrated incrementally.
@@ -47,6 +56,14 @@ export interface UseAsyncReturn<T, Args extends unknown[]> extends AsyncState<T>
 export function useAsync<T, Args extends unknown[] = []>(
   fn: (...args: Args) => Promise<T>
 ): UseAsyncReturn<T, Args> {
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[useAsync] Deprecated for server state. Use TanStack Query ' +
+        '(hooks/queries) for API reads; reserve useAsync for imperative, ' +
+        'non-cacheable actions.'
+    )
+  }
   const [state, setState] = useState<Omit<AsyncState<T>, 'isLoading'>>({
     status: 'idle',
     data: null,

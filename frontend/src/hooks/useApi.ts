@@ -6,10 +6,31 @@
  *   Inputs:  none (reads `config` from `ContractContext`).
  *   Outputs: a memoized `ScavengerClient` instance.
  *   Semantics:
- *     - The client is re-created only when `config.rpcUrl` or
- *       `config.contractId` change; otherwise the same instance is returned.
+ *     - The client is re-created only when `config.rpcUrl`,
+ *       `config.contractId`, or `networkConfig.networkPassphrase` change;
+ *       otherwise the same instance is returned.
  *     - `networkPassphrase` is taken from `networkConfig` (Stellar network
- *       settings) and is not part of the memoization key.
+ *       settings) and is part of the memoization key, ensuring the client is
+ *       rebuilt if network settings change.
+ *
+ * The client is memoized on the relevant config values so it stays stable
+ * across renders. A stable client instance is important for TanStack Query:
+ * it keeps `queryFn` references consistent and avoids unnecessary refetches.
+ *
+ * Standardized query pattern (TanStack Query conventions):
+ *   const api = useApi()
+ *   const { data } = useQuery({
+ *     queryKey: queryKeys.participant(addr),
+ *     queryFn: () => api.getParticipant(addr),
+ *     // Caching, retries, and staleTime defaults are configured globally
+ *     // in the QueryClient (see lib/queryClient.ts). Override per-query only
+ *     // when necessary.
+ *   })
+ *
+ * Invalidation convention:
+ *   const queryClient = useQueryClient()
+ *   // After a mutation, invalidate the affected keys:
+ *   queryClient.invalidateQueries({ queryKey: queryKeys.participant(addr) })
  *
  * Backwards compatibility:
  *   `useApi` is the canonical hook. `useContractQuery` / `useContractQueries`
@@ -24,6 +45,9 @@
  * is unchanged. The returned client is the same instance consumed by the
  * shared transaction-status module (see `@/hooks/useTransactionStatus`), so
  * existing callers require no changes.
+ *   The hook signature is unchanged — existing callers continue to work.
+ *   Only the memoization dependencies were tightened to include the network
+ *   passphrase, ensuring the client is rebuilt if network settings change.
  */
 import { useMemo } from 'react'
 import { ScavengerClient } from '@/api/client'
@@ -32,14 +56,17 @@ import { networkConfig } from '@/lib/stellar'
 
 export function useApi(): ScavengerClient {
   const { config } = useContract()
+  const { rpcUrl, contractId } = config
+  const { networkPassphrase } = networkConfig
+
   return useMemo(
     () =>
       new ScavengerClient({
-        rpcUrl: config.rpcUrl,
-        networkPassphrase: networkConfig.networkPassphrase,
-        contractId: config.contractId,
+        rpcUrl,
+        networkPassphrase,
+        contractId,
       }),
-    [config.rpcUrl, config.contractId]
+    [rpcUrl, contractId, networkPassphrase]
   )
 }
 

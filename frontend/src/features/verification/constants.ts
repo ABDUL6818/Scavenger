@@ -1,5 +1,6 @@
 import type { WasteType } from '@/api/types'
 import { WasteType as WasteTypeEnum } from '@/api/types'
+import { WASTE_TYPES } from '@/lib/constants'
 
 import type { QualityGrade } from './types'
 
@@ -14,9 +15,29 @@ export const GRADE_COLORS: Record<QualityGrade, string> = {
 }
 
 export const WASTE_TYPE_OPTIONS: { value: string; label: string; type: WasteType }[] = [
-  { value: '0', label: 'Paper', type: WasteTypeEnum.Paper },
-  { value: '1', label: 'PET Plastic', type: WasteTypeEnum.PetPlastic },
-  { value: '2', label: 'Plastic', type: WasteTypeEnum.Plastic },
-  { value: '3', label: 'Metal', type: WasteTypeEnum.Metal },
-  { value: '4', label: 'Glass', type: WasteTypeEnum.Glass },
+  {
+    value: String(WASTE_TYPES.PAPER.value),
+    label: WASTE_TYPES.PAPER.label,
+    type: WasteTypeEnum.Paper,
+  },
+  {
+    value: String(WASTE_TYPES.PET_PLASTIC.value),
+    label: WASTE_TYPES.PET_PLASTIC.label,
+    type: WasteTypeEnum.PetPlastic,
+  },
+  {
+    value: String(WASTE_TYPES.PLASTIC.value),
+    label: WASTE_TYPES.PLASTIC.label,
+    type: WasteTypeEnum.Plastic,
+  },
+  {
+    value: String(WASTE_TYPES.METAL.value),
+    label: WASTE_TYPES.METAL.label,
+    type: WasteTypeEnum.Metal,
+  },
+  {
+    value: String(WASTE_TYPES.GLASS.value),
+    label: WASTE_TYPES.GLASS.label,
+    type: WasteTypeEnum.Glass,
+  },
 ]

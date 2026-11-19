@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { type UseFormRegister, type UseFormWatch, type FieldErrors } from 'react-hook-form'
 import { Input } from '@/components/ui/Input'
 import { convertWeight, type WeightUnit } from '@/lib/validation/wasteSubmission'
+import { formatWeightConversion, getWeightPlaceholder, getWeightUnitLabel } from '@/lib/format'
 import type { WasteFormValues } from './WasteSubmissionFields'
 
 /**
@@ -39,8 +40,11 @@ export function WasteWeightField({
 }: WasteWeightFieldProps) {
   const { t } = useTranslation()
   const weightValue = watch('weight')
-  const convertedWeight = useMemo(() => convertWeight(weightValue, weightUnit), [weightValue, weightUnit])
-  const nextUnit = weightUnit === 'grams' ? 'kilograms' : 'grams'
+  const convertedWeight = useMemo(
+    () => formatWeightConversion(convertWeight(weightValue, weightUnit)),
+    [weightValue, weightUnit],
+  )
+  const nextWeightUnit: WeightUnit = weightUnit === 'grams' ? 'kilograms' : 'grams'
 
   return (
     <section>
@@ -54,22 +58,18 @@ export function WasteWeightField({
           step="any"
           min="0"
           inputMode="decimal"
-          placeholder={t(
-            weightUnit === 'grams'
-              ? 'waste.form.weight.placeholderGrams'
-              : 'waste.form.weight.placeholderKilograms'
-          )}
+          placeholder={getWeightPlaceholder(weightUnit)}
           aria-invalid={errors.weight ? true : undefined}
           aria-describedby={errors.weight ? 'weight-error' : undefined}
           {...register('weight', { valueAsNumber: true })}
         />
         <button
           type="button"
-          onClick={() => setWeightUnit(nextUnit)}
+          onClick={() => setWeightUnit(nextWeightUnit)}
           className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
-          aria-label={t('waste.form.weight.switchUnit', { unit: t(`waste.units.${nextUnit}`) })}
+          aria-label={t('waste.form.weight.switchUnit', { unit: t(`waste.units.${nextWeightUnit}`) })}
         >
-          {t(`waste.units.${weightUnit}`)}
+          {getWeightUnitLabel(weightUnit)}
         </button>
       </div>
       {convertedWeight && (

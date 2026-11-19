@@ -7,25 +7,26 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
 import { WasteType } from '@/api/types'
+import { SubmissionStatus } from '@/constants/statuses'
 
 // CSV column order: waste_type, weight, latitude, longitude
 const CSV_TEMPLATE = `waste_type,weight,latitude,longitude
-Paper,10.5,40.7128,-74.0060
-PetPlastic,5.0,40.7128,-74.0060
-Plastic,8.3,40.7128,-74.0060
-Metal,15.0,40.7128,-74.0060
-Glass,6.2,40.7128,-74.0060
-Organic,12.0,40.7128,-74.0060
-Electronic,3.5,40.7128,-74.0060`
+${WasteType.Paper},10.5,40.7128,-74.0060
+${WasteType.PetPlastic},5.0,40.7128,-74.0060
+${WasteType.Plastic},8.3,40.7128,-74.0060
+${WasteType.Metal},15.0,40.7128,-74.0060
+${WasteType.Glass},6.2,40.7128,-74.0060
+${WasteType.Organic},12.0,40.7128,-74.0060
+${WasteType.Electronic},3.5,40.7128,-74.0060`
 
 const WASTE_TYPE_MAP: Record<string, WasteType> = {
-  Paper: WasteType.Paper,
-  PetPlastic: WasteType.PetPlastic,
-  Plastic: WasteType.Plastic,
-  Metal: WasteType.Metal,
-  Glass: WasteType.Glass,
-  Organic: WasteType.Organic,
-  Electronic: WasteType.Electronic,
+  [WasteType.Paper]: WasteType.Paper,
+  [WasteType.PetPlastic]: WasteType.PetPlastic,
+  [WasteType.Plastic]: WasteType.Plastic,
+  [WasteType.Metal]: WasteType.Metal,
+  [WasteType.Glass]: WasteType.Glass,
+  [WasteType.Organic]: WasteType.Organic,
+  [WasteType.Electronic]: WasteType.Electronic,
 }
 
 interface ParsedRow {
@@ -37,8 +38,6 @@ interface ParsedRow {
   errors: string[]
   valid: boolean
 }
-
-type SubmissionStatus = 'idle' | 'uploading' | 'done'
 
 interface RowResult {
   rowIndex: number
@@ -89,7 +88,7 @@ export function BatchUploadPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [rows, setRows] = useState<ParsedRow[]>([])
   const [fileName, setFileName] = useState('')
-  const [status, setStatus] = useState<SubmissionStatus>('idle')
+  const [status, setStatus] = useState<SubmissionStatus>(SubmissionStatus.Idle)
   const [progress, setProgress] = useState(0)
   const [results, setResults] = useState<RowResult[]>([])
   const [dragOver, setDragOver] = useState(false)
@@ -99,7 +98,7 @@ export function BatchUploadPage() {
 
   const handleFile = useCallback((file: File) => {
     setFileName(file.name)
-    setStatus('idle')
+    setStatus(SubmissionStatus.Idle)
     setResults([])
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -123,7 +122,7 @@ export function BatchUploadPage() {
 
   async function handleSubmit() {
     if (validRows.length === 0) return
-    setStatus('uploading')
+    setStatus(SubmissionStatus.Uploading)
     setProgress(0)
     const res: RowResult[] = []
 
@@ -135,7 +134,7 @@ export function BatchUploadPage() {
     }
 
     setResults(res)
-    setStatus('done')
+    setStatus(SubmissionStatus.Done)
   }
 
   const succeeded = results.filter((r) => r.success).length
@@ -239,7 +238,7 @@ export function BatchUploadPage() {
           )}
 
           {/* Progress */}
-          {status === 'uploading' && (
+          {status === SubmissionStatus.Uploading && (
             <Card>
               <CardContent className="pt-6 space-y-3">
                 <div className="flex items-center gap-2">
@@ -257,7 +256,7 @@ export function BatchUploadPage() {
           )}
 
           {/* Results */}
-          {status === 'done' && (
+          {status === SubmissionStatus.Done && (
             <Card>
               <CardContent className="pt-6 space-y-3">
                 <div className="flex items-center gap-2">
@@ -295,10 +294,10 @@ export function BatchUploadPage() {
               </Button>
               <Button
                 className="w-full"
-                disabled={validRows.length === 0 || status === 'uploading'}
+                disabled={validRows.length === 0 || status === SubmissionStatus.Uploading}
                 onClick={() => void handleSubmit()}
               >
-                {status === 'uploading' ? (
+                {status === SubmissionStatus.Uploading ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t('batchUpload.actions.uploading')}</>
                 ) : (
                   <><Upload className="h-4 w-4 mr-2" />{t('batchUpload.actions.submit', { count: validRows.length })}</>

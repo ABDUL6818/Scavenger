@@ -10,6 +10,10 @@ export interface WasteSubmissionSummaryProps {
   description?: string
 }
 
+export const WASTE_SUBMISSION_SUMMARY_DEFAULT_TITLE = 'Waste Submitted Successfully'
+export const WASTE_SUBMISSION_SUMMARY_DEFAULT_DESCRIPTION =
+  'Your waste submission has been recorded.'
+
 export function WasteSubmissionSummary({
   onDone,
   title,

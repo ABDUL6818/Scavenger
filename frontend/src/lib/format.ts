@@ -46,3 +46,39 @@ export function formatTokenAmount(amount: bigint | number, decimals = 7): string
   const num = Number(amount) / 10 ** decimals
   return num.toLocaleString(undefined, { maximumFractionDigits: decimals })
 }
+
+export function formatWeight(kg: number, unit: 'kg' | 'lb' = 'kg', fractionDigits = 2): string {
+  const value = unit === 'lb' ? kg * 2.2046226218 : kg
+  return `${formatNumber(value, undefined, fractionDigits)} ${unit}`
+}
+
+const WASTE_TYPE_LABELS: Record<string, string> = {
+  plastic: 'Plastic',
+  paper: 'Paper',
+  glass: 'Glass',
+  metal: 'Metal',
+  organic: 'Organic',
+  electronic: 'Electronic',
+  textile: 'Textile',
+  other: 'Other',
+}
+
+export function formatWasteTypeLabel(type: string): string {
+  const key = type.trim().toLowerCase()
+  return WASTE_TYPE_LABELS[key] ?? type
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  active: 'Active',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  failed: 'Failed',
+  in_progress: 'In Progress',
+  in_transit: 'In Transit',
+}
+
+export function formatStatusLabel(status: string): string {
+  const key = status.trim().toLowerCase()
+  return STATUS_LABELS[key] ?? status
+}

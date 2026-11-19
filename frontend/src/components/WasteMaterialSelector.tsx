@@ -8,21 +8,29 @@ import {
 import { cn } from '@/lib/utils'
 import { WasteType } from '@/api/types'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { WASTE_TYPES } from '@/lib/constants'
 import type { WasteFormValues } from '@/lib/schemas/waste'
+
+const WASTE_TYPE_ICONS = {
+  [WasteType.Paper]: Newspaper,
+  [WasteType.PetPlastic]: Recycle,
+  [WasteType.Plastic]: Package,
+  [WasteType.Metal]: Wrench,
+  [WasteType.Glass]: GlassWater,
+  [WasteType.Organic]: Leaf,
+  [WasteType.Electronic]: Cpu,
+} as const
 
 /**
  * Static option metadata. `label` is kept for backwards compatibility with
  * existing callers/tests; UI rendering uses the i18n key `labelKey`.
  */
-export const WASTE_TYPE_OPTIONS = [
-  { value: WasteType.Paper, label: 'Paper', labelKey: 'waste.materials.paper', icon: Newspaper },
-  { value: WasteType.PetPlastic, label: 'PET Plastic', labelKey: 'waste.materials.petPlastic', icon: Recycle },
-  { value: WasteType.Plastic, label: 'Plastic', labelKey: 'waste.materials.plastic', icon: Package },
-  { value: WasteType.Metal, label: 'Metal', labelKey: 'waste.materials.metal', icon: Wrench },
-  { value: WasteType.Glass, label: 'Glass', labelKey: 'waste.materials.glass', icon: GlassWater },
-  { value: WasteType.Organic, label: 'Organic', labelKey: 'waste.materials.organic', icon: Leaf },
-  { value: WasteType.Electronic, label: 'Electronic', labelKey: 'waste.materials.electronic', icon: Cpu },
-] as const
+export const WASTE_TYPE_OPTIONS = WASTE_TYPES.map((wasteType) => ({
+  value: wasteType.value,
+  label: wasteType.label,
+  labelKey: `waste.materials.${wasteType.value}`,
+  icon: WASTE_TYPE_ICONS[wasteType.value],
+}))
 
 interface WasteMaterialSelectorProps {
   control: Control<WasteFormValues>

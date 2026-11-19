@@ -6,6 +6,18 @@ export interface UseResourceReturn<T> extends AsyncState<T> {
 }
 
 /**
+ * @deprecated Use TanStack Query (`useQuery` / `useMutation`) for fetching
+ * server state instead. This hook is retained for backwards compatibility and
+ * should only be used for non-server (local/derived) async state that does not
+ * benefit from caching, retries, or invalidation.
+ *
+ * Migration guide:
+ * - Replace `useResource(fetcher, deps)` with `useQuery({ queryKey, queryFn })`.
+ * - Replace `reload()` with `queryClient.invalidateQueries({ queryKey })` or
+ *   `refetch()` from the `useQuery` result.
+ * - Map `status`/`isLoading`/`error`/`data` to the equivalent `useQuery`
+ *   fields (`isPending`, `isLoading`, `error`, `data`).
+ *
  * Fetches an async resource on mount and whenever `deps` change, exposing
  * loading / error / success state plus a `reload` for manual refresh (e.g.
  * after a mutation). Built on `useAsync`, so stale responses and updates
