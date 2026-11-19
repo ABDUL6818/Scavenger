@@ -8,18 +8,13 @@
 
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tracing::{info, warn};
 use chrono::Utc;
 
 use crate::{
-    auth::RequireAuth,
     cache::Cache,
-    error::ApiError,
-    services::api::{ApiBuilder, PaginatedResponse},
+    services::api::ApiBuilder,
     services::export::ExportService,
     validation::{error_response, validate_date_range, validate_export_format, validate_pagination, ValidationError},
-    AppState,
 };
 
 // ============================================
@@ -70,25 +65,6 @@ pub struct ExportResponse {
 pub struct ExportListQuery {
     pub page: Option<u32>,
     pub limit: Option<u32>,
-}
-
-/// Email export request
-#[derive(Debug, Clone, Deserialize)]
-pub struct EmailExportRequest {
-    pub export_id: String,
-    pub recipients: Vec<String>,
-    pub subject: Option<String>,
-    pub message: Option<String>,
-}
-
-/// Scheduled export config
-#[derive(Debug, Clone, Deserialize)]
-pub struct ScheduledExportConfig {
-    pub format: String,
-    pub data_type: String,
-    pub schedule: String,
-    pub recipients: Vec<String>,
-    pub subject: Option<String>,
 }
 
 // ============================================
@@ -206,111 +182,16 @@ pub async fn list_exports(query: web::Query<ExportListQuery>) -> HttpResponse {
         return error_response(&errors);
     }
 
-    let items: Vec<ExportHistoryEntry> = Vec::new();
-    let response = paginate(&items, page, limit);
+    // Export history persistence is not yet implemented; return an empty page.
+    let items: Vec<ExportResponse> = Vec::new();
+    let total = items.len() as u64;
+    let response = serde_json::json!({
+        "items": items,
+        "page": page,
+        "limit": limit,
+        "total": total,
+    });
     HttpResponse::Ok().json(ApiBuilder::success_response(response))
-}
-
-/// Send export email
-/// 
-/// POST /api/export/send-email
-pub async fn send_export_email(
-    email_service: web::Data<Arc<dyn EmailService>>,
-    body: web::Json<EmailExportRequest>,
-) -> HttpResponse {
-    let mut errors = Vec::new();
-    if body.export_id.trim().is_empty() {
-        errors.push(ValidationError {
-            field: "export_id".to_string(),
-            message: "export_id is required".to_string(),
-        });
-    }
-    if body.recipients.is_empty() {
-        errors.push(ValidationError {
-            field: "recipients".to_string(),
-            message: "at least one recipient is required".to_string(),
-        });
-    }
-
-    if !errors.is_empty() {
-        return error_response(&errors);
-    }
-
-    let subject = body
-        .subject
-        .clone()
-        .unwrap_or_else(|| "Scavenger Data Export".to_string());
-
-    for recipient in &body.recipients {
-        let email = TransactionalEmail {
-            recipient: recipient.clone(),
-            template: subject.clone(),
-            context: std::collections::HashMap::from([
-                ("export_id".to_string(), body.export_id.clone()),
-                ("message".to_string(), body.message.clone().unwrap_or_default()),
-            ]),
-        };
-
-        match email_service.send_transactional(email).await {
-            Ok(_) => {}
-            Err(e) => {
-                return HttpResponse::InternalServerError().json(ApiBuilder::error_response::<String>(format!(
-                    "Failed to send email to {}: {}",
-                    recipient, e
-                )));
-            }
-        }
-    }
-
-    HttpResponse::Ok().json(ApiBuilder::success_response("Emails sent successfully"))
-}
-
-/// Create scheduled export
-/// 
-/// POST /api/export/schedule
-pub async fn create_scheduled_export(
-    body: web::Json<ScheduledExportConfig>,
-) -> HttpResponse {
-    let mut errors = Vec::new();
-
-    if let Some(ref err) = validate_export_format(&body.format) {
-        errors.push(err.clone());
-    }
-    if body.data_type.trim().is_empty() {
-        errors.push(ValidationError {
-            field: "data_type".to_string(),
-            message: "data_type is required".to_string(),
-        });
-    }
-    if body.schedule.trim().is_empty() {
-        errors.push(ValidationError {
-            field: "schedule".to_string(),
-            message: "schedule is required".to_string(),
-        });
-    }
-    if body.recipients.is_empty() {
-        errors.push(ValidationError {
-            field: "recipients".to_string(),
-            message: "at least one recipient is required".to_string(),
-        });
-    }
-
-    if !errors.is_empty() {
-        return error_response(&errors);
-    }
-
-    HttpResponse::Ok().json(ApiBuilder::success_response("Scheduled export created"))
-}
-
-/// Delete scheduled export
-/// 
-/// DELETE /api/export/schedule/{id}
-pub async fn delete_scheduled_export(path: web::Path<String>) -> HttpResponse {
-    let export_id = path.into_inner();
-    HttpResponse::Ok().json(ApiBuilder::success_response(format!(
-        "Scheduled export {} deleted",
-        export_id
-    )))
 }
 
 // ============================================
@@ -324,9 +205,6 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("/export", web::post().to(export_data))
             .route("/export/{export_id}", web::get().to(download_export))
             .route("/exports", web::get().to(list_exports))
-            .route("/export/send-email", web::post().to(send_export_email))
-            .route("/export/schedule", web::post().to(create_scheduled_export))
-            .route("/export/schedule/{id}", web::delete().to(delete_scheduled_export))
     );
 }
 
@@ -343,13 +221,16 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
 /// - `GET /api/export/pdf` - Legacy PDF format (no active usage)
 /// - `GET /api/export/legacy` - Legacy endpoint (no active usage)
 /// 
+/// ## Removed (Issue #1700)
+/// - `POST /api/export/send-email` - Unused email export handler (referenced
+///   undefined `EmailService`/`TransactionalEmail` types; never functional)
+/// - `POST /api/export/schedule` - Unused scheduled export stub (no persistence)
+/// - `DELETE /api/export/schedule/{id}` - Unused scheduled export deletion stub
+/// 
 /// ## Kept (Active)
 /// - `POST /api/export` - CSV and JSON formats
 /// - `GET /api/export/{id}` - Download export
 /// - `GET /api/exports` - List exports
-/// - `POST /api/export/send-email` - Send export email
-/// - `POST /api/export/schedule` - Schedule export
-/// - `DELETE /api/export/schedule/{id}` - Delete scheduled export
 /// 
 /// ## Migration
 /// Clients should migrate to the active endpoints:
@@ -358,6 +239,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
 /// 
 /// ## Date
 /// 2024-01-15: Legacy endpoints removed
+/// 2024-02-01: Unused/deprecated handlers removed (#1700)
 ///
 
 #[cfg(test)]
@@ -404,5 +286,31 @@ mod tests {
         let json = "\"xml\"";
         let result: Result<ExportFormat, _> = serde_json::from_str(json);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_export_list_query_defaults() {
+        let query: ExportListQuery = serde_json::from_str("{}").unwrap();
+        assert!(query.page.is_none());
+        assert!(query.limit.is_none());
+    }
+
+    #[test]
+    fn test_export_list_query_values() {
+        let query: ExportListQuery = serde_json::from_str(r#"{"page":2,"limit":50}"#).unwrap();
+        assert_eq!(query.page, Some(2));
+        assert_eq!(query.limit, Some(50));
+    }
+
+    #[test]
+    fn test_export_request_deserialization() {
+        let request: ExportRequest = serde_json::from_str(
+            r#"{"format":"csv","data_type":"waste"}"#,
+        )
+        .unwrap();
+        assert_eq!(request.format, "csv");
+        assert_eq!(request.data_type, "waste");
+        assert!(request.start_date.is_none());
+        assert!(request.end_date.is_none());
     }
 }

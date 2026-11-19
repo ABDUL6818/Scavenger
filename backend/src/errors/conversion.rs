@@ -1,4 +1,7 @@
-use super::types::{AppError, EmailError, ExportError, FieldError, SerializationError, StorageError, ValidationError};
+use super::types::{
+    AppError, EmailError, ExportError, FieldError, SerializationError, StorageError,
+    ValidationError,
+};
 
 // ── serde_json ────────────────────────────────────────────────────────────────
 
@@ -89,5 +92,110 @@ pub fn from_validation_errors(errors: Vec<(String, String)>) -> AppError {
 impl From<anyhow::Error> for AppError {
     fn from(e: anyhow::Error) -> Self {
         AppError::Internal(e.to_string())
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serde_json_error_converts_to_serialization() {
+        let err: serde_json::Error = serde_json::from_str::<i32>("not json").unwrap_err();
+        let app: AppError = err.into();
+        assert!(matches!(app, AppError::Serialization(SerializationError::Json(_))));
+    }
+
+    #[test]
+    fn legacy_export_kinds_convert() {
+        assert!(matches!(
+            from_legacy_export("e", LegacyExportKind::Csv),
+            AppError::Export(ExportError::Csv(_))
+        ));
+        assert!(matches!(
+            from_legacy_export("e", LegacyExportKind::Json),
+            AppError::Export(ExportError::Json(_))
+        ));
+        assert!(matches!(
+            from_legacy_export("e", LegacyExportKind::Pdf),
+            AppError::Export(ExportError::Pdf(_))
+        ));
+        assert!(matches!(
+            from_legacy_export("e", LegacyExportKind::Serialization),
+            AppError::Export(ExportError::Serialization(_))
+        ));
+        assert!(matches!(
+            from_legacy_export("e", LegacyExportKind::InvalidFormat),
+            AppError::Export(ExportError::InvalidFormat(_))
+        ));
+    }
+
+    #[test]
+    fn legacy_email_kinds_convert() {
+        assert!(matches!(
+            from_legacy_email("e", LegacyEmailKind::Service),
+            AppError::Email(EmailError::Service(_))
+        ));
+        assert!(matches!(
+            from_legacy_email("e", LegacyEmailKind::Template),
+            AppError::Email(EmailError::Template(_))
+        ));
+        assert!(matches!(
+            from_legacy_email("e", LegacyEmailKind::InvalidEmail),
+            AppError::Email(EmailError::InvalidAddress(_))
+        ));
+    }
+
+    #[test]
+    fn legacy_storage_kinds_convert() {
+        assert!(matches!(
+            from_legacy_storage("e", LegacyStorageKind::Service),
+            AppError::Storage(StorageError::Service(_))
+        ));
+        assert!(matches!(
+            from_legacy_storage("e", LegacyStorageKind::InvalidFile),
+            AppError::Storage(StorageError::InvalidFile(_))
+        ));
+        assert!(matches!(
+            from_legacy_storage("e", LegacyStorageKind::NotFound),
+            AppError::Storage(StorageError::NotFound(_))
+        ));
+    }
+
+    #[test]
+    fn validation_field_converts() {
+        let app = from_validation_field("email", "invalid");
+        match app {
+            AppError::Validation(ValidationError::Field { field, message }) => {
+                assert_eq!(field, "email");
+                assert_eq!(message, "invalid");
+            }
+            other => panic!("unexpected variant: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn validation_errors_convert_to_multiple() {
+        let app = from_validation_errors(vec![
+            ("a".to_string(), "x".to_string()),
+            ("b".to_string(), "y".to_string()),
+        ]);
+        match app {
+            AppError::Validation(ValidationError::Multiple(fields)) => {
+                assert_eq!(fields.len(), 2);
+                assert_eq!(fields[0].field, "a");
+                assert_eq!(fields[1].message, "y");
+            }
+            other => panic!("unexpected variant: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn anyhow_error_converts_to_internal() {
+        let err = anyhow::anyhow!("boom");
+        let app: AppError = err.into();
+        assert!(matches!(app, AppError::Internal(_)));
     }
 }

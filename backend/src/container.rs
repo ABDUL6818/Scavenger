@@ -48,6 +48,7 @@ use std::sync::Arc;
 
 use crate::{
     cache::{Cache, CacheInvalidationManager},
+    logger::Logger,
     rpc::{StellarRpcClient, StellarRpcConfig},
     search::{SearchClient, SearchClientConfig},
     services::{
@@ -74,6 +75,8 @@ pub struct AppContainer {
     pub search: Arc<SearchClient>,
     pub archival: Arc<ArchivalService>,
     pub stellar: Arc<StellarRpcClient>,
+    /// Structured logger shared by every service and handler.
+    pub logger: Arc<Logger>,
 }
 
 impl AppContainer {
@@ -102,6 +105,46 @@ impl AppContainer {
         archival: Arc<ArchivalService>,
         stellar: Arc<StellarRpcClient>,
     ) -> Self {
+        // Backwards-compatible constructor: build a default logger so existing
+        // callers (and tests) keep compiling. Use `new_with_logger` to inject a
+        // pre-configured logger.
+        Self::new_with_logger(
+            email,
+            notification,
+            reporting,
+            storage,
+            webhook,
+            cache,
+            cache_invalidation,
+            audit,
+            verification,
+            search,
+            archival,
+            stellar,
+            Arc::new(Logger::new("app")),
+        )
+    }
+
+    /// Construct the container with an explicit structured logger.
+    ///
+    /// Prefer this constructor in production so that every service shares the
+    /// same logger instance (and therefore the same output sink / level).
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_logger(
+        email: Arc<dyn EmailService>,
+        notification: Arc<dyn NotificationService>,
+        reporting: Arc<dyn ReportService>,
+        storage: Arc<dyn StorageService>,
+        webhook: Arc<WebhookManager>,
+        cache: Cache,
+        cache_invalidation: Arc<CacheInvalidationManager>,
+        audit: Arc<AuditService>,
+        verification: Arc<dyn VerificationService>,
+        search: Arc<SearchClient>,
+        archival: Arc<ArchivalService>,
+        stellar: Arc<StellarRpcClient>,
+        logger: Arc<Logger>,
+    ) -> Self {
         Self {
             email,
             notification,
@@ -115,6 +158,7 @@ impl AppContainer {
             search,
             archival,
             stellar,
+            logger,
         }
     }
 
@@ -124,6 +168,8 @@ impl AppContainer {
     /// calls [`AppContainer::new`].  Every `unwrap_or*` has a documented fallback
     /// value that is safe for local development.
     pub fn from_env() -> Result<Self, String> {
+        let logger = Arc::new(Logger::from_env("app"));
+
         let email_service: Arc<dyn EmailService> = Arc::new(SendGridEmailService::new(
             std::env::var("SENDGRID_API_KEY").unwrap_or_default(),
             std::env::var("FROM_EMAIL").unwrap_or_else(|_| "noreply@scavenger.io".to_string()),
@@ -150,8 +196,10 @@ impl AppContainer {
 
         // Stellar RPC — uses STELLAR_RPC_URL / CONTRACT_ID env vars.
         let stellar_rpc_config = StellarRpcConfig::from_env();
-        let stellar_client =
-            Arc::new(StellarRpcClient::new(stellar_rpc_config).map_err(|e| format!("Stellar RPC init failed: {e}"))?);
+        let stellar_client = Arc::new(StellarRpcClient::new(stellar_rpc_config).map_err(|e| {
+            logger.error("stellar_rpc_init_failed", &format!("Stellar RPC init failed: {e}"));
+            format!("Stellar RPC init failed: {e}")
+        })?);
 
         // Elasticsearch search client.
         let search_config = SearchClientConfig {
@@ -161,8 +209,10 @@ impl AppContainer {
             timeout_seconds: 30,
             validate_certificates: true,
         };
-        let search_client =
-            Arc::new(SearchClient::new(search_config).map_err(|e| format!("Search client init failed: {e}"))?);
+        let search_client = Arc::new(SearchClient::new(search_config).map_err(|e| {
+            logger.error("search_client_init_failed", &format!("Search client init failed: {e}"));
+            format!("Search client init failed: {e}")
+        })?);
 
         // Archival service — file-system backed by default.
         let archival_storage_path =
@@ -172,7 +222,9 @@ impl AppContainer {
         )));
         let archival_service = Arc::new(ArchivalService::new(archival_storage));
 
-        Ok(Self::new(
+        logger.info("container_initialized", "AppContainer built from environment");
+
+        Ok(Self::new_with_logger(
             email_service,
             notification_service,
             reporting_service,
@@ -185,6 +237,7 @@ impl AppContainer {
             search_client,
             archival_service,
             stellar_client,
+            logger,
         ))
     }
 }
@@ -588,5 +641,61 @@ mod container_tests {
         let _ = container.audit.clone();
         let _ = container.cache.clone();
         let _ = container.webhook.clone();
+        let _ = container.logger.clone();
+    }
+
+    /// The explicit-logger constructor must store the injected logger.
+    #[test]
+    fn container_accepts_injected_logger() {
+        let email: Arc<dyn EmailService> = Arc::new(FakeEmailService::new());
+        let notification: Arc<dyn NotificationService> = Arc::new(FakeNotificationService::new());
+        let reporting: Arc<dyn ReportService> = Arc::new(FakeReportService::new());
+        let storage: Arc<dyn StorageService> = Arc::new(FakeStorageService::new());
+        let webhook = Arc::new(WebhookManager::new());
+        let cache = Cache::new(60);
+        let cache_invalidation = Arc::new(CacheInvalidationManager::new());
+        let audit = Arc::new(AuditService::new());
+        let verification: Arc<dyn VerificationService> = Arc::new(FakeVerificationService::new());
+
+        let search_config = SearchClientConfig {
+            url: "http://localhost:9200".to_string(),
+            username: None,
+            password: None,
+            timeout_seconds: 5,
+            validate_certificates: false,
+        };
+        let search = Arc::new(
+            SearchClient::new(search_config).expect("search client construction should not fail"),
+        );
+
+        let archival_storage = Arc::new(FileSystemArchivalStorage::new(
+            std::path::PathBuf::from("/tmp/test-archives"),
+        ));
+        let archival = Arc::new(ArchivalService::new(archival_storage));
+
+        let stellar_config = StellarRpcConfig::from_env();
+        let stellar = Arc::new(
+            StellarRpcClient::new(stellar_config).expect("stellar client construction should not fail"),
+        );
+
+        let logger = Arc::new(crate::logger::Logger::new("test"));
+
+        let container = super::AppContainer::new_with_logger(
+            email,
+            notification,
+            reporting,
+            storage,
+            webhook,
+            cache,
+            cache_invalidation,
+            audit,
+            verification,
+            search,
+            archival,
+            stellar,
+            logger.clone(),
+        );
+
+        assert!(Arc::ptr_eq(&container.logger, &logger));
     }
 }
