@@ -16,8 +16,8 @@ use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, ResponseError};
 use services::WebhookManager;
 // Removed unused imports: RecommendationEngine, NFTManager, ChainAbstraction (#906)
 use api::{
-    archival as archival_api, audit, compliance_api, contracts, export, search as search_api, signing_api,
-    verification, ws,
+    archival as archival_api, audit, compliance_api, contracts, export, openapi as openapi_api,
+    search as search_api, signing_api, verification, ws,
 };
 use cache::{Cache, CacheInvalidationManager};
 use config::AppConfig;
@@ -173,6 +173,9 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::route().to(not_found))
             // Health
             .route("/health", web::get().to(health_check))
+            // OpenAPI reference (#1664) — served from the same builder that
+            // `backend/src/bin/openapi.rs` uses to publish docs/api/openapi.json.
+            .route("/api/v1/openapi.json", web::get().to(openapi_api::openapi_json))
             // Contract Queries (Task 1)
             .route("/api/v1/contracts/wastes", web::get().to(contracts::list_wastes))
             .route("/api/v1/contracts/wastes/{id}", web::get().to(contracts::get_waste))
@@ -371,4 +374,32 @@ async fn health_check() -> HttpResponse {
         "version": "1.0.0",
         "services": ["contracts", "websocket", "export", "audit", "cache"]
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{http::StatusCode, test, App};
+
+    #[actix_web::test]
+    async fn health_check_returns_ok() {
+        let app = test::init_service(App::new().route("/health", web::get().to(health_check))).await;
+        let req = test::TestRequest::get().uri("/health").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn openapi_route_serves_document() {
+        let app = test::init_service(
+            App::new().route("/api/v1/openapi.json", web::get().to(openapi_api::openapi_json)),
+        )
+        .await;
+        let req = test::TestRequest::get().uri("/api/v1/openapi.json").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["openapi"], "3.0.3");
+        assert!(body["components"]["schemas"]["ErrorBody"].is_object());
+    }
 }
