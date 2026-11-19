@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/cn'
 import { getDaysInMonth, getFirstDayOfWeek, isInMonth } from '@/lib/date'
@@ -14,7 +14,7 @@ interface Props {
   loading?: boolean
 }
 
-export function CalendarGrid({
+function CalendarGridComponent({
   month,
   activeDay,
   onDayHover,
@@ -23,22 +23,23 @@ export function CalendarGrid({
   loading = false,
 }: Props) {
   const { t } = useTranslation()
-
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
-  const daysInMonth = getDaysInMonth(year, monthIdx)
-  const firstDay = getFirstDayOfWeek(year, monthIdx)
 
-  const today = new Date()
-  const todayDay = isInMonth(today, year, monthIdx) ? today.getDate() : -1
-
-  const cells: (number | null)[] = useMemo(
-    () => [
-      ...Array(firstDay).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    ],
-    [firstDay, daysInMonth]
-  )
+  const { cells, todayDay, daysInMonth } = useMemo(() => {
+    const daysInMonth = getDaysInMonth(year, monthIdx)
+    const firstDay = getFirstDayOfWeek(year, monthIdx)
+    const today = new Date()
+    const todayDay = isInMonth(today, year, monthIdx) ? today.getDate() : -1
+    return {
+      cells: [
+        ...Array(firstDay).fill(null),
+        ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+      ] as (number | null)[],
+      todayDay,
+      daysInMonth,
+    }
+  }, [year, monthIdx])
 
   const weekdayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
@@ -78,3 +79,6 @@ export function CalendarGrid({
     </div>
   )
 }
+
+export const CalendarGrid = memo(CalendarGridComponent)
+CalendarGrid.displayName = 'CalendarGrid'

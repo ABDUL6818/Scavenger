@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ScavengerClient } from '@/api/client'
 import { Waste, WasteType } from '@/api/types'
@@ -6,12 +7,42 @@ import { useContract } from '@/context/ContractContext'
 import { networkConfig } from '@/lib/stellar'
 import { cacheKeys } from '@/lib/cacheKeys'
 
+/**
+ * Filters applied to the participant's waste list.
+ *
+ * This type is shared across waste-related hooks (see `./types`). It is
+ * re-exported here for backwards compatibility with existing imports.
+ */
 export interface WasteFilters {
   wasteType?: WasteType
   isActive?: boolean
 }
 
-export function useWastes(filters?: WasteFilters) {
+/**
+ * Contract for the `useWastes` hook.
+ *
+ * @property wastes - The filtered list of wastes owned by the connected
+ *   participant. Empty when no wallet is connected or no data is available.
+ * @property isLoading - `true` while the underlying query is fetching.
+ * @property isError - `true` if the underlying query failed.
+ */
+export interface UseWastesResult {
+  wastes: Waste[]
+  isLoading: boolean
+  isError: boolean
+}
+
+/**
+ * Fetches the wastes belonging to the currently connected participant and
+ * applies optional client-side filters.
+ *
+ * The hook is disabled when no wallet address is available; in that case it
+ * resolves to an empty list without issuing a network request.
+ *
+ * @param filters - Optional `WasteFilters` used to narrow the result set.
+ * @returns A `UseWastesResult` with the wastes and query status flags.
+ */
+export function useWastes(filters?: WasteFilters): UseWastesResult {
   const { address } = useWallet()
   const { config } = useContract()
 
@@ -40,5 +71,7 @@ export function useWastes(filters?: WasteFilters) {
     enabled: !!address,
   })
 
-  return { wastes: data ?? [], isLoading, isError }
+  const wastes = useMemo<Waste[]>(() => data ?? [], [data])
+
+  return { wastes, isLoading, isError }
 }

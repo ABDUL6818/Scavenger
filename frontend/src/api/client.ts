@@ -19,6 +19,9 @@ import {
   ParticipantStats,
   GlobalMetrics,
   ContractError,
+  ParticipantInfo,
+  SupplyChainStats,
+  MaterialSubmission,
 } from './types'
 import { signTransactionXDR } from '@/features/wallet/service'
 import {
@@ -31,6 +34,12 @@ export interface ClientOptions {
   networkPassphrase: string
   contractId: string
 }
+
+/**
+ * Result of a read-only simulation. `undefined` is returned when the
+ * contract call produces no return value (e.g. void methods).
+ */
+export type InvokeResult<T> = T | undefined
 
 export class ScavengerClient {
   private contract: Contract
@@ -51,7 +60,7 @@ export class ScavengerClient {
     method: string,
     args: xdr.ScVal[],
     signer?: string
-  ): Promise<T> {
+  ): Promise<InvokeResult<T>> {
     const operation = this.contract.call(method, ...args)
 
     if (!signer) {
@@ -101,7 +110,7 @@ export class ScavengerClient {
         maxAttempts: 20,
         intervalMs: 1500,
       })
-      if (!retval) return undefined as T
+      if (!retval) return undefined
       return scValToNative(retval) as T
     } catch (err) {
       if (err instanceof TransactionStatusError) {
@@ -111,12 +120,12 @@ export class ScavengerClient {
     }
   }
 
-  private _extractSimResult<T>(sim: SorobanRpc.Api.SimulateTransactionResponse): T {
+  private _extractSimResult<T>(sim: SorobanRpc.Api.SimulateTransactionResponse): InvokeResult<T> {
     if (SorobanRpc.Api.isSimulationError(sim)) {
       throw this._parseError(sim.error)
     }
     const result = (sim as SorobanRpc.Api.SimulateTransactionSuccessResponse).result
-    if (!result?.retval) return undefined as T
+    if (!result?.retval) return undefined
     return scValToNative(result.retval) as T
   }
 
@@ -203,8 +212,8 @@ export class ScavengerClient {
     return this.invoke<Participant | null>('get_participant', [new Address(address).toScVal()])
   }
 
-  async getParticipantInfo(address: string): Promise<{ participant: Participant; stats: ParticipantStats } | null> {
-    return this.invoke<{ participant: Participant; stats: ParticipantStats } | null>(
+  async getParticipantInfo(address: string): Promise<ParticipantInfo | null> {
+    return this.invoke<ParticipantInfo | null>(
       'get_participant_info',
       [new Address(address).toScVal()]
     )
@@ -257,7 +266,7 @@ export class ScavengerClient {
 
   async submitMaterialsBatch(
     submitter: string,
-    materials: { wasteType: WasteType; weight: bigint }[],
+    materials: MaterialSubmission[],
     signer: string
   ): Promise<Material[]> {
     const vec = nativeToScVal(
@@ -454,8 +463,8 @@ export class ScavengerClient {
     return this.invoke<ParticipantStats>('get_stats', [new Address(participant).toScVal()])
   }
 
-  async getSupplyChainStats(): Promise<{ total_wastes: bigint; total_weight: bigint; total_tokens: bigint }> {
-    return this.invoke<{ total_wastes: bigint; total_weight: bigint; total_tokens: bigint }>('get_supply_chain_stats', [])
+  async getSupplyChainStats(): Promise<SupplyChainStats> {
+    return this.invoke<SupplyChainStats>('get_supply_chain_stats', [])
   }
 
   // =======================================================

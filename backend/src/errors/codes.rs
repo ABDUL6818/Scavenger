@@ -104,3 +104,181 @@ pub const ANALYTICS_DATA_SOURCE_UNAVAILABLE: &str = "analytics.data_source_unava
 pub const INTERNAL: &str = "internal";
 pub const RATE_LIMIT_EXCEEDED: &str = "rate_limit.exceeded";
 pub const BAD_REQUEST: &str = "bad_request";
+
+/// Prefix used for dynamically generated `not_found.<resource>` codes.
+pub const NOT_FOUND_PREFIX: &str = "not_found.";
+
+/// Builds the canonical `not_found.<resource>` code for a named resource.
+///
+/// The resource is normalised to lowercase with spaces/dashes replaced by
+/// underscores so codes stay stable and machine-matchable.
+pub fn not_found_code(resource: &str) -> String {
+    let normalised: String = resource
+        .trim()
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    format!("{}{}", NOT_FOUND_PREFIX, normalised)
+}
+
+/// Returns the canonical registry code for an [`AppError`].
+///
+/// Every [`AppError`] variant maps 1-to-1 with a code in this module, so
+/// clients can match on the stable code string regardless of HTTP status.
+pub fn code_for(error: &AppError) -> &'static str {
+    match error {
+        AppError::Auth(AuthError::Unauthorized) => AUTH_UNAUTHORIZED,
+        AppError::Auth(AuthError::Forbidden) => AUTH_FORBIDDEN,
+        AppError::Auth(AuthError::TokenExpired) => AUTH_TOKEN_EXPIRED,
+        AppError::Auth(AuthError::InvalidToken) => AUTH_INVALID_TOKEN,
+        AppError::Auth(AuthError::CsrfMismatch) => AUTH_CSRF_MISMATCH,
+
+        AppError::Validation(ValidationError::FieldError(_)) => VALIDATION_FIELD_ERROR,
+        AppError::Validation(ValidationError::MultipleErrors(_)) => VALIDATION_MULTIPLE_ERRORS,
+        AppError::Validation(ValidationError::FormatError(_)) => VALIDATION_FORMAT_ERROR,
+
+        AppError::Export(ExportError::CsvError(_)) => EXPORT_CSV_ERROR,
+        AppError::Export(ExportError::JsonError(_)) => EXPORT_JSON_ERROR,
+        AppError::Export(ExportError::PdfError(_)) => EXPORT_PDF_ERROR,
+        AppError::Export(ExportError::SerializationError(_)) => EXPORT_SERIALIZATION_ERROR,
+        AppError::Export(ExportError::InvalidFormat(_)) => EXPORT_INVALID_FORMAT,
+
+        AppError::Email(EmailError::ServiceError(_)) => EMAIL_SERVICE_ERROR,
+        AppError::Email(EmailError::TemplateError(_)) => EMAIL_TEMPLATE_ERROR,
+        AppError::Email(EmailError::InvalidAddress(_)) => EMAIL_INVALID_ADDRESS,
+        AppError::Email(EmailError::DeliveryFailed(_)) => EMAIL_DELIVERY_FAILED,
+
+        AppError::Storage(StorageError::ServiceError(_)) => STORAGE_SERVICE_ERROR,
+        AppError::Storage(StorageError::InvalidFile(_)) => STORAGE_INVALID_FILE,
+        AppError::Storage(StorageError::NotFound(_)) => STORAGE_NOT_FOUND,
+        AppError::Storage(StorageError::UploadFailed(_)) => STORAGE_UPLOAD_FAILED,
+        AppError::Storage(StorageError::QuotaExceeded(_)) => STORAGE_QUOTA_EXCEEDED,
+
+        AppError::Contract(ContractError::CallFailed(_)) => CONTRACT_CALL_FAILED,
+        AppError::Contract(ContractError::NotFound(_)) => CONTRACT_NOT_FOUND,
+        AppError::Contract(ContractError::InvalidState(_)) => CONTRACT_INVALID_STATE,
+        AppError::Contract(ContractError::InsufficientBalance(_)) => CONTRACT_INSUFFICIENT_BALANCE,
+        AppError::Contract(ContractError::Unauthorized(_)) => CONTRACT_UNAUTHORIZED,
+
+        AppError::Webhook(WebhookError::DeliveryFailed(_)) => WEBHOOK_DELIVERY_FAILED,
+        AppError::Webhook(WebhookError::InvalidUrl(_)) => WEBHOOK_INVALID_URL,
+        AppError::Webhook(WebhookError::NotFound(_)) => WEBHOOK_NOT_FOUND,
+        AppError::Webhook(WebhookError::SignatureMismatch(_)) => WEBHOOK_SIGNATURE_MISMATCH,
+
+        AppError::Notification(NotificationError::PushFailed(_)) => NOTIFICATION_PUSH_FAILED,
+        AppError::Notification(NotificationError::InvalidToken(_)) => NOTIFICATION_INVALID_TOKEN,
+        AppError::Notification(NotificationError::ServiceUnavailable(_)) => {
+            NOTIFICATION_SERVICE_UNAVAILABLE
+        }
+
+        AppError::Serialization(SerializationError::JsonError(_)) => SERIALIZATION_JSON_ERROR,
+        AppError::Serialization(SerializationError::CsvError(_)) => SERIALIZATION_CSV_ERROR,
+        AppError::Serialization(SerializationError::DecodeError(_)) => SERIALIZATION_DECODE_ERROR,
+
+        AppError::Analytics(AnalyticsError::ComputationFailed(_)) => ANALYTICS_COMPUTATION_FAILED,
+        AppError::Analytics(AnalyticsError::InvalidTimeRange(_)) => ANALYTICS_INVALID_TIME_RANGE,
+        AppError::Analytics(AnalyticsError::DataSourceUnavailable(_)) => {
+            ANALYTICS_DATA_SOURCE_UNAVAILABLE
+        }
+
+        AppError::NotFound(_) => NOT_FOUND_PREFIX,
+        AppError::Internal(_) => INTERNAL,
+        AppError::RateLimitExceeded(_) => RATE_LIMIT_EXCEEDED,
+        AppError::BadRequest(_) => BAD_REQUEST,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::errors::{
+        AnalyticsError, AppError, AuthError, ContractError, EmailError, ExportError,
+        NotificationError, SerializationError, StorageError, ValidationError, WebhookError,
+    };
+
+    /// Every `AppError` variant must resolve to a non-empty, dot-separated
+    /// (or single-token) registry code.
+    fn assert_registered(error: AppError) {
+        let code = code_for(&error);
+        assert!(!code.is_empty(), "empty code for {error:?}");
+        assert!(
+            code.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_'),
+            "code `{code}` for {error:?} is not canonical"
+        );
+    }
+
+    #[test]
+    fn every_app_error_variant_has_a_registered_code() {
+        let variants = vec![
+            AppError::Auth(AuthError::Unauthorized),
+            AppError::Auth(AuthError::Forbidden),
+            AppError::Auth(AuthError::TokenExpired),
+            AppError::Auth(AuthError::InvalidToken),
+            AppError::Auth(AuthError::CsrfMismatch),
+            AppError::Validation(ValidationError::FieldError("field".into())),
+            AppError::Validation(ValidationError::MultipleErrors(vec![])),
+            AppError::Validation(ValidationError::FormatError("format".into())),
+            AppError::Export(ExportError::CsvError("csv".into())),
+            AppError::Export(ExportError::JsonError("json".into())),
+            AppError::Export(ExportError::PdfError("pdf".into())),
+            AppError::Export(ExportError::SerializationError("ser".into())),
+            AppError::Export(ExportError::InvalidFormat("fmt".into())),
+            AppError::Email(EmailError::ServiceError("svc".into())),
+            AppError::Email(EmailError::TemplateError("tpl".into())),
+            AppError::Email(EmailError::InvalidAddress("addr".into())),
+            AppError::Email(EmailError::DeliveryFailed("del".into())),
+            AppError::Storage(StorageError::ServiceError("svc".into())),
+            AppError::Storage(StorageError::InvalidFile("file".into())),
+            AppError::Storage(StorageError::NotFound("file".into())),
+            AppError::Storage(StorageError::UploadFailed("up".into())),
+            AppError::Storage(StorageError::QuotaExceeded("quota".into())),
+            AppError::Contract(ContractError::CallFailed("call".into())),
+            AppError::Contract(ContractError::NotFound("id".into())),
+            AppError::Contract(ContractError::InvalidState("state".into())),
+            AppError::Contract(ContractError::InsufficientBalance("bal".into())),
+            AppError::Contract(ContractError::Unauthorized("auth".into())),
+            AppError::Webhook(WebhookError::DeliveryFailed("del".into())),
+            AppError::Webhook(WebhookError::InvalidUrl("url".into())),
+            AppError::Webhook(WebhookError::NotFound("id".into())),
+            AppError::Webhook(WebhookError::SignatureMismatch("sig".into())),
+            AppError::Notification(NotificationError::PushFailed("push".into())),
+            AppError::Notification(NotificationError::InvalidToken("tok".into())),
+            AppError::Notification(NotificationError::ServiceUnavailable("svc".into())),
+            AppError::Serialization(SerializationError::JsonError("json".into())),
+            AppError::Serialization(SerializationError::CsvError("csv".into())),
+            AppError::Serialization(SerializationError::DecodeError("dec".into())),
+            AppError::Analytics(AnalyticsError::ComputationFailed("comp".into())),
+            AppError::Analytics(AnalyticsError::InvalidTimeRange("range".into())),
+            AppError::Analytics(AnalyticsError::DataSourceUnavailable("src".into())),
+            AppError::NotFound("thing".into()),
+            AppError::Internal("boom".into()),
+            AppError::RateLimitExceeded("slow down".into()),
+            AppError::BadRequest("bad".into()),
+        ];
+
+        for error in variants {
+            assert_registered(error);
+        }
+    }
+
+    #[test]
+    fn codes_are_stable_and_unique_per_variant() {
+        assert_eq!(code_for(&AppError::Auth(AuthError::Unauthorized)), AUTH_UNAUTHORIZED);
+        assert_eq!(code_for(&AppError::Internal("x".into())), INTERNAL);
+        assert_eq!(
+            code_for(&AppError::RateLimitExceeded("x".into())),
+            RATE_LIMIT_EXCEEDED
+        );
+        assert_eq!(code_for(&AppError::BadRequest("x".into())), BAD_REQUEST);
+        assert_eq!(code_for(&AppError::NotFound("x".into())), NOT_FOUND_PREFIX);
+    }
+
+    #[test]
+    fn not_found_code_is_normalised() {
+        assert_eq!(not_found_code("User"), "not_found.user");
+        assert_eq!(not_found_code("Payment Intent"), "not_found.payment_intent");
+        assert_eq!(not_found_code("  webhook-id "), "not_found.webhook_id");
+    }
+}

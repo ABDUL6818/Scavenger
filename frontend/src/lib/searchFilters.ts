@@ -106,22 +106,60 @@ function applyOperator(value: unknown, operator: FilterOperator['operator'], fil
 }
 
 /**
+ * A compiled filter group: a flat list of predicates that can be evaluated
+ * against an item without re-walking the filter tree on every call.
+ */
+type CompiledPredicate<T> = (item: T) => boolean;
+
+interface CompiledFilterGroup<T> {
+  logic: 'AND' | 'OR';
+  predicates: CompiledPredicate<T>[];
+}
+
+const compiledFilterCache = new WeakMap<FilterGroup, CompiledFilterGroup<Record<string, unknown>>>();
+
+function compileFilterGroup<T extends Record<string, unknown>>(group: FilterGroup): CompiledFilterGroup<T> {
+  const cached = compiledFilterCache.get(group);
+  if (cached) return cached as CompiledFilterGroup<T>;
+
+  const predicates = group.filters.map<CompiledPredicate<T>>((filter) => {
+    if ('logic' in filter) {
+      const nested = compileFilterGroup<T>(filter as FilterGroup);
+      return (item) => evaluateCompiled(item, nested);
+    }
+    const operator = filter as FilterOperator;
+    return (item) => applyOperator(item[operator.field], operator.operator, operator.value);
+  });
+
+  const compiled: CompiledFilterGroup<T> = { logic: group.logic, predicates };
+  compiledFilterCache.set(group, compiled as CompiledFilterGroup<Record<string, unknown>>);
+  return compiled;
+}
+
+function evaluateCompiled<T>(item: T, compiled: CompiledFilterGroup<T>): boolean {
+  const { logic, predicates } = compiled;
+  if (logic === 'AND') {
+    for (const predicate of predicates) {
+      if (!predicate(item)) return false;
+    }
+    return true;
+  }
+  for (const predicate of predicates) {
+    if (predicate(item)) return true;
+  }
+  return false;
+}
+
+/**
  * Apply a filter group to data
  */
 export function applyFilters<T extends Record<string, unknown>>(data: T[], filterGroup: FilterGroup): T[] {
-  return data.filter((item) => evaluateFilterGroup(item, filterGroup));
+  const compiled = compileFilterGroup<T>(filterGroup);
+  return data.filter((item) => evaluateCompiled(item, compiled));
 }
 
 function evaluateFilterGroup<T extends Record<string, unknown>>(item: T, group: FilterGroup): boolean {
-  const results = group.filters.map((filter) => {
-    if ('logic' in filter) {
-      return evaluateFilterGroup(item, filter as FilterGroup);
-    }
-    const operator = filter as FilterOperator;
-    return applyOperator(item[operator.field], operator.operator, operator.value);
-  });
-  
-  return group.logic === 'AND' ? results.every(Boolean) : results.some(Boolean);
+  return evaluateCompiled(item, compileFilterGroup<T>(group));
 }
 
 /**

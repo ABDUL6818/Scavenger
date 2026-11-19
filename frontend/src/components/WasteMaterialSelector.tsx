@@ -8,7 +8,7 @@ import {
 import { cn } from '@/lib/utils'
 import { WasteType } from '@/api/types'
 import { EmptyState } from '@/components/ui/EmptyState'
-import type { WasteFormValues } from './WasteSubmissionFields'
+import type { WasteFormValues } from '@/lib/schemas/waste'
 
 /**
  * Static option metadata. `label` is kept for backwards compatibility with
@@ -53,18 +53,20 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
       <Controller
         name="wasteType"
         control={control}
-        render={({ field }) => (
+        render={({ field, fieldState }) => (
           <div className="relative">
             <button
               type="button"
               onClick={() => setMaterialDropdownOpen(!materialDropdownOpen)}
               className={cn(
                 'flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                !selectedOption && 'text-muted-foreground'
+                !selectedOption && 'text-muted-foreground',
+                fieldState.error && 'border-destructive'
               )}
               aria-label={t('waste.selectMaterialType')}
               aria-expanded={materialDropdownOpen}
               aria-haspopup="listbox"
+              aria-invalid={fieldState.invalid}
             >
               <span className="flex items-center gap-2">
                 {selectedOption ? (
@@ -109,6 +111,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                           aria-selected={field.value === opt.value}
                           onClick={() => {
                             field.onChange(opt.value)
+                            field.onBlur()
                             setMaterialDropdownOpen(false)
                             setMaterialSearch('')
                           }}
@@ -131,6 +134,9 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
       />
       {errors.wasteType && (
         <p className="mt-1 text-sm text-destructive" role="alert">{errors.wasteType.message}</p>
+      )}
+      {!errors.wasteType && selectedType === '' && (
+        <p className="mt-1 text-xs text-muted-foreground">Choose the material you are submitting.</p>
       )}
     </section>
   )

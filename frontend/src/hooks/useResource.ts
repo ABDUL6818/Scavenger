@@ -11,8 +11,13 @@ export interface UseResourceReturn<T> extends AsyncState<T> {
  * after a mutation). Built on `useAsync`, so stale responses and updates
  * after unmount are ignored.
  *
- * `isLoading` is true until the first fetch settles, so initial renders show
- * loading UI instead of flashing an empty state.
+ * Contract:
+ * - Fetches once on mount, and again whenever any value in `deps` changes.
+ * - `reload()` re-runs the latest `fetcher` and resolves with its result
+ *   (or `undefined` if the run was superseded / unmounted).
+ * - `isLoading` is true until the first fetch settles, so initial renders show
+ *   loading UI instead of flashing an empty state.
+ * - `status` / `data` / `error` mirror the underlying `useAsync` state.
  *
  * The returned `status` field is compatible with the shared
  * transaction-status module (`pending` / `success` / `failed` lifecycle),
@@ -20,6 +25,8 @@ export interface UseResourceReturn<T> extends AsyncState<T> {
  *   - `idle` / `loading` -> `pending`
  *   - `success`          -> `success`
  *   - `error`            -> `failed`
+ *
+ * Backwards-compatible: the signature and return shape are unchanged.
  */
 export function useResource<T>(
   fetcher: () => Promise<T>,

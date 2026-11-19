@@ -25,11 +25,16 @@ LIB = ROOT / "stellar-contract/src/lib.rs"
 ERRORS = ROOT / "stellar-contract/src/errors.rs"
 CONSUMER_DOC = ROOT / "docs/sdk-api-reference.md"
 INTERNAL_DOC = ROOT / "docs/CONTRACT_DOCUMENTATION.md"
+REFERENCE_DOC = ROOT / "docs/contract-reference.md"
 
 CONSUMER_BEGIN = "<!-- BEGIN GENERATED: contract-entrypoints -->"
 CONSUMER_END = "<!-- END GENERATED: contract-entrypoints -->"
 INTERNAL_BEGIN = "<!-- BEGIN GENERATED: internal-entrypoints -->"
 INTERNAL_END = "<!-- END GENERATED: internal-entrypoints -->"
+REFERENCE_ENTRYPOINTS_BEGIN = "<!-- BEGIN GENERATED: reference-entrypoints -->"
+REFERENCE_ENTRYPOINTS_END = "<!-- END GENERATED: reference-entrypoints -->"
+REFERENCE_ERRORS_BEGIN = "<!-- BEGIN GENERATED: reference-errors -->"
+REFERENCE_ERRORS_END = "<!-- END GENERATED: reference-errors -->"
 
 
 def contractimpl_block(lines):
@@ -185,11 +190,33 @@ def body_text(lines, sig_end):
     return "\n".join(out)
 
 
-def error_codes():
+def error_enum_text():
     text = ERRORS.read_text()
     enum = text[text.index("pub enum Error"):]
-    enum = enum[: enum.index("\n}")]
-    return dict(re.findall(r"^\s+([A-Z]\w*)\s*=\s*(\d+),", enum, flags=re.M))
+    return enum[: enum.index("\n}")]
+
+
+def error_codes():
+    return dict(re.findall(r"^\s+([A-Z]\w*)\s*=\s*(\d+),", error_enum_text(), flags=re.M))
+
+
+def error_categories():
+    """Map each Error variant to the category comment that precedes it.
+
+    Variants are grouped in the enum under `// --- Category ---` style comments;
+    a variant with no preceding category comment is reported as "Uncategorised".
+    """
+    categories, current = {}, "Uncategorised"
+    for line in error_enum_text().splitlines():
+        stripped = line.strip()
+        m = re.match(r"//+\s*-*\s*(.+?)\s*-*\s*$", stripped)
+        if stripped.startswith("//") and m and m.group(1):
+            current = m.group(1)
+            continue
+        v = re.match(r"([A-Z]\w*)\s*=\s*\d+,", stripped)
+        if v:
+            categories[v.group(1)] = current
+    return categories
 
 
 def entrypoints():
@@ -273,6 +300,39 @@ def internal_section(eps, codes):
     return "\n".join([INTERNAL_BEGIN, "", header, "", *rows, "", INTERNAL_END])
 
 
+def reference_entrypoints_section(eps, codes):
+    rows = ["| Entrypoint | Arguments | Returns | Requires auth | Errors | Visibility |",
+            "|---|---|---|---|---|---|"]
+    for e in eps:
+        visibility = "Internal" if e["internal"] else "Public"
+        if e["deprecated"]:
+            visibility += " (deprecated)"
+        rows.append(
+            f"| `{e['name']}` | {fmt_params(e['params'])} | `{e['ret']}` | "
+            f"{fmt_auth(e['auth'])} | {fmt_errors(e['errors'], codes)} | {visibility} |"
+        )
+    header = (
+        f"Generated from `stellar-contract/src/lib.rs`. {len(eps)} entrypoints total. "
+        f"Auth is derived from `require_auth` calls in the body (directly or via `Self::` helpers); "
+        f"errors are the `Error` variants returned directly. Do not edit this table by hand; "
+        f"run `python3 scripts/generate-contract-reference.py`."
+    )
+    return "\n".join([REFERENCE_ENTRYPOINTS_BEGIN, "", header, "", *rows, "",
+                      REFERENCE_ENTRYPOINTS_END])
+
+
+def reference_errors_section(codes, categories):
+    rows = ["| Variant | Code | Category |", "|---|---|---|"]
+    for variant, code in sorted(codes.items(), key=lambda kv: int(kv[1])):
+        rows.append(f"| `{variant}` | {code} | {categories.get(variant, 'Uncategorised')} |")
+    header = (
+        f"Generated from `stellar-contract/src/errors.rs`. {len(codes)} error variants. "
+        f"Codes are the numeric discriminants of the `Error` enum. Do not edit this table by hand."
+    )
+    return "\n".join([REFERENCE_ERRORS_BEGIN, "", header, "", *rows, "",
+                      REFERENCE_ERRORS_END])
+
+
 def replace_between(text, begin, end, body):
     if begin not in text or end not in text:
         raise SystemExit(f"markers {begin!r} / {end!r} missing")
@@ -284,11 +344,17 @@ def replace_between(text, begin, end, body):
 def render():
     eps = entrypoints()
     codes = error_codes()
+    categories = error_categories()
     consumer = replace_between(CONSUMER_DOC.read_text(), CONSUMER_BEGIN, CONSUMER_END,
                                consumer_section(eps, codes))
     internal = replace_between(INTERNAL_DOC.read_text(), INTERNAL_BEGIN, INTERNAL_END,
                                internal_section(eps, codes))
-    return {CONSUMER_DOC: consumer, INTERNAL_DOC: internal}, eps
+    reference = REFERENCE_DOC.read_text()
+    reference = replace_between(reference, REFERENCE_ENTRYPOINTS_BEGIN, REFERENCE_ENTRYPOINTS_END,
+                                reference_entrypoints_section(eps, codes))
+    reference = replace_between(reference, REFERENCE_ERRORS_BEGIN, REFERENCE_ERRORS_END,
+                                reference_errors_section(codes, categories))
+    return {CONSUMER_DOC: consumer, INTERNAL_DOC: internal, REFERENCE_DOC: reference}, eps
 
 
 def main():
@@ -305,6 +371,7 @@ def main():
         path.write_text(text)
     public = sum(1 for e in eps if not e["internal"])
     print(f"Wrote {public} consumer entrypoints and {len(eps) - public} internal entrypoints.")
+    print(f"Wrote consolidated reference to {REFERENCE_DOC.relative_to(ROOT)}.")
     return 0
 
 

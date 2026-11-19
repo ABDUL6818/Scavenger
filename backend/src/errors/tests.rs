@@ -3,7 +3,11 @@ mod tests {
     use crate::errors::{
         codes,
         conversion::{from_validation_errors, from_validation_field},
-        types::{AppError, AuthError, ContractError, ErrorCategory, ExportError, StorageError, ValidationError},
+        types::{
+            AnalyticsError, AppError, AuthError, ContractError, EmailError, ErrorCategory,
+            ExportError, NotificationError, SerializationError, StorageError, ValidationError,
+            WebhookError,
+        },
     };
 
     // ── Category classification ───────────────────────────────────────────────
@@ -317,7 +321,7 @@ mod tests {
     #[test]
     fn storage_quota_exceeded_maps_to_507() {
         let e = AppError::Storage(StorageError::QuotaExceeded);
-        assert_eq!(e.status_code(), 500);
+        assert_eq!(e.status_code(), 507);
     }
 
     // ── Bad Request Error ─────────────────────────────────────────────────────
@@ -382,5 +386,149 @@ mod tests {
         let con_err = ContractError::NotFound("123".into());
         let app_err: AppError = con_err.into();
         assert_eq!(app_err.category(), ErrorCategory::Contract);
+    }
+
+    #[test]
+    fn storage_error_converts_to_app_error() {
+        let storage_err = StorageError::NotFound("file.pdf".into());
+        let app_err: AppError = storage_err.into();
+        assert_eq!(app_err.category(), ErrorCategory::Storage);
+        assert_eq!(app_err.code(), codes::STORAGE_NOT_FOUND);
+    }
+
+    #[test]
+    fn export_error_converts_to_app_error() {
+        let export_err = ExportError::Csv("fail".into());
+        let app_err: AppError = export_err.into();
+        assert_eq!(app_err.category(), ErrorCategory::Export);
+        assert_eq!(app_err.code(), codes::EXPORT_CSV_ERROR);
+    }
+
+    #[test]
+    fn email_error_converts_to_app_error() {
+        let email_err = EmailError::Service("smtp down".into());
+        let app_err: AppError = email_err.into();
+        assert_eq!(app_err.category(), ErrorCategory::Email);
+        assert_eq!(app_err.status_code(), 500);
+    }
+
+    #[test]
+    fn webhook_error_converts_to_app_error() {
+        let webhook_err = WebhookError::DeliveryFailed("timeout".into());
+        let app_err: AppError = webhook_err.into();
+        assert_eq!(app_err.category(), ErrorCategory::Webhook);
+        assert_eq!(app_err.code(), codes::WEBHOOK_DELIVERY_FAILED);
+    }
+
+    #[test]
+    fn notification_error_converts_to_app_error() {
+        let notification_err = NotificationError::InvalidToken("expired".into());
+        let app_err: AppError = notification_err.into();
+        assert_eq!(app_err.category(), ErrorCategory::Notification);
+        assert_eq!(app_err.code(), codes::NOTIFICATION_INVALID_TOKEN);
+    }
+
+    #[test]
+    fn analytics_error_converts_to_app_error() {
+        let analytics_err = AnalyticsError::InvalidTimeRange("end before start".into());
+        let app_err: AppError = analytics_err.into();
+        assert_eq!(app_err.category(), ErrorCategory::Analytics);
+        assert_eq!(app_err.code(), codes::ANALYTICS_INVALID_TIME_RANGE);
+    }
+
+    #[test]
+    fn serialization_error_converts_to_app_error() {
+        let serialization_err = SerializationError::Decode("invalid utf8".into());
+        let app_err: AppError = serialization_err.into();
+        assert_eq!(app_err.category(), ErrorCategory::Serialization);
+        assert_eq!(app_err.status_code(), 400);
+    }
+
+    // ── Display / std::error::Error ───────────────────────────────────────────
+
+    #[test]
+    fn app_error_implements_std_error() {
+        fn assert_std_error<T: std::error::Error>() {}
+        assert_std_error::<AppError>();
+    }
+
+    #[test]
+    fn display_includes_message() {
+        let e = AppError::Internal("db gone".into());
+        assert!(e.to_string().contains("db gone"));
+    }
+
+    #[test]
+    fn validation_display_includes_field() {
+        let e = from_validation_field("email", "required");
+        let msg = e.to_string();
+        assert!(msg.contains("email"));
+        assert!(msg.contains("required"));
+    }
+
+    // ── Serialization details ─────────────────────────────────────────────────
+
+    #[test]
+    fn to_json_includes_message_and_category() {
+        let e = AppError::Auth(AuthError::Unauthorized("bad token".into()));
+        let v = e.to_json();
+        assert_eq!(v["error"]["status"], 401);
+        assert_eq!(v["error"]["code"], codes::AUTH_UNAUTHORIZED);
+        assert!(v["error"]["message"].is_string());
+        assert!(v["error"]["category"].is_string());
+    }
+
+    #[test]
+    fn validation_json_field_entries_have_field_and_message() {
+        let e = from_validation_errors(vec![("email".into(), "invalid".into())]);
+        let v = e.to_json();
+        let fields = v["error"]["fields"].as_array().expect("fields array");
+        assert_eq!(fields[0]["field"], "email");
+        assert_eq!(fields[0]["message"], "invalid");
+    }
+
+    #[test]
+    fn not_found_json_contains_resource_code() {
+        let e = AppError::NotFound {
+            resource: "waste",
+            id: "w1".into(),
+        };
+        let v = e.to_json();
+        let code = v["error"]["code"].as_str().expect("code string");
+        assert!(code.starts_with("not_found.waste"));
+    }
+
+    // ── is_client_error coverage ──────────────────────────────────────────────
+
+    #[test]
+    fn validation_errors_are_client_errors() {
+        let e = from_validation_field("name", "required");
+        assert!(e.is_client_error());
+    }
+
+    #[test]
+    fn not_found_errors_are_client_errors() {
+        let e = AppError::NotFound {
+            resource: "waste",
+            id: "w1".into(),
+        };
+        assert!(e.is_client_error());
+    }
+
+    #[test]
+    fn rate_limit_errors_are_client_errors() {
+        assert!(AppError::RateLimitExceeded.is_client_error());
+    }
+
+    #[test]
+    fn contract_errors_are_not_client_errors() {
+        let e = AppError::Contract(ContractError::CallFailed("network".into()));
+        assert!(!e.is_client_error());
+    }
+
+    #[test]
+    fn storage_errors_are_not_client_errors() {
+        let e = AppError::Storage(StorageError::Service("s3 down".into()));
+        assert!(!e.is_client_error());
     }
 }

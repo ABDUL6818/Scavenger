@@ -18,6 +18,9 @@ export {
 } from './tokens'
 
 // ── Components ────────────────────────────────────────────────────────────────
+// These components are memoized (React.memo) to avoid unnecessary re-renders
+// of expensive list rows and badges. The public export surface is unchanged;
+// consumers receive the memoized versions transparently.
 
 export { StatusBadge } from './StatusBadge'
 export { TierBadge } from './TierBadge'

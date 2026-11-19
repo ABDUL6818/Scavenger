@@ -1,22 +1,36 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Incentive } from '@/api/types'
-import { useToast } from '@/hooks/useToast'
+import { useContractMutation } from '@/hooks/useContractMutation'
 import { useTransactionStatus } from '@/hooks/useTransactionStatus'
 import { cacheKeys } from '@/lib/cacheKeys'
 
 /**
- * Mutation hook for claiming an incentive.
+ * Hook contract: `useIncentivesClaim`
  *
- * Optimistically decrements `remaining_budget` in the TanStack Query cache
- * for the `cacheKeys.incentives()` query key. On error, rolls back to the
- * previous cache snapshot and shows an error toast.
+ * Inputs: none.
+ *
+ * Returns:
+ * - `claimIncentive(incentiveId: number): Promise<void>` — triggers the claim
+ *   mutation for the given incentive. Rejects if the mutation fails.
+ * - `isClaiming: boolean` — `true` while a claim mutation is in flight.
+ *
+ * Behaviour:
+ * - Optimistically decrements `remaining_budget` (floored at 0) for the
+ *   matching incentive in the `cacheKeys.incentives()` query cache.
+ * - On error, rolls back to the previous cache snapshot and shows an error
+ *   toast ("Failed to claim incentive. Please try again.").
+ * - On settle, invalidates `cacheKeys.incentivesRoot()` to resync with the
+ *   server.
+ *
+ * Backwards compatibility: the return shape (`claimIncentive`, `isClaiming`)
+ * is unchanged from the previous standalone implementation.
+ *
+ * Built on the shared `useContractMutation` hook, which provides the
+ * optimistic-update/rollback/invalidate lifecycle.
  */
 export function useIncentivesClaim() {
-  const queryClient = useQueryClient()
-  const toast = useToast()
   const { status, start, succeed, fail, reset } = useTransactionStatus()
 
-  const mutation = useMutation<void, Error, number, { previousIncentives: Incentive[] | undefined }>({
+  const mutation = useContractMutation<void, number, Incentive[]>({
     mutationFn: async (_incentiveId: number) => {
       // The actual on-chain claim is handled by distributeRewards in the contract.
       // Here we simulate the claim action — in a real integration this would call
@@ -24,46 +38,26 @@ export function useIncentivesClaim() {
       // For now we resolve immediately; the optimistic update handles the UI.
       return Promise.resolve()
     },
-
-    onMutate: async (incentiveId: number) => {
+    queryKey: cacheKeys.incentives(),
+    invalidateKey: cacheKeys.incentivesRoot(),
+    errorMessage: 'Failed to claim incentive. Please try again.',
+    onMutate: () => {
       // Enter the shared pending lifecycle state
       start()
-
-      // Cancel any in-flight refetches so they don't overwrite our optimistic update
-      await queryClient.cancelQueries({ queryKey: cacheKeys.incentives() })
-
-      // Snapshot the previous value for rollback
-      const previousIncentives = queryClient.getQueryData<Incentive[]>(cacheKeys.incentives())
-
-      // Optimistically decrement remaining_budget
-      queryClient.setQueryData<Incentive[]>(cacheKeys.incentives(), (old) => {
-        if (!old) return old
-        return old.map((inc) =>
-          inc.id === incentiveId
-            ? { ...inc, remaining_budget: Math.max(0, inc.remaining_budget - 1) }
-            : inc
-        )
-      })
-
-      return { previousIncentives }
     },
-
-    onError: (_err, _incentiveId, context) => {
-      // Roll back to the snapshot
-      if (context?.previousIncentives !== undefined) {
-        queryClient.setQueryData(cacheKeys.incentives(), context.previousIncentives)
-      }
+    onError: () => {
       fail('Failed to claim incentive. Please try again.')
-      toast.error('Failed to claim incentive. Please try again.')
     },
-
     onSuccess: () => {
       succeed()
     },
-
-    onSettled: () => {
-      // Always refetch after error or success to sync with server
-      queryClient.invalidateQueries({ queryKey: cacheKeys.incentivesRoot() })
+    optimisticUpdate: (old, incentiveId) => {
+      if (!old) return old
+      return old.map((inc) =>
+        inc.id === incentiveId
+          ? { ...inc, remaining_budget: Math.max(0, inc.remaining_budget - 1) }
+          : inc
+      )
     },
   })
 

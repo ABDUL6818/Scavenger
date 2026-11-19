@@ -6,6 +6,7 @@ pub mod cache;
 pub mod compliance;
 pub mod container;
 pub mod errors;
+pub mod logger;
 pub mod middleware;
 pub mod rpc;
 pub mod search;

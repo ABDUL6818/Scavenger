@@ -95,12 +95,16 @@ where
 
         Box::pin(
             async move {
-                tracing::debug!("request started");
+                tracing::debug!(
+                    request_id = %request_id,
+                    "request started"
+                );
                 let mut res = fut.await?;
                 let elapsed_ms = started_at.elapsed().as_millis();
                 tracing::info!(
+                    request_id = %request_id,
                     status = res.status().as_u16(),
-                    elapsed_ms = elapsed_ms as u64,
+                    latency_ms = elapsed_ms as u64,
                     "request completed"
                 );
 

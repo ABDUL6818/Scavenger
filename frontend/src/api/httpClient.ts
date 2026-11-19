@@ -10,6 +10,8 @@
  *   const wastes = await client.get<Waste[]>('/contracts/wastes')
  */
 
+import { config } from '@/config'
+
 /* ────────────────────────────────────────────────────────────────
    Types
    ──────────────────────────────────────────────────────────────── */
@@ -200,23 +202,26 @@ export class ApiClient {
 /**
  * Create a pre-configured ApiClient instance.
  *
+ * When `baseUrl` / `timeoutMs` are omitted, the validated values from the
+ * config module are used (VITE_API_BASE_URL / VITE_API_TIMEOUT_MS).
+ *
  * @example
- * const api = createApiClient({ baseUrl: import.meta.env.VITE_API_BASE_URL })
+ * const api = createApiClient()
  * const result = await api.get<Waste[]>('/contracts/wastes')
  */
-export function createApiClient(options?: ApiClientOptions): ApiClient {
-  return new ApiClient(options)
+export function createApiClient(options: ApiClientOptions = {}): ApiClient {
+  return new ApiClient({
+    baseUrl: options.baseUrl ?? config.apiBaseUrl,
+    timeoutMs: options.timeoutMs ?? config.apiTimeoutMs,
+    ...options,
+  })
 }
 
 /* ────────────────────────────────────────────────────────────────
-   Shared singleton (uses VITE_API_BASE_URL if set)
+   Shared singleton (uses validated config)
    ──────────────────────────────────────────────────────────────── */
 
-export const apiClient = createApiClient({
-  baseUrl: typeof window !== 'undefined'
-    ? (import.meta as unknown as { env: Record<string, string> }).env?.VITE_API_BASE_URL ?? window.location.origin
-    : '',
-})
+export const apiClient = createApiClient()
 
 /* ────────────────────────────────────────────────────────────────
    Error normalization

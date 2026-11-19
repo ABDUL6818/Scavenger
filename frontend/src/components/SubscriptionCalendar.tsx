@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Subscription } from '@/lib/subscriptionStorage'
 import { CalendarGrid } from '@/components/CalendarGrid'
@@ -29,20 +29,21 @@ export function SubscriptionCalendar({ subscriptions, month = new Date() }: Prop
     return map
   }, [subscriptions, year, monthIdx])
 
-  const monthLabel = getMonthLabel(month)
+  const monthLabel = useMemo(() => getMonthLabel(month), [month])
   const hasPickups = Object.keys(pickupsByDay).length > 0
+
+  const renderDayContent = useCallback(
+    (day: number) =>
+      pickupsByDay[day] && (
+        <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-green-500" />
+      ),
+    [pickupsByDay]
+  )
 
   return (
     <div className="rounded-lg border p-4">
       <h3 className="mb-3 text-sm font-semibold">{monthLabel}</h3>
-      <CalendarGrid
-        month={month}
-        renderDayContent={(day) =>
-          pickupsByDay[day] && (
-            <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-green-500" />
-          )
-        }
-      />
+      <CalendarGrid month={month} renderDayContent={renderDayContent} />
       {!hasPickups && (
         <div className="mt-3">
           <EmptyState

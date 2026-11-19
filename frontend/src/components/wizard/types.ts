@@ -17,10 +17,12 @@ export interface TransferFormData {
   notes: string
 }
 
+export type WizardFormData = WasteSubmissionFormData | TransferFormData
+
 export interface LocationStepProps {
-  register: UseFormRegister<WasteSubmissionFormData | TransferFormData>
-  errors: FieldErrors<WasteSubmissionFormData | TransferFormData>
-  formData: WasteSubmissionFormData | TransferFormData
+  register: UseFormRegister<WizardFormData>
+  errors: FieldErrors<WizardFormData>
+  formData: WizardFormData
 }
 
 export interface WasteTypeStepProps {
@@ -41,7 +43,7 @@ export interface RecipientSelectionStepProps {
 }
 
 export interface ReviewStepProps {
-  formData: WasteSubmissionFormData | TransferFormData
+  formData: WizardFormData
 }
 
 export interface ReviewConfirmStepProps {

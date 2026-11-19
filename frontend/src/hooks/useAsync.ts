@@ -24,9 +24,25 @@ export interface UseAsyncReturn<T, Args extends unknown[]> extends AsyncState<T>
  * success) so pages don't hand-roll `isLoading` + `error` state for every
  * action. The wrapped function is only invoked when `run` is called.
  *
- * Stale completions (a `run` superseded by a newer one) and completions after
- * unmount never update state. On failure `run` resolves to `undefined` and the
- * error is exposed via `error`.
+ * Contract:
+ * - Input: `fn` is the async operation. It is read through a ref, so passing a
+ *   new `fn` identity on every render does not invalidate `run`/`reset`.
+ * - Output: `{ status, data, error, isLoading, run, reset }`. `isLoading` is
+ *   derived from `status === 'loading'` and is always consistent with it.
+ * - `run(...args)` sets `status` to `'loading'` (clearing `error`), then
+ *   resolves to the operation's value on success (`status: 'success'`) or to
+ *   `undefined` on failure (`status: 'error'`, error exposed via `error`).
+ * - `reset()` returns to the initial `idle` state and invalidates in-flight
+ *   calls.
+ *
+ * Stale-response semantics: only the most recent `run` call may update state;
+ * completions from superseded calls are ignored. Unmount semantics: state is
+ * never updated after unmount (no "setState on unmounted component" warnings).
+ *
+ * @deprecated Prefer the consolidated generic async hook exported from
+ * `frontend/src/hooks` (see `useAsyncOperation`). This hook remains as a thin
+ * backwards-compatible re-export with identical behaviour; existing imports
+ * keep working and will be migrated incrementally.
  */
 export function useAsync<T, Args extends unknown[] = []>(
   fn: (...args: Args) => Promise<T>
@@ -84,3 +100,9 @@ export function useAsync<T, Args extends unknown[] = []>(
 
   return { ...state, isLoading: state.status === 'loading', run, reset }
 }
+
+/**
+ * Backwards-compatible alias for the consolidated generic async hook.
+ * @deprecated Use `useAsync` (or the consolidated `useAsyncOperation`).
+ */
+export const useAsyncOperation = useAsync

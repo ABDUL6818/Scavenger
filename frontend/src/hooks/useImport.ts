@@ -11,17 +11,25 @@
  *   - XML import (no call sites)
  *   - Binary/XLS import (no call sites)
  *   - "dry-run" preview branch that was never wired to any UI component
+ *
+ * Issue #1693 — consolidated duplicated hooks.  The loading/error state
+ * machine now lives in `useAsync` (see `./useAsync`); this hook only
+ * supplies the format-specific parsing logic.  The public API
+ * (`importFromCSV`, `importFromJSON`, `state`) is unchanged, so existing
+ * callers keep working without modification.
  */
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { useAsync, type AsyncState } from './useAsync';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
-/** State returned while an import is in progress or has finished. */
-export interface ImportState<T> {
-  data: T | null;
-  error: string | null;
-  isLoading: boolean;
-}
+/**
+ * State returned while an import is in progress or has finished.
+ *
+ * @deprecated Kept for backwards compatibility; identical to
+ * `AsyncState<T>` from `./useAsync`.
+ */
+export type ImportState<T> = AsyncState<T>;
 
 /** A single parsed CSV row: header field name → cell value. */
 export type CsvRecord = Record<string, string>;
@@ -32,15 +40,19 @@ export type CsvRecord = Record<string, string>;
  * Provides `importFromCSV` and `importFromJSON` functions plus the
  * current `state` of the most recent import operation.
  *
- * Both import functions read from a `File` object (typically from an
- * `<input type="file">` element).
+ * Contract:
+ *   - Both import functions read from a `File` object (typically from an
+ *     `<input type="file">` element).
+ *   - `state.isLoading` is `true` while an import is in flight.
+ *   - On success `state.data` holds the parsed value and `state.error` is
+ *     `null`; on failure `state.data` is `null` and `state.error` holds a
+ *     human-readable message.
+ *   - Both functions re-throw the underlying error so callers can react
+ *     locally (e.g. show a toast) in addition to reading `state.error`.
+ *   - `state` is shared: the most recent operation wins.
  */
 export function useImport<T = unknown>() {
-  const [state, setState] = useState<ImportState<T>>({
-    data: null,
-    error: null,
-    isLoading: false,
-  });
+  const { state, run } = useAsync<T>();
 
   /**
    * Parse a CSV `File` into an array of header-keyed record objects.
@@ -55,8 +67,7 @@ export function useImport<T = unknown>() {
    */
   const importFromCSV = useCallback(
     async (file: File): Promise<CsvRecord[]> => {
-      setState({ data: null, error: null, isLoading: true });
-      try {
+      const records = await run(async () => {
         const text = await readFileAsText(file);
         const rows = text
           .split('\n')
@@ -68,20 +79,14 @@ export function useImport<T = unknown>() {
         }
 
         const headers = rows[0].split(',').map((h) => h.trim());
-        const records: CsvRecord[] = rows.slice(1).map((row) => {
+        return rows.slice(1).map((row) => {
           const cells = row.split(',').map((c) => c.trim());
           return Object.fromEntries(headers.map((h, i) => [h, cells[i] ?? '']));
         });
-
-        setState({ data: records as unknown as T, error: null, isLoading: false });
-        return records;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'CSV import failed';
-        setState({ data: null, error: message, isLoading: false });
-        throw err;
-      }
+      });
+      return records as CsvRecord[];
     },
-    []
+    [run]
   );
 
   /**
@@ -92,19 +97,12 @@ export function useImport<T = unknown>() {
    */
   const importFromJSON = useCallback(
     async (file: File): Promise<T> => {
-      setState({ data: null, error: null, isLoading: true });
-      try {
+      return run(async () => {
         const text = await readFileAsText(file);
-        const parsed = JSON.parse(text) as T;
-        setState({ data: parsed, error: null, isLoading: false });
-        return parsed;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'JSON import failed';
-        setState({ data: null, error: message, isLoading: false });
-        throw err;
-      }
+        return JSON.parse(text) as T;
+      });
     },
-    []
+    [run]
   );
 
   return { importFromCSV, importFromJSON, state };

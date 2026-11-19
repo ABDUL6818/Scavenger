@@ -4,15 +4,12 @@
 //! All business logic has been moved to the compliance/ module.
 
 use actix_web::{web, HttpResponse, Responder};
-use serde::{Deserialize, Serialize};
 
 // Import domain logic from compliance module
 use crate::compliance::{
     ComplianceService,
     ComplianceValidator,
     CheckRequest,
-    ComplianceResult,
-    ComplianceStatus,
     ComplianceError,
 };
 
