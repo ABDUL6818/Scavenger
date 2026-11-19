@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from '@tanstack/react-query'
 import { persistQueryClient } from '@tanstack/react-query-persist-client'
@@ -14,12 +14,13 @@ import { getErrorMessage } from '@/lib/contractErrors'
 import { initWebVitals } from '@/lib/webVitals'
 import { getDB, setQueryData } from '@/lib/indexedDB'
 import { queryCachePolicy } from '@/lib/queryCachePolicy'
+import { env } from '@/config'
 import '@/i18n/config'
 import './index.css'
 
 // Devtools are only needed in development; lazy-load them so the production
 // bundle never contains the devtools module.
-const ReactQueryDevtools = import.meta.env.DEV
+const ReactQueryDevtools = env.DEV
   ? React.lazy(() =>
       import('@tanstack/react-query-devtools').then((m) => ({ default: m.ReactQueryDevtools }))
     )
@@ -28,7 +29,7 @@ const ReactQueryDevtools = import.meta.env.DEV
 // Initialize Web Vitals monitoring
 initWebVitals((metric) => {
   // Optionally send to analytics endpoint in production
-  if (!import.meta.env.DEV) {
+  if (!env.DEV) {
     try {
       navigator.sendBeacon('/api/metrics', JSON.stringify({
         metric: metric.name,
@@ -121,7 +122,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <NetworkProvider>
               <WalletProvider>
                 <AuthProvider>
-                  <App />
+                  <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading…</div>}>
+                    <App />
+                  </Suspense>
                   <ThemedToaster />
                 </AuthProvider>
               </WalletProvider>

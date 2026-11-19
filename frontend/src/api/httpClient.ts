@@ -12,6 +12,7 @@
  *   const wastes = await client.get<Waste[]>('/contracts/wastes')
  */
 
+import { config } from '@/config'
 import {
   ApiClient as ServicesApiClient,
   createApiClient as createServicesApiClient,
@@ -43,16 +44,23 @@ export class ApiClient extends ServicesApiClient {}
 /**
  * Create a pre-configured ApiClient instance.
  *
+ * When `baseUrl` / `timeoutMs` are omitted, the validated values from the
+ * config module are used (VITE_API_BASE_URL / VITE_API_TIMEOUT_MS).
+ *
  * @example
- * const api = createApiClient({ baseUrl: import.meta.env.VITE_API_BASE_URL })
+ * const api = createApiClient()
  * const result = await api.get<Waste[]>('/contracts/wastes')
  */
-export function createApiClient(options?: ApiClientOptions): ApiClient {
-  return createServicesApiClient(options) as ApiClient
+export function createApiClient(options: ApiClientOptions = {}): ApiClient {
+  return createServicesApiClient({
+    baseUrl: options.baseUrl ?? config.apiBaseUrl,
+    timeoutMs: options.timeoutMs ?? config.apiTimeoutMs,
+    ...options,
+  }) as ApiClient
 }
 
 /* ────────────────────────────────────────────────────────────────
-   Shared singleton (uses VITE_API_BASE_URL if set)
+   Shared singleton (uses validated config)
    ──────────────────────────────────────────────────────────────── */
 
 export const apiClient: ApiClient = servicesApiClient as ApiClient

@@ -1,6 +1,19 @@
 // Re-export all shared types
 export * from '@scavngr/types'
 
+// Re-export shared domain types explicitly so consumers (e.g. the frontend)
+// can import them from the SDK without duplicating definitions.
+export type {
+  Participant,
+  Incentive,
+  Material,
+  Waste,
+  WasteTransfer,
+  ParticipantStats,
+  GlobalMetrics,
+  ContractError,
+} from '@scavngr/types'
+
 // SDK-specific types and client extensions
 import type { ClientOptions as BaseClientOptions } from '@scavngr/types'
 
@@ -35,6 +48,21 @@ export interface SdkClientOptions extends BaseClientOptions {
 }
 
 /**
+ * Decoded value returned from a simulated contract call.
+ *
+ * Soroban return values are dynamically typed, so this is a discriminated
+ * union of the shapes the SDK knows how to decode rather than `unknown`.
+ */
+export type SimulationResultValue =
+  | string
+  | number
+  | bigint
+  | boolean
+  | null
+  | SimulationResultValue[]
+  | { [key: string]: SimulationResultValue }
+
+/**
  * Result of a Soroban transaction simulation.
  *
  * Returned before submitting a transaction to estimate resource usage
@@ -51,7 +79,7 @@ export interface SimulationResult {
     memoryBytes: number
   }
   /** Decoded return value if the simulation succeeded. */
-  result?: unknown
+  result?: SimulationResultValue
   /** Error message if the simulation failed. */
   error?: string
 }
@@ -61,7 +89,7 @@ export interface SimulationResult {
  *
  * @typeParam T - The expected decoded return type from the contract call.
  */
-export interface TransactionResult<T = unknown> {
+export interface TransactionResult<T = SimulationResultValue> {
   /** Whether the transaction was accepted and confirmed on-chain. */
   success: boolean
   /**

@@ -51,12 +51,6 @@ pub fn paginate<T: Clone>(items: &[T], page: u32, limit: u32) -> PaginatedRespon
     paginate_from_offset(items, start, page, limit)
 }
 
-pub fn paginate_from_cursor<T: Clone>(items: &[T], cursor: Option<u32>, limit: u32) -> PaginatedResponse<T> {
-    let offset = cursor.unwrap_or(0);
-    let page = if limit == 0 { 1 } else { offset / limit + 1 };
-    paginate_from_offset(items, offset, page, limit)
-}
-
 fn paginate_from_offset<T: Clone>(items: &[T], offset: u32, page: u32, limit: u32) -> PaginatedResponse<T> {
     let total = items.len() as u32;
     let start = offset as usize;
