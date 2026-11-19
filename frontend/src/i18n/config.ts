@@ -8,7 +8,12 @@ import fr from './locales/fr.json';
 import zh from './locales/zh.json';
 import ar from './locales/ar.json';
 
-const resources = {
+export const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'zh', 'ar'] as const;
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+
+export const DEFAULT_LANGUAGE: SupportedLanguage = 'en';
+
+export const resources = {
   en: { translation: en },
   es: { translation: es },
   fr: { translation: fr },
@@ -22,12 +27,17 @@ export function getDirection(lang: string): 'rtl' | 'ltr' {
   return RTL_LANGUAGES.has(lang) ? 'rtl' : 'ltr';
 }
 
+export function isSupportedLanguage(lang: string): lang is SupportedLanguage {
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(lang);
+}
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'en',
+    fallbackLng: DEFAULT_LANGUAGE,
+    supportedLngs: [...SUPPORTED_LANGUAGES],
     interpolation: {
       escapeValue: false,
     },
@@ -35,6 +45,7 @@ i18n
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
     },
+    returnNull: false,
   });
 
 // Apply RTL direction on language change

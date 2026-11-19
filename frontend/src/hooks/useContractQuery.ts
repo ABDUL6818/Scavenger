@@ -32,6 +32,8 @@ import {
 import { useApi } from './useApi'
 import { ScavengerClient } from '@/api/client'
 import { ContractError } from '@/api/types'
+import { cacheKeys } from '@/lib/queryKeys'
+import { queryCachePolicy } from '@/lib/queryClient'
 
 // ── Query ─────────────────────────────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ export function useContractQuery<T>(
 ) {
   const api = useApi()
   return useQuery<T, ContractError>({
+    ...queryCachePolicy,
     queryKey,
     queryFn: () => fn(api),
     ...options,
@@ -104,6 +107,9 @@ export function useContractMutation<TVariables, TData = void>(
           invalidateKeys.map((key) => queryClient.invalidateQueries({ queryKey: key }))
         )
       }
+      // Always refresh the shared contract cache after a successful mutation
+      // so read queries stay consistent with the latest on-chain state.
+      await queryClient.invalidateQueries({ queryKey: cacheKeys.contracts.all })
       restOptions.onSuccess?.(data, variables, context)
     },
     ...restOptions,

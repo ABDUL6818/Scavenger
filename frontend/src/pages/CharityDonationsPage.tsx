@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useCharityDonations } from '@/hooks/useCharityDonations'
 import { useWallet } from '@/context/WalletContext'
@@ -17,6 +18,7 @@ import {
 import { TransactionConfirmDialog } from '@/components/ui/TransactionConfirmDialog'
 import { Heart, Download, ExternalLink, History } from 'lucide-react'
 import { formatTokenAmount, formatDate } from '@/lib/helpers'
+import { CharityTab } from '@/lib/constants'
 
 // ── Charity Profile Card ──────────────────────────────────────────────────────
 
@@ -29,6 +31,7 @@ function CharityCard({
   onDonate: (c: Charity) => void
   onProfile: (c: Charity) => void
 }) {
+  const { t } = useTranslation()
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -40,14 +43,14 @@ function CharityCard({
             </Badge>
           </div>
           <Button size="sm" variant="outline" onClick={() => onProfile(charity)}>
-            Profile
+            {t('charity.profile')}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">{charity.description}</p>
         <Button size="sm" className="w-full" onClick={() => onDonate(charity)}>
-          <Heart className="mr-1 h-3 w-3" /> Donate
+          <Heart className="mr-1 h-3 w-3" /> {t('charity.donate')}
         </Button>
       </CardContent>
     </Card>
@@ -65,6 +68,7 @@ function CharityProfileDialog({
   onClose: () => void
   onDonate: (c: Charity) => void
 }) {
+  const { t } = useTranslation()
   if (!charity) return null
   return (
     <Dialog open={!!charity} onOpenChange={(v) => !v && onClose()}>
@@ -76,7 +80,7 @@ function CharityProfileDialog({
           <Badge variant="secondary">{charity.category}</Badge>
           <p className="text-muted-foreground">{charity.description}</p>
           <div>
-            <span className="font-medium">Contract Address: </span>
+            <span className="font-medium">{t('charity.contractAddress')}: </span>
             <span className="break-all text-xs text-muted-foreground">{charity.address}</span>
           </div>
           {charity.website && (
@@ -92,7 +96,7 @@ function CharityProfileDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Close
+            {t('common.close')}
           </Button>
           <Button
             onClick={() => {
@@ -100,7 +104,7 @@ function CharityProfileDialog({
               onDonate(charity)
             }}
           >
-            <Heart className="mr-1 h-3 w-3" /> Donate
+            <Heart className="mr-1 h-3 w-3" /> {t('charity.donate')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -123,6 +127,7 @@ function DonateDialog({
   onClose: () => void
   onConfirm: (amount: bigint) => void
 }) {
+  const { t } = useTranslation()
   const [amountStr, setAmountStr] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -141,35 +146,38 @@ function DonateDialog({
       <Dialog open={!!charity && !showConfirm} onOpenChange={(v) => !v && onClose()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Donate to {charity.name}</DialogTitle>
+            <DialogTitle>{t('charity.donateTo', { name: charity.name })}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Available balance: <strong>{formatTokenAmount(balance)}</strong> tokens
+              {t('charity.availableBalance')}: <strong>{formatTokenAmount(balance)}</strong>{' '}
+              {t('charity.tokens')}
             </p>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Token Amount</label>
+              <label className="text-sm font-medium">{t('charity.tokenAmount')}</label>
               <input
                 type="number"
                 min="1"
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                placeholder="Enter amount"
+                placeholder={t('charity.enterAmount')}
                 value={amountStr}
                 onChange={(e) => setAmountStr(e.target.value.replace(/\D/g, ''))}
               />
               {amountStr && invalid && (
                 <p className="text-xs text-destructive">
-                  {parsed <= 0n ? 'Amount must be greater than zero.' : 'Insufficient balance.'}
+                  {parsed <= 0n
+                    ? t('charity.amountGreaterThanZero')
+                    : t('charity.insufficientBalance')}
                 </p>
               )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSubmit} disabled={invalid || !amountStr}>
-              Review
+              {t('charity.review')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -177,8 +185,11 @@ function DonateDialog({
 
       <TransactionConfirmDialog
         open={showConfirm}
-        title={`Donate to ${charity.name}`}
-        description={`You are donating ${formatTokenAmount(parsed)} tokens to ${charity.name}. This action cannot be undone.`}
+        title={t('charity.donateTo', { name: charity.name })}
+        description={t('charity.donateConfirmDescription', {
+          amount: formatTokenAmount(parsed),
+          name: charity.name,
+        })}
         isLoading={isPending}
         onConfirm={() => onConfirm(parsed)}
         onCancel={() => setShowConfirm(false)}
@@ -196,15 +207,18 @@ function HistoryRow({
   donation: CharityDonation
   onDownload: (d: CharityDonation) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-2 rounded-md border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{donation.charityName}</span>
-        <Badge variant="outline">{formatTokenAmount(donation.tokenAmount)} tokens</Badge>
+        <Badge variant="outline">
+          {t('charity.tokensAmount', { amount: formatTokenAmount(donation.tokenAmount) })}
+        </Badge>
         <span className="text-xs text-muted-foreground">{formatDate(donation.timestamp / 1000)}</span>
       </div>
       <Button size="sm" variant="outline" onClick={() => onDownload(donation)}>
-        <Download className="mr-1 h-3 w-3" /> Receipt
+        <Download className="mr-1 h-3 w-3" /> {t('charity.receipt')}
       </Button>
     </div>
   )
@@ -213,19 +227,20 @@ function HistoryRow({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function CharityDonationsPage() {
-  useAppTitle('Charity Donations')
+  const { t } = useTranslation()
+  useAppTitle(t('charity.title'))
   const { address } = useWallet()
   const { charities, donations, totalDonated, balance, donate, downloadReceipt, isPending, error } =
     useCharityDonations(address)
 
-  const [tab, setTab] = useState<'charities' | 'history'>('charities')
+  const [tab, setTab] = useState<CharityTab>(CharityTab.Charities)
   const [donateTarget, setDonateTarget] = useState<Charity | null>(null)
   const [profileTarget, setProfileTarget] = useState<Charity | null>(null)
 
   if (!address) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Connect your wallet to donate to charities.
+        {t('charity.connectWallet')}
       </div>
     )
   }
@@ -240,9 +255,10 @@ export function CharityDonationsPage() {
     <div className="space-y-6 px-4 py-6 sm:px-0 sm:py-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Charity Donations</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{t('charity.title')}</h1>
           <p className="text-sm text-muted-foreground">
-            Total donated: <strong>{formatTokenAmount(totalDonated)}</strong> tokens
+            {t('charity.totalDonated')}: <strong>{formatTokenAmount(totalDonated)}</strong>{' '}
+            {t('charity.tokens')}
           </p>
         </div>
       </div>
@@ -251,20 +267,20 @@ export function CharityDonationsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg border p-1 w-fit">
-        {(['charities', 'history'] as const).map((t) => (
+        {([CharityTab.Charities, CharityTab.History] as const).map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={`rounded-md px-3 py-1.5 text-sm capitalize transition-colors ${
-              tab === t ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+              tab === tabKey ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
             }`}
           >
-            {t}
+            {t(`charity.tabs.${tabKey}`)}
           </button>
         ))}
       </div>
 
-      {tab === 'charities' && (
+      {tab === CharityTab.Charities && (
         <div className="grid gap-4 sm:grid-cols-2">
           {charities.map((c) => (
             <CharityCard
@@ -277,17 +293,17 @@ export function CharityDonationsPage() {
         </div>
       )}
 
-      {tab === 'history' && (
+      {tab === CharityTab.History && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Donation History</CardTitle>
+            <CardTitle className="text-base">{t('charity.donationHistory')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {donations.length === 0 ? (
               <EmptyState
                 icon={History}
-                title="No donations yet"
-                description="Your donation history will appear here"
+                title={t('charity.noDonations')}
+                description={t('charity.noDonationsDescription')}
               />
             ) : (
               donations.map((d) => (

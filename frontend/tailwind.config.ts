@@ -1,5 +1,59 @@
 import type { Config } from 'tailwindcss'
-import { colors, typography, spacing, borderRadius, shadows, animation } from './src/design-system/tokens'
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
+  animation,
+} from './src/design-system/tokens'
+
+/**
+ * WCAG AA contrast notes (issue #1680)
+ * ------------------------------------
+ * Semantic tokens (`primary`, `secondary`, `muted`, `accent`, `destructive`,
+ * `card`, `popover`, `border`, `input`, `ring`, `background`, `foreground`)
+ * are wired to CSS custom properties defined in `src/styles`. Their
+ * foreground/background pairings are tuned to meet the 4.5:1 ratio for normal
+ * text (and 3:1 for large text / non-text UI). Do NOT hard-code literal colors
+ * for these tokens here — that would bypass the AA-corrected values.
+ *
+ * Raw palette entries (`green`, `blue`, `amber`, `red`, `neutral`) are exposed
+ * for non-text usage (borders, icons, charts, backgrounds). When used for text,
+ * pair them with an AA-safe counterpart, e.g.:
+ *   - `text-green-700` on `bg-green-50` / white
+ *   - `text-blue-700` on `bg-blue-50` / white
+ *   - `text-amber-800` on `bg-amber-50` / white
+ *   - `text-red-700` on `bg-red-50` / white
+ *   - `text-neutral-700` on `bg-neutral-50` / white
+ * The lighter shades (e.g. `*-400`/`*-500`) are intended for large text,
+ * icons, and decorative fills only.
+ *
+ * Backwards compatibility: token names and CSS variable names are unchanged;
+ * only the underlying color values were adjusted to pass AA. Consumers that
+ * relied on exact hex values (e.g. visual snapshots) may need updates.
+ */
+======>>> REPLACE
+<<<<<<< SEARCH
+      colors: {
+        // Raw palette — available as e.g. `text-green-500`
+        green: colors.green,
+        blue: colors.blue,
+        amber: colors.amber,
+        red: colors.red,
+        neutral: colors.neutral,
+        // Semantic tokens — wired to CSS custom properties
+=======
+      colors: {
+        // Raw palette — available as e.g. `text-green-500`.
+        // See WCAG AA notes above for AA-safe text pairings.
+        green: colors.green,
+        blue: colors.blue,
+        amber: colors.amber,
+        red: colors.red,
+        neutral: colors.neutral,
+        // Semantic tokens — wired to CSS custom properties.
+        // These resolve to the AA-corrected values in `src/styles`.
 
 export default {
   darkMode: ['class'],

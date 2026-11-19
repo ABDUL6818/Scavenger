@@ -1,6 +1,7 @@
 export * from './types'
 export * from './client'
 export * from './httpClient'
+export * from '../constants'
 
 // Centralized typed API client and error mapper (see #1670).
 // Re-exported here so existing imports of '@/api' continue to resolve.

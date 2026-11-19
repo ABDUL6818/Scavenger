@@ -1,6 +1,7 @@
+import { NETWORKS, type Network } from './lib/constants'
 import { z } from 'zod'
 
-const VALID_NETWORKS = ['TESTNET', 'MAINNET', 'FUTURENET', 'STANDALONE'] as const
+const VALID_NETWORKS = Object.values(NETWORKS) as readonly Network[]
 const VALID_LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const
 
 const booleanFromString = z
@@ -19,12 +20,12 @@ const envSchema = z.object({
     .string({ required_error: 'Missing required environment variable: VITE_CONTRACT_ID' })
     .min(1, 'VITE_CONTRACT_ID must not be empty'),
   VITE_NETWORK: z
-    .enum(VALID_NETWORKS, {
+    .enum(VALID_NETWORKS as unknown as [Network, ...Network[]], {
       errorMap: () => ({
         message: `VITE_NETWORK must be one of: ${VALID_NETWORKS.join(', ')}`
       })
     })
-    .default('TESTNET'),
+    .default(NETWORKS.TESTNET),
   VITE_RPC_URL: z
     .string({ required_error: 'Missing required environment variable: VITE_RPC_URL' })
     .min(1, 'VITE_RPC_URL must not be empty')
@@ -43,7 +44,7 @@ const envSchema = z.object({
 })
 
 export type Env = z.infer<typeof envSchema>
-export type Network = (typeof VALID_NETWORKS)[number]
+export type { Network }
 export type LogLevel = (typeof VALID_LOG_LEVELS)[number]
 
 const parseEnv = (raw: Record<string, unknown>): Env => {
@@ -80,20 +81,3 @@ export const config = Object.freeze({
 export type AppConfig = typeof config
 
 export { VALID_NETWORKS, VALID_LOG_LEVELS, envSchema, parseEnv }
-```
-
-Note: The file `frontend/src/config.ts` should be replaced with re-exports from `frontend/src/config/env.ts`:
-
-```typescript
-export { config, env, VALID_NETWORKS, VALID_LOG_LEVELS, envSchema, parseEnv } from './config/env'
-export type { AppConfig, Env, Network, LogLevel } from './config/env'
-```
-
-And `frontend/src/config/app.ts` should similarly re-export from `./env`:
-
-```typescript
-export { config, env, VALID_NETWORKS, VALID_LOG_LEVELS, envSchema, parseEnv } from './env'
-export type { AppConfig, Env, Network, LogLevel } from './env'
-```
-
-Backwards-compatibility impact: Existing imports of `config` from `frontend/src/config` and `frontend/src/config/app` continue to work unchanged. The `config` object is now frozen and gains additional fields (`apiBaseUrl`, `apiTimeout`, `offlineMode`, `analytics`, `notifications`, `logLevel`, `logConsole`), which is additive. Validation now happens once at module load via zod, producing aggregated error messages instead of failing on the first missing variable.

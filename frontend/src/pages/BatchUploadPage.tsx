@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Upload, Download, CheckCircle2, XCircle, AlertCircle, FileText, Loader2 } from 'lucide-react'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -6,25 +7,26 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
 import { WasteType } from '@/api/types'
+import { SubmissionStatus } from '@/constants/statuses'
 
 // CSV column order: waste_type, weight, latitude, longitude
 const CSV_TEMPLATE = `waste_type,weight,latitude,longitude
-Paper,10.5,40.7128,-74.0060
-PetPlastic,5.0,40.7128,-74.0060
-Plastic,8.3,40.7128,-74.0060
-Metal,15.0,40.7128,-74.0060
-Glass,6.2,40.7128,-74.0060
-Organic,12.0,40.7128,-74.0060
-Electronic,3.5,40.7128,-74.0060`
+${WasteType.Paper},10.5,40.7128,-74.0060
+${WasteType.PetPlastic},5.0,40.7128,-74.0060
+${WasteType.Plastic},8.3,40.7128,-74.0060
+${WasteType.Metal},15.0,40.7128,-74.0060
+${WasteType.Glass},6.2,40.7128,-74.0060
+${WasteType.Organic},12.0,40.7128,-74.0060
+${WasteType.Electronic},3.5,40.7128,-74.0060`
 
 const WASTE_TYPE_MAP: Record<string, WasteType> = {
-  Paper: WasteType.Paper,
-  PetPlastic: WasteType.PetPlastic,
-  Plastic: WasteType.Plastic,
-  Metal: WasteType.Metal,
-  Glass: WasteType.Glass,
-  Organic: WasteType.Organic,
-  Electronic: WasteType.Electronic,
+  [WasteType.Paper]: WasteType.Paper,
+  [WasteType.PetPlastic]: WasteType.PetPlastic,
+  [WasteType.Plastic]: WasteType.Plastic,
+  [WasteType.Metal]: WasteType.Metal,
+  [WasteType.Glass]: WasteType.Glass,
+  [WasteType.Organic]: WasteType.Organic,
+  [WasteType.Electronic]: WasteType.Electronic,
 }
 
 interface ParsedRow {
@@ -37,15 +39,15 @@ interface ParsedRow {
   valid: boolean
 }
 
-type SubmissionStatus = 'idle' | 'uploading' | 'done'
-
 interface RowResult {
   rowIndex: number
   success: boolean
   message: string
 }
 
-function parseCSV(text: string): ParsedRow[] {
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string
+
+function parseCSV(text: string, t: TranslateFn): ParsedRow[] {
   const lines = text.trim().split('\n').filter(Boolean)
   if (lines.length < 2) return []
   const rows = lines.slice(1) // skip header
@@ -56,13 +58,15 @@ function parseCSV(text: string): ParsedRow[] {
       .map((v) => v.trim())
 
     const errors: string[] = []
-    if (!WASTE_TYPE_MAP[waste_type]) errors.push(`Unknown waste type "${waste_type}"`)
+    if (!WASTE_TYPE_MAP[waste_type]) {
+      errors.push(t('batchUpload.errors.unknownWasteType', { wasteType: waste_type }))
+    }
     const w = parseFloat(weight)
-    if (isNaN(w) || w <= 0) errors.push('Weight must be a positive number')
+    if (isNaN(w) || w <= 0) errors.push(t('batchUpload.errors.invalidWeight'))
     const lat = parseFloat(latitude)
-    if (isNaN(lat) || lat < -90 || lat > 90) errors.push('Latitude must be between -90 and 90')
+    if (isNaN(lat) || lat < -90 || lat > 90) errors.push(t('batchUpload.errors.invalidLatitude'))
     const lon = parseFloat(longitude)
-    if (isNaN(lon) || lon < -180 || lon > 180) errors.push('Longitude must be between -180 and 180')
+    if (isNaN(lon) || lon < -180 || lon > 180) errors.push(t('batchUpload.errors.invalidLongitude'))
 
     return { rowIndex: idx + 2, waste_type, weight, latitude, longitude, errors, valid: errors.length === 0 }
   })
@@ -79,11 +83,12 @@ function downloadTemplate() {
 }
 
 export function BatchUploadPage() {
-  useAppTitle('Batch Upload')
+  const { t } = useTranslation()
+  useAppTitle(t('batchUpload.title'))
   const fileRef = useRef<HTMLInputElement>(null)
   const [rows, setRows] = useState<ParsedRow[]>([])
   const [fileName, setFileName] = useState('')
-  const [status, setStatus] = useState<SubmissionStatus>('idle')
+  const [status, setStatus] = useState<SubmissionStatus>(SubmissionStatus.Idle)
   const [progress, setProgress] = useState(0)
   const [results, setResults] = useState<RowResult[]>([])
   const [dragOver, setDragOver] = useState(false)
@@ -93,15 +98,15 @@ export function BatchUploadPage() {
 
   const handleFile = useCallback((file: File) => {
     setFileName(file.name)
-    setStatus('idle')
+    setStatus(SubmissionStatus.Idle)
     setResults([])
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
-      setRows(parseCSV(text))
+      setRows(parseCSV(text, t))
     }
     reader.readAsText(file)
-  }, [])
+  }, [t])
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -117,19 +122,19 @@ export function BatchUploadPage() {
 
   async function handleSubmit() {
     if (validRows.length === 0) return
-    setStatus('uploading')
+    setStatus(SubmissionStatus.Uploading)
     setProgress(0)
     const res: RowResult[] = []
 
     for (let i = 0; i < validRows.length; i++) {
       // Simulated submission — replace with actual contract call
       await new Promise((r) => setTimeout(r, 200))
-      res.push({ rowIndex: validRows[i].rowIndex, success: true, message: 'Submitted' })
+      res.push({ rowIndex: validRows[i].rowIndex, success: true, message: t('batchUpload.results.submitted') })
       setProgress(Math.round(((i + 1) / validRows.length) * 100))
     }
 
     setResults(res)
-    setStatus('done')
+    setStatus(SubmissionStatus.Done)
   }
 
   const succeeded = results.filter((r) => r.success).length
@@ -138,8 +143,8 @@ export function BatchUploadPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Batch Upload</h1>
-        <p className="text-sm text-muted-foreground">Submit multiple waste items at once via CSV</p>
+        <h1 className="text-2xl font-bold">{t('batchUpload.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('batchUpload.subtitle')}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -150,7 +155,7 @@ export function BatchUploadPage() {
               <div
                 role="button"
                 tabIndex={0}
-                aria-label="Drop CSV file or click to upload"
+                aria-label={t('batchUpload.dropZone.ariaLabel')}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={onDrop}
@@ -163,8 +168,8 @@ export function BatchUploadPage() {
               >
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">{fileName || 'Drop your CSV here or click to browse'}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Supports .csv files only</p>
+                  <p className="font-medium">{fileName || t('batchUpload.dropZone.prompt')}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('batchUpload.dropZone.hint')}</p>
                 </div>
                 <input
                   ref={fileRef}
@@ -172,7 +177,7 @@ export function BatchUploadPage() {
                   accept=".csv"
                   className="hidden"
                   onChange={onFileChange}
-                  aria-label="Upload CSV file"
+                  aria-label={t('batchUpload.dropZone.uploadAriaLabel')}
                 />
               </div>
             </CardContent>
@@ -183,11 +188,11 @@ export function BatchUploadPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span>Preview ({rows.length} rows)</span>
+                  <span>{t('batchUpload.preview.title', { count: rows.length })}</span>
                   <div className="flex gap-2 text-xs font-normal">
-                    <span className="text-green-600">{validRows.length} valid</span>
+                    <span className="text-green-600">{t('batchUpload.preview.valid', { count: validRows.length })}</span>
                     {invalidRows.length > 0 && (
-                      <span className="text-destructive">{invalidRows.length} invalid</span>
+                      <span className="text-destructive">{t('batchUpload.preview.invalid', { count: invalidRows.length })}</span>
                     )}
                   </div>
                 </CardTitle>
@@ -197,12 +202,12 @@ export function BatchUploadPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/40">
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">Row</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">Type</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">Weight (kg)</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">Lat</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">Lon</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">Status</th>
+                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.row')}</th>
+                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.type')}</th>
+                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.weight')}</th>
+                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.lat')}</th>
+                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.lon')}</th>
+                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.status')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -233,12 +238,12 @@ export function BatchUploadPage() {
           )}
 
           {/* Progress */}
-          {status === 'uploading' && (
+          {status === SubmissionStatus.Uploading && (
             <Card>
               <CardContent className="pt-6 space-y-3">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm font-medium">Submitting… {progress}%</span>
+                  <span className="text-sm font-medium">{t('batchUpload.progress.submitting', { progress })}</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                   <div
@@ -251,7 +256,7 @@ export function BatchUploadPage() {
           )}
 
           {/* Results */}
-          {status === 'done' && (
+          {status === SubmissionStatus.Done && (
             <Card>
               <CardContent className="pt-6 space-y-3">
                 <div className="flex items-center gap-2">
@@ -261,13 +266,13 @@ export function BatchUploadPage() {
                     <AlertCircle className="h-5 w-5 text-yellow-500" />
                   )}
                   <span className="font-medium text-sm">
-                    {succeeded} submitted, {failed} failed
+                    {t('batchUpload.results.summary', { succeeded, failed })}
                   </span>
                 </div>
                 {failed > 0 && (
                   <ul className="text-xs text-destructive space-y-1">
                     {results.filter((r) => !r.success).map((r) => (
-                      <li key={r.rowIndex}>Row {r.rowIndex}: {r.message}</li>
+                      <li key={r.rowIndex}>{t('batchUpload.results.rowError', { row: r.rowIndex, message: r.message })}</li>
                     ))}
                   </ul>
                 )}
@@ -280,22 +285,22 @@ export function BatchUploadPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Actions</CardTitle>
+              <CardTitle className="text-base">{t('batchUpload.actions.title')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button variant="outline" className="w-full justify-start" onClick={downloadTemplate}>
                 <Download className="h-4 w-4 mr-2" />
-                Download CSV Template
+                {t('batchUpload.actions.downloadTemplate')}
               </Button>
               <Button
                 className="w-full"
-                disabled={validRows.length === 0 || status === 'uploading'}
+                disabled={validRows.length === 0 || status === SubmissionStatus.Uploading}
                 onClick={() => void handleSubmit()}
               >
-                {status === 'uploading' ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</>
+                {status === SubmissionStatus.Uploading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t('batchUpload.actions.uploading')}</>
                 ) : (
-                  <><Upload className="h-4 w-4 mr-2" />Submit {validRows.length} items</>
+                  <><Upload className="h-4 w-4 mr-2" />{t('batchUpload.actions.submit', { count: validRows.length })}</>
                 )}
               </Button>
             </CardContent>
@@ -305,27 +310,27 @@ export function BatchUploadPage() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <FileText className="h-4 w-4" />
-                CSV Format
+                {t('batchUpload.format.title')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <p className="text-muted-foreground text-xs">Required columns in order:</p>
+              <p className="text-muted-foreground text-xs">{t('batchUpload.format.requiredColumns')}</p>
               {['waste_type', 'weight', 'latitude', 'longitude'].map((col) => (
                 <div key={col} className="flex items-center justify-between">
                   <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{col}</code>
                   {col === 'waste_type' && (
-                    <span className="text-xs text-muted-foreground">string</span>
+                    <span className="text-xs text-muted-foreground">{t('batchUpload.format.types.string')}</span>
                   )}
                   {col === 'weight' && (
-                    <span className="text-xs text-muted-foreground">kg</span>
+                    <span className="text-xs text-muted-foreground">{t('batchUpload.format.types.kg')}</span>
                   )}
                   {(col === 'latitude' || col === 'longitude') && (
-                    <span className="text-xs text-muted-foreground">decimal</span>
+                    <span className="text-xs text-muted-foreground">{t('batchUpload.format.types.decimal')}</span>
                   )}
                 </div>
               ))}
               <div className="mt-3 pt-3 border-t">
-                <p className="text-xs text-muted-foreground mb-1.5">Valid waste types:</p>
+                <p className="text-xs text-muted-foreground mb-1.5">{t('batchUpload.format.validWasteTypes')}</p>
                 <div className="flex flex-wrap gap-1">
                   {Object.keys(WASTE_TYPE_MAP).map((t) => (
                     <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>

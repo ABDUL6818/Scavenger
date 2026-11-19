@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+/**
+ * Lifecycle status shared with the transaction-status module so async state
+ * (including polling hooks) can be mapped onto the same pending/success/failed
+ * UI without translation layers.
+ */
 export type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export interface AsyncState<T> {
@@ -34,7 +39,16 @@ export interface UseAsyncReturn<T, Args extends unknown[]> extends AsyncState<T>
  * completions from superseded calls are ignored. Unmount semantics: state is
  * never updated after unmount (no "setState on unmounted component" warnings).
  *
- * @deprecated Prefer the consolidated generic async hook exported from
+ * @deprecated For **server state** (fetching data from the API) use TanStack
+ * Query instead — see `frontend/src/lib/queryClient.ts` and the hooks in
+ * `frontend/src/hooks/queries/`. Query provides caching, retries,
+ * invalidation and request de-duplication out of the box.
+ *
+ * This hook remains supported only for **non-server, imperative side effects**
+ * (e.g. submitting a form, triggering a one-off mutation-like action) where
+ * there is no cacheable resource to key on. Do not use it to read API data.
+ *
+ * Prefer the consolidated generic async hook exported from
  * `frontend/src/hooks` (see `useAsyncOperation`). This hook remains as a thin
  * backwards-compatible re-export with identical behaviour; existing imports
  * keep working and will be migrated incrementally.
@@ -42,6 +56,14 @@ export interface UseAsyncReturn<T, Args extends unknown[]> extends AsyncState<T>
 export function useAsync<T, Args extends unknown[] = []>(
   fn: (...args: Args) => Promise<T>
 ): UseAsyncReturn<T, Args> {
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[useAsync] Deprecated for server state. Use TanStack Query ' +
+        '(hooks/queries) for API reads; reserve useAsync for imperative, ' +
+        'non-cacheable actions.'
+    )
+  }
   const [state, setState] = useState<Omit<AsyncState<T>, 'isLoading'>>({
     status: 'idle',
     data: null,
@@ -61,6 +83,11 @@ export function useAsync<T, Args extends unknown[] = []>(
       mountedRef.current = false
     }
   }, [])
+
+  // Backwards-compatibility: `status` values are unchanged ('idle' | 'loading'
+  // | 'success' | 'error') and `isLoading` is still derived from `status`, so
+  // existing callers keep working. New consumers (e.g. the transaction-status
+  // polling hook) can map `status` directly onto pending/success/failed.
 
   const run = useCallback(async (...args: Args): Promise<T | undefined> => {
     const callId = ++callIdRef.current
@@ -84,6 +111,9 @@ export function useAsync<T, Args extends unknown[] = []>(
     callIdRef.current++
     setState({ status: 'idle', data: null, error: null })
   }, [])
+
+  // No console.* calls or commented-out code here: failures are surfaced via
+  // `error` in the returned state for callers to render.
 
   return { ...state, isLoading: state.status === 'loading', run, reset }
 }

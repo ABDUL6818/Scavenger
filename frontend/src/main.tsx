@@ -11,6 +11,7 @@ import { ThemeProvider, useTheme } from '@/context/ThemeProvider'
 import { StoreProvider } from '@/store'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { getErrorMessage } from '@/lib/contractErrors'
+import { reportError } from '@/lib/errorReporting'
 import { initWebVitals } from '@/lib/webVitals'
 import { getDB, setQueryData } from '@/lib/indexedDB'
 import { queryCachePolicy } from '@/lib/queryCachePolicy'
@@ -38,7 +39,10 @@ initWebVitals((metric) => {
         timestamp: new Date().toISOString(),
       }))
     } catch (error) {
-      // Silently fail in production
+      // Metrics reporting must never break the app; surface via the unified
+      // error reporter (toast in dev, beacon/log in production) instead of
+      // silently swallowing the failure.
+      reportError(error, { source: 'webVitals' })
     }
   }
 })
@@ -130,6 +134,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               </WalletProvider>
             </NetworkProvider>
           </StoreProvider>
+          {/* Toaster lives inside the boundary so fallback UI and boundary
+              errors can still surface toast notifications. */}
+          <ThemedToaster />
         </ErrorBoundary>
       </ThemeProvider>
       {ReactQueryDevtools && (

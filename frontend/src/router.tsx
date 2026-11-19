@@ -3,7 +3,12 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { PageSkeleton } from '@/components/ui/Skeletons'
+// Unified error strategy: `RouteErrorBoundary` is a thin wrapper around the
+// single app-level `ErrorBoundary` and reports through the shared toast/error
+// reporter. The router only ever references this one boundary — there are no
+// console.error-only fallbacks in the route configuration.
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
+import { ROUTES } from '@/lib/constants'
 
 // Eagerly load tiny pages that are always needed at startup
 import { LandingPage } from '@/pages/LandingPage'
@@ -204,78 +209,88 @@ function ProtectedLayout() {
       <PageFallback />
     </AppShell>
   ) : (
-    <Navigate to="/login" replace />
+    <Navigate to={ROUTES.LOGIN} replace />
   )
 }
 
 // Each protected page gets its own `errorElement` so a crash on one route
 // renders a fallback in place of just that page — the app shell and every
 // other route stay unaffected, and navigating away recovers automatically.
+// The `errorElement` is attached centrally below (see `withErrorBoundary`),
+// so route entries stay plain `{ path, element }` objects. This keeps the
+// exported `PROTECTED_ROUTES` shape backwards-compatible for any consumer
+// that maps over it.
 export const PROTECTED_ROUTES = [
-  { path: 'dashboard', element: <LazyRoute><HomePage /></LazyRoute> },
-  { path: 'submit', element: <div>Submit Waste</div> },
-  { path: 'collect', element: <LazyRoute><CollectorDashboardPage /></LazyRoute> },
-  { path: 'incentives', element: <LazyRoute><IncentivesMarketplacePage /></LazyRoute> },
-  { path: 'incentives/manage', element: <LazyRoute><IncentivesPage /></LazyRoute> },
-  { path: 'transfer', element: <LazyRoute><MaterialTransferPage /></LazyRoute> },
-  { path: 'history', element: <div>History</div> },
-  { path: 'dashboard/recycler', element: <LazyRoute><RecyclerDashboard /></LazyRoute> },
-  { path: 'wastes', element: <LazyRoute><WasteListPage /></LazyRoute> },
-  { path: 'manufacturer', element: <LazyRoute><ManufacturerDashboardPage /></LazyRoute> },
-  { path: 'settings', element: <LazyRoute><SettingsPage /></LazyRoute> },
-  { path: 'settings/offline', element: <LazyRoute><OfflineSettings /></LazyRoute> },
-  { path: 'rewards', element: <LazyRoute><RewardsPage /></LazyRoute> },
-  { path: 'tracker', element: <LazyRoute><SupplyChainTrackerPage /></LazyRoute> },
-  { path: 'community', element: <LazyRoute><CommunityPage /></LazyRoute> },
-  { path: 'governance', element: <LazyRoute><GovernancePage /></LazyRoute> },
-  { path: 'analytics', element: <LazyRoute><AnalyticsPage /></LazyRoute> },
-  { path: 'map', element: <LazyRoute><WasteMapPage /></LazyRoute> },
-  { path: 'admin', element: <LazyRoute><AdminDashboardPage /></LazyRoute> },
-  { path: 'verify', element: <LazyRoute><VerificationPage /></LazyRoute> },
-  { path: 'route-planner', element: <LazyRoute><RoutePlannerPage /></LazyRoute> },
-  { path: 'messages', element: <LazyRoute><MessagingPage /></LazyRoute> },
-  { path: 'compare', element: <LazyRoute><WasteComparisonPage /></LazyRoute> },
-  { path: 'predictions', element: <LazyRoute><PredictiveAnalyticsPage /></LazyRoute> },
-  { path: 'marketplace', element: <LazyRoute><WasteMarketplacePage /></LazyRoute> },
-  { path: 'certifications', element: <LazyRoute><WasteCertificationPage /></LazyRoute> },
-  { path: 'recycling-guide', element: <LazyRoute><RecyclingGuidePage /></LazyRoute> },
-  { path: 'performance', element: <LazyRoute><PerformanceMonitoringPage /></LazyRoute> },
-  { path: 'achievements', element: <LazyRoute><GamificationPage /></LazyRoute> },
-  { path: 'offline', element: <LazyRoute><OfflinePage /></LazyRoute> },
-  { path: 'waste-history', element: <LazyRoute><WasteHistoryPage /></LazyRoute> },
-  { path: 'participant-search', element: <LazyRoute><ParticipantSearchPage /></LazyRoute> },
-  { path: 'waste-statistics', element: <LazyRoute><WasteStatisticsPage /></LazyRoute> },
-  { path: 'reward-tracking', element: <LazyRoute><RewardTrackingPage /></LazyRoute> },
-  { path: 'verification-dashboard', element: <LazyRoute><WasteVerificationDashboardPage /></LazyRoute> },
-  { path: 'register', element: <LazyRoute><ParticipantRegistrationPage /></LazyRoute> },
-  { path: 'test-reports', element: <LazyRoute><TestReportsPage /></LazyRoute> },
-  { path: 'compliance-reports', element: <LazyRoute><ComplianceReportsPage /></LazyRoute> },
-  { path: 'notifications', element: <LazyRoute><NotificationCenterPage /></LazyRoute> },
-  { path: 'batch-upload', element: <LazyRoute><BatchUploadPage /></LazyRoute> },
-  { path: 'feature-flags', element: <LazyRoute><FeatureFlagsPage /></LazyRoute> },
-  { path: 'health', element: <LazyRoute><PlatformHealthDashboardPage /></LazyRoute> },
-  { path: 'slas', element: <LazyRoute><PerformanceSLAsPage /></LazyRoute> },
+  { path: ROUTES.DASHBOARD, element: <LazyRoute><HomePage /></LazyRoute> },
+  { path: ROUTES.SUBMIT, element: <div>Submit Waste</div> },
+  { path: ROUTES.COLLECT, element: <LazyRoute><CollectorDashboardPage /></LazyRoute> },
+  { path: ROUTES.INCENTIVES, element: <LazyRoute><IncentivesMarketplacePage /></LazyRoute> },
+  { path: ROUTES.INCENTIVES_MANAGE, element: <LazyRoute><IncentivesPage /></LazyRoute> },
+  { path: ROUTES.TRANSFER, element: <LazyRoute><MaterialTransferPage /></LazyRoute> },
+  { path: ROUTES.HISTORY, element: <div>History</div> },
+  { path: ROUTES.DASHBOARD_RECYCLER, element: <LazyRoute><RecyclerDashboard /></LazyRoute> },
+  { path: ROUTES.WASTES, element: <LazyRoute><WasteListPage /></LazyRoute> },
+  { path: ROUTES.MANUFACTURER, element: <LazyRoute><ManufacturerDashboardPage /></LazyRoute> },
+  { path: ROUTES.SETTINGS, element: <LazyRoute><SettingsPage /></LazyRoute> },
+  { path: ROUTES.SETTINGS_OFFLINE, element: <LazyRoute><OfflineSettings /></LazyRoute> },
+  { path: ROUTES.REWARDS, element: <LazyRoute><RewardsPage /></LazyRoute> },
+  { path: ROUTES.TRACKER, element: <LazyRoute><SupplyChainTrackerPage /></LazyRoute> },
+  { path: ROUTES.COMMUNITY, element: <LazyRoute><CommunityPage /></LazyRoute> },
+  { path: ROUTES.GOVERNANCE, element: <LazyRoute><GovernancePage /></LazyRoute> },
+  { path: ROUTES.ANALYTICS, element: <LazyRoute><AnalyticsPage /></LazyRoute> },
+  { path: ROUTES.MAP, element: <LazyRoute><WasteMapPage /></LazyRoute> },
+  { path: ROUTES.ADMIN, element: <LazyRoute><AdminDashboardPage /></LazyRoute> },
+  { path: ROUTES.VERIFY, element: <LazyRoute><VerificationPage /></LazyRoute> },
+  { path: ROUTES.ROUTE_PLANNER, element: <LazyRoute><RoutePlannerPage /></LazyRoute> },
+  { path: ROUTES.MESSAGES, element: <LazyRoute><MessagingPage /></LazyRoute> },
+  { path: ROUTES.COMPARE, element: <LazyRoute><WasteComparisonPage /></LazyRoute> },
+  { path: ROUTES.PREDICTIONS, element: <LazyRoute><PredictiveAnalyticsPage /></LazyRoute> },
+  { path: ROUTES.MARKETPLACE, element: <LazyRoute><WasteMarketplacePage /></LazyRoute> },
+  { path: ROUTES.CERTIFICATIONS, element: <LazyRoute><WasteCertificationPage /></LazyRoute> },
+  { path: ROUTES.RECYCLING_GUIDE, element: <LazyRoute><RecyclingGuidePage /></LazyRoute> },
+  { path: ROUTES.PERFORMANCE, element: <LazyRoute><PerformanceMonitoringPage /></LazyRoute> },
+  { path: ROUTES.ACHIEVEMENTS, element: <LazyRoute><GamificationPage /></LazyRoute> },
+  { path: ROUTES.OFFLINE, element: <LazyRoute><OfflinePage /></LazyRoute> },
+  { path: ROUTES.WASTE_HISTORY, element: <LazyRoute><WasteHistoryPage /></LazyRoute> },
+  { path: ROUTES.PARTICIPANT_SEARCH, element: <LazyRoute><ParticipantSearchPage /></LazyRoute> },
+  { path: ROUTES.WASTE_STATISTICS, element: <LazyRoute><WasteStatisticsPage /></LazyRoute> },
+  { path: ROUTES.REWARD_TRACKING, element: <LazyRoute><RewardTrackingPage /></LazyRoute> },
+  { path: ROUTES.VERIFICATION_DASHBOARD, element: <LazyRoute><WasteVerificationDashboardPage /></LazyRoute> },
+  { path: ROUTES.REGISTER, element: <LazyRoute><ParticipantRegistrationPage /></LazyRoute> },
+  { path: ROUTES.TEST_REPORTS, element: <LazyRoute><TestReportsPage /></LazyRoute> },
+  { path: ROUTES.COMPLIANCE_REPORTS, element: <LazyRoute><ComplianceReportsPage /></LazyRoute> },
+  { path: ROUTES.NOTIFICATIONS, element: <LazyRoute><NotificationCenterPage /></LazyRoute> },
+  { path: ROUTES.BATCH_UPLOAD, element: <LazyRoute><BatchUploadPage /></LazyRoute> },
+  { path: ROUTES.FEATURE_FLAGS, element: <LazyRoute><FeatureFlagsPage /></LazyRoute> },
+  { path: ROUTES.HEALTH, element: <LazyRoute><PlatformHealthDashboardPage /></LazyRoute> },
+  { path: ROUTES.SLAS, element: <LazyRoute><PerformanceSLAsPage /></LazyRoute> },
   // Previously unrouted pages — wired up with lazy loading
-  { path: 'profile', element: <LazyRoute><ProfilePage /></LazyRoute> },
-  { path: 'donations', element: <LazyRoute><CharityDonationsPage /></LazyRoute> },
-  { path: 'environmental-impact', element: <LazyRoute><EnvironmentalImpactDashboardPage /></LazyRoute> },
-  { path: 'impact-calculator', element: <LazyRoute><ImpactCalculatorPage /></LazyRoute> },
-  { path: 'search', element: <LazyRoute><SearchResultsPage /></LazyRoute> },
-  { path: 'subscriptions', element: <LazyRoute><SubscriptionsPage /></LazyRoute> },
-  { path: 'qr', element: <LazyRoute><QRCodePage /></LazyRoute> },
+  { path: ROUTES.PROFILE, element: <LazyRoute><ProfilePage /></LazyRoute> },
+  { path: ROUTES.DONATIONS, element: <LazyRoute><CharityDonationsPage /></LazyRoute> },
+  { path: ROUTES.ENVIRONMENTAL_IMPACT, element: <LazyRoute><EnvironmentalImpactDashboardPage /></LazyRoute> },
+  { path: ROUTES.IMPACT_CALCULATOR, element: <LazyRoute><ImpactCalculatorPage /></LazyRoute> },
+  { path: ROUTES.SEARCH, element: <LazyRoute><SearchResultsPage /></LazyRoute> },
+  { path: ROUTES.SUBSCRIPTIONS, element: <LazyRoute><SubscriptionsPage /></LazyRoute> },
+  { path: ROUTES.QR, element: <LazyRoute><QRCodePage /></LazyRoute> },
 ]
 
+// Single place where the unified error boundary is attached to a route.
+// Every route (top-level and protected children) goes through this helper so
+// the error strategy cannot drift between routes.
+// eslint-disable-next-line react-refresh/only-export-components
+export function withErrorBoundary<T extends { element?: React.ReactNode }>(
+  route: T
+): T & { errorElement: React.ReactNode } {
+  return { ...route, errorElement: <RouteErrorBoundary /> }
+}
+
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/login" replace /> },
-  { path: '/login', element: <LoginPage />, errorElement: <RouteErrorBoundary /> },
-  { path: '/', element: <LandingPage />, errorElement: <RouteErrorBoundary /> },
-  {
+  withErrorBoundary({ path: ROUTES.ROOT, element: <Navigate to={ROUTES.LOGIN} replace /> }),
+  withErrorBoundary({ path: ROUTES.LOGIN, element: <LoginPage /> }),
+  withErrorBoundary({ path: ROUTES.ROOT, element: <LandingPage /> }),
+  withErrorBoundary({
     element: <ProtectedLayout />,
-    errorElement: <RouteErrorBoundary />,
-    children: PROTECTED_ROUTES.map((route) => ({
-      ...route,
-      errorElement: <RouteErrorBoundary />,
-    })),
-  },
-  { path: '*', element: <NotFoundPage />, errorElement: <RouteErrorBoundary /> },
+    children: PROTECTED_ROUTES.map((route) => withErrorBoundary(route)),
+  }),
+  withErrorBoundary({ path: ROUTES.NOT_FOUND, element: <NotFoundPage /> }),
 ])

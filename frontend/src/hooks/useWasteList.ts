@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@/context/WalletContext'
 import { Material } from '@/api/types'
 import { useToast } from '@/hooks/useToast'
+import { cacheKeys } from '@/lib/queryClient'
+import { queryCachePolicy } from '@/lib/queryCachePolicy'
 import { useScavengerClient } from '@/hooks/useScavengerClient'
-import { useAsyncData } from '@/hooks/useAsyncData'
 
 /**
  * Contract for `useWasteList`:
@@ -11,7 +13,8 @@ import { useAsyncData } from '@/hooks/useAsyncData'
  * - Reads the connected wallet address from `WalletContext` and the contract
  *   client from the consolidated `useScavengerClient` hook.
  * - Loads the participant's waste materials plus the contract admin address
- *   via `useAsyncData` (which owns loading/error state and reload semantics).
+ *   via a React Query cache entry (which owns loading/error state and reload
+ *   semantics).
  * - Exposes mutation helpers (`confirmWaste`, `transferWaste`, and the
  *   `batch*` variants) that perform optimistic updates where applicable and
  *   reload the list afterwards.
@@ -23,47 +26,68 @@ import { useAsyncData } from '@/hooks/useAsyncData'
 export function useWasteList() {
   const { address } = useWallet()
   const toast = useToast()
+  const queryClient = useQueryClient()
   const getClient = useScavengerClient()
-  const [adminAddress, setAdminAddress] = useState<string | null>(null)
 
-  const {
-    data: wastes,
-    isLoading,
-    error,
-    reload: load,
-    setData: setWastes,
-  } = useAsyncData<Material[]>(
-    async () => {
-      if (!address) return []
+  const wastesQuery = useQuery({
+    queryKey: cacheKeys.wasteList(address ?? ''),
+    queryFn: async () => {
+      if (!address) return { adminAddress: null, wastes: [] as Material[] }
       const client = getClient()
       const [admin, ids] = await Promise.all([
         client.getAdmin().catch(() => null),
-        client.getParticipantWastes(address),
+        client.getParticipantWastes(address as string),
       ])
       const materials = await Promise.all(ids.map((id) => client.getMaterial(id)))
-      setAdminAddress(admin)
-      return materials.filter((m): m is Material => m !== null)
+      return {
+        adminAddress: admin,
+        wastes: materials.filter((m): m is Material => m !== null),
+      }
     },
-    [address, getClient],
-    { enabled: Boolean(address), initialData: [], errorMessage: 'Failed to load wastes' }
-  )
+    enabled: Boolean(address),
+    ...queryCachePolicy,
+  })
+
+  const wastes = wastesQuery.data?.wastes ?? []
+  const adminAddress = wastesQuery.data?.adminAddress ?? null
+  const isLoading = wastesQuery.isLoading
+  const error = wastesQuery.error
+    ? wastesQuery.error instanceof Error
+      ? wastesQuery.error.message
+      : 'Failed to load wastes'
+    : null
+
+  const load = useCallback(async () => {
+    if (!address) return
+    await queryClient.invalidateQueries({ queryKey: cacheKeys.wasteList(address) })
+  }, [address, queryClient])
 
   const confirmWaste = useCallback(async (wasteId: number | bigint) => {
     if (!address) return
+    const queryKey = cacheKeys.wasteList(address)
     // Optimistic update
-    setWastes((prev) =>
-      prev.map((w) => (BigInt(w.id) === BigInt(wasteId) ? { ...w, is_confirmed: true } : w))
+    queryClient.setQueryData<{ adminAddress: string | null; wastes: Material[] }>(
+      queryKey,
+      (prev) =>
+        prev
+          ? {
+              ...prev,
+              wastes: prev.wastes.map((w) =>
+                BigInt(w.id) === BigInt(wasteId) ? { ...w, is_confirmed: true } : w
+              ),
+            }
+          : prev
     )
     try {
       await getClient().confirmWasteDetails(BigInt(wasteId), address, address)
       toast.success(`Waste #${wasteId} confirmed successfully.`)
-      await load()
+      await queryClient.invalidateQueries({ queryKey })
     } catch (err) {
       // Revert optimistic update on failure
-      await load()
+      await queryClient.invalidateQueries({ queryKey })
       toast.error(err)
     }
-  }, [address, getClient, load, toast, setWastes])
+  }, [address, getClient, queryClient, toast])
 
   const transferWaste = useCallback(async (wasteId: number | bigint, to: string) => {
     if (!address) return
@@ -83,12 +107,19 @@ export function useWasteList() {
       let succeeded = 0
       const errors: string[] = []
 
-      setWastes((prev) =>
-        prev.map((w) =>
-          wasteIds.some((id) => BigInt(w.id) === BigInt(id))
-            ? { ...w, is_confirmed: true }
-            : w
-        )
+      queryClient.setQueryData<{ adminAddress: string | null; wastes: Material[] }>(
+        cacheKeys.wasteList(address),
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                wastes: prev.wastes.map((w) =>
+                  wasteIds.some((id) => BigInt(w.id) === BigInt(id))
+                    ? { ...w, is_confirmed: true }
+                    : w
+                ),
+              }
+            : prev
       )
 
       for (const wasteId of wasteIds) {
@@ -112,7 +143,7 @@ export function useWasteList() {
 
       return { succeeded, failed: total - succeeded, errors }
     },
-    [address, getClient, load, toast, setWastes]
+    [address, getClient, load, queryClient, toast]
   )
 
   const batchVerifyWastes = useCallback(
@@ -148,7 +179,7 @@ export function useWasteList() {
 
       return { succeeded, failed: total - succeeded, errors }
     },
-    [address, getClient, load, toast]
+    [address, getClient, load, queryClient, toast]
   )
 
   const batchTransferWastes = useCallback(
@@ -186,7 +217,7 @@ export function useWasteList() {
 
       return { succeeded, failed: total - succeeded, errors }
     },
-    [address, getClient, load, toast]
+    [address, getClient, load, queryClient, toast]
   )
 
   const batchDeactivateWastes = useCallback(
@@ -225,7 +256,7 @@ export function useWasteList() {
 
       return { succeeded, failed: total - succeeded, errors }
     },
-    [address, adminAddress, getClient, load, toast]
+    [address, adminAddress, getClient, load, queryClient, toast]
   )
 
   const isAdmin = useMemo(

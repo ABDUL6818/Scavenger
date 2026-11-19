@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FixedSizeList, type ListChildComponentProps } from 'react-window'
 import { LayoutGrid, List, SlidersHorizontal, X, Zap, GitCompare } from 'lucide-react'
 import { useIncentives } from '@/hooks/useIncentives'
@@ -100,6 +101,7 @@ interface RowData {
 }
 
 function VirtualRow({ index, style, data }: ListChildComponentProps<RowData>) {
+  const { t } = useTranslation()
   const row = data.items[index]
   if (!row) return null
 
@@ -116,7 +118,7 @@ function VirtualRow({ index, style, data }: ListChildComponentProps<RowData>) {
         >
           <input
             type="checkbox"
-            aria-label={`Compare incentive #${inc.id}`}
+            aria-label={t('incentives.compareAriaLabel', { id: inc.id })}
             checked={data.compareIds.has(inc.id)}
             onChange={(e) => { e.stopPropagation(); data.onToggleCompare(inc.id) }}
             onClick={(e) => e.stopPropagation()}
@@ -129,9 +131,11 @@ function VirtualRow({ index, style, data }: ListChildComponentProps<RowData>) {
           <span className="flex-1 truncate font-mono text-xs text-muted-foreground">
             {inc.rewarder}
           </span>
-          <span className="shrink-0 font-medium">{Number(inc.reward_points).toLocaleString()} pts</span>
+          <span className="shrink-0 font-medium">
+            {t('incentives.points', { value: Number(inc.reward_points).toLocaleString() })}
+          </span>
           <span className="shrink-0 text-muted-foreground">
-            {Number(inc.remaining_budget).toLocaleString()} left
+            {t('incentives.remainingLeft', { value: Number(inc.remaining_budget).toLocaleString() })}
           </span>
         </div>
       </div>
@@ -148,7 +152,7 @@ function VirtualRow({ index, style, data }: ListChildComponentProps<RowData>) {
           >
             <input
               type="checkbox"
-              aria-label={`Compare incentive #${inc.id}`}
+              aria-label={t('incentives.compareAriaLabel', { id: inc.id })}
               checked={data.compareIds.has(inc.id)}
               onChange={() => data.onToggleCompare(inc.id)}
               className="h-4 w-4 cursor-pointer"
@@ -181,6 +185,7 @@ interface ComparisonPanelProps {
 }
 
 function ComparisonPanel({ incentives, selectedIds, onClear }: ComparisonPanelProps) {
+  const { t } = useTranslation()
   const selected = incentives.filter((inc) => selectedIds.has(inc.id))
   if (selected.length < 2) return null
 
@@ -188,17 +193,19 @@ function ComparisonPanel({ incentives, selectedIds, onClear }: ComparisonPanelPr
     <div
       className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background shadow-lg"
       role="region"
-      aria-label="Incentive comparison panel"
+      aria-label={t('incentives.comparisonPanelAriaLabel')}
     >
       <div className="mx-auto max-w-5xl px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <GitCompare className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Comparing {selected.length} incentives</span>
+            <span className="text-sm font-medium">
+              {t('incentives.comparingCount', { count: selected.length })}
+            </span>
           </div>
           <Button variant="ghost" size="sm" onClick={onClear}>
             <X className="mr-1 h-3.5 w-3.5" />
-            Clear comparison
+            {t('incentives.clearComparison')}
           </Button>
         </div>
         <div
@@ -208,10 +215,22 @@ function ComparisonPanel({ incentives, selectedIds, onClear }: ComparisonPanelPr
           {selected.map((inc) => (
             <div key={inc.id} className="rounded-lg border bg-card p-3 text-xs space-y-1.5">
               <p className="font-semibold text-sm">#{inc.id} — {wasteTypeLabel(inc.waste_type)}</p>
-              <CompareRow label="Reward" value={`${Number(inc.reward_points).toLocaleString()} pts`} />
-              <CompareRow label="Budget" value={`${Number(inc.total_budget).toLocaleString()}`} />
-              <CompareRow label="Remaining" value={`${Number(inc.remaining_budget).toLocaleString()}`} />
-              <CompareRow label="Status" value={inc.active ? 'Active' : 'Inactive'} />
+              <CompareRow
+                label={t('incentives.compare.reward')}
+                value={t('incentives.points', { value: Number(inc.reward_points).toLocaleString() })}
+              />
+              <CompareRow
+                label={t('incentives.compare.budget')}
+                value={`${Number(inc.total_budget).toLocaleString()}`}
+              />
+              <CompareRow
+                label={t('incentives.compare.remaining')}
+                value={`${Number(inc.remaining_budget).toLocaleString()}`}
+              />
+              <CompareRow
+                label={t('incentives.compare.status')}
+                value={inc.active ? t('incentives.status.active') : t('incentives.status.inactive')}
+              />
             </div>
           ))}
         </div>
@@ -232,6 +251,7 @@ function CompareRow({ label, value }: { label: string; value: string }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function IncentivesMarketplacePage() {
+  const { t } = useTranslation()
   const { incentives, isLoading, error } = useIncentives()
   const { claimIncentive, isClaiming } = useIncentivesClaim()
   const { user } = useAuth()
@@ -342,7 +362,7 @@ export function IncentivesMarketplacePage() {
   return (
     <div className={cn('space-y-4 px-4 py-6 sm:px-0 sm:py-0', hasComparison && 'pb-48')}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold sm:text-2xl">Incentives Marketplace</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">{t('incentives.title')}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Select
             value={`${sortField}:${sortDir}`}
@@ -353,14 +373,14 @@ export function IncentivesMarketplacePage() {
             }}
           >
             <SelectTrigger className="w-52">
-              <SelectValue placeholder="Sort by…" />
+              <SelectValue placeholder={t('incentives.sort.placeholder')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="reward_points:desc">Reward pts — high to low</SelectItem>
-              <SelectItem value="reward_points:asc">Reward pts — low to high</SelectItem>
-              <SelectItem value="remaining_budget:desc">Budget — high to low</SelectItem>
-              <SelectItem value="remaining_budget:asc">Budget — low to high</SelectItem>
-              <SelectItem value="waste_type:asc">Waste type</SelectItem>
+              <SelectItem value="reward_points:desc">{t('incentives.sort.rewardDesc')}</SelectItem>
+              <SelectItem value="reward_points:asc">{t('incentives.sort.rewardAsc')}</SelectItem>
+              <SelectItem value="remaining_budget:desc">{t('incentives.sort.budgetDesc')}</SelectItem>
+              <SelectItem value="remaining_budget:asc">{t('incentives.sort.budgetAsc')}</SelectItem>
+              <SelectItem value="waste_type:asc">{t('incentives.sort.wasteType')}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -372,7 +392,7 @@ export function IncentivesMarketplacePage() {
             aria-controls="incentives-filter-panel"
           >
             <SlidersHorizontal className="mr-1.5 h-4 w-4" />
-            Filters
+            {t('incentives.filters')}
             {activeFilterCount > 0 && (
               <Badge className="ml-1.5 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center">
                 {activeFilterCount}
@@ -380,7 +400,7 @@ export function IncentivesMarketplacePage() {
             )}
           </Button>
 
-          <div className="flex rounded-md border" role="group" aria-label="View mode">
+          <div className="flex rounded-md border" role="group" aria-label={t('incentives.viewModeAriaLabel')}>
             <button
               className={cn(
                 'flex h-9 w-9 items-center justify-center rounded-l-md transition-colors',
@@ -389,7 +409,7 @@ export function IncentivesMarketplacePage() {
                   : 'bg-background text-muted-foreground hover:bg-accent'
               )}
               onClick={() => handleViewMode('grid')}
-              aria-label="Grid view"
+              aria-label={t('incentives.gridView')}
               aria-pressed={viewMode === 'grid'}
             >
               <LayoutGrid className="h-4 w-4" />
@@ -402,7 +422,7 @@ export function IncentivesMarketplacePage() {
                   : 'bg-background text-muted-foreground hover:bg-accent'
               )}
               onClick={() => handleViewMode('list')}
-              aria-label="List view"
+              aria-label={t('incentives.listView')}
               aria-pressed={viewMode === 'list'}
             >
               <List className="h-4 w-4" />
@@ -416,20 +436,20 @@ export function IncentivesMarketplacePage() {
           id="incentives-filter-panel"
           className="rounded-lg border bg-card p-4 space-y-4"
           role="region"
-          aria-label="Incentive filters"
+          aria-label={t('incentives.filtersPanelAriaLabel')}
         >
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Filters</span>
+            <span className="text-sm font-medium">{t('incentives.filters')}</span>
             {activeFilterCount > 0 && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 <X className="mr-1 h-3.5 w-3.5" />
-                Clear all
+                {t('incentives.clearAll')}
               </Button>
             )}
           </div>
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Waste Type
+              {t('incentives.wasteType')}
             </p>
             <div className="flex flex-wrap gap-2">
               {ALL_WASTE_TYPES.map((wt) => {
@@ -457,11 +477,11 @@ export function IncentivesMarketplacePage() {
               htmlFor="rewarder-filter"
               className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
             >
-              Rewarder Address
+              {t('incentives.rewarderAddress')}
             </label>
             <Input
               id="rewarder-filter"
-              placeholder="Filter by rewarder address…"
+              placeholder={t('incentives.rewarderPlaceholder')}
               value={filters.rewarder}
               onChange={(e) => setFilters((f) => ({ ...f, rewarder: e.target.value }))}
               className="h-9 text-sm"
@@ -489,8 +509,8 @@ export function IncentivesMarketplacePage() {
       )}
 
       {!isLoading && myClaims.length > 0 && (
-        <section aria-label="My Claims">
-          <h2 className="mb-3 text-base font-semibold">My Claims</h2>
+        <section aria-label={t('incentives.myClaimsAriaLabel')}>
+          <h2 className="mb-3 text-base font-semibold">{t('incentives.myClaims')}</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {myClaims.map((inc) => (
               <div
@@ -511,15 +531,15 @@ export function IncentivesMarketplacePage() {
       {!isLoading && processed.length === 0 && !error && (
         <EmptyState
           icon={Zap}
-          title="No incentives found"
+          title={t('incentives.empty.title')}
           description={
             activeFilterCount > 0
-              ? 'No incentives match your current filters. Try clearing some filters.'
-              : 'No active incentives available right now.'
+              ? t('incentives.empty.filteredDescription')
+              : t('incentives.empty.defaultDescription')
           }
           action={
             activeFilterCount > 0
-              ? { label: 'Clear filters', onClick: clearFilters }
+              ? { label: t('incentives.empty.clearFilters'), onClick: clearFilters }
               : undefined
           }
         />

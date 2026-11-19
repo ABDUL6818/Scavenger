@@ -12,11 +12,11 @@ interface LeaderboardRowProps {
 function getRankColor(rank: number): string {
   switch (rank) {
     case 1:
-      return 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+      return 'bg-warning/20 text-warning'
     case 2:
-      return 'bg-gray-400/20 text-gray-600 dark:text-gray-400'
+      return 'bg-muted text-muted-foreground'
     case 3:
-      return 'bg-orange-500/20 text-orange-600 dark:text-orange-400'
+      return 'bg-accent text-accent-foreground'
     default:
       return 'bg-muted text-muted-foreground'
   }
@@ -29,9 +29,19 @@ function LeaderboardRowComponent({
   tier,
   children,
 }: LeaderboardRowProps) {
+  const formattedPoints = points.toLocaleString()
+  const accessibleLabel = `Rank ${rank}, address ${address}, ${formattedPoints} points, tier ${tier}`
+
   return (
-    <div className="flex items-center gap-4 rounded-lg border p-3 transition-colors hover:bg-accent">
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold ${getRankColor(rank)}`}>
+    <div
+      role="listitem"
+      aria-label={accessibleLabel}
+      className="flex items-center gap-4 rounded-lg border p-3 transition-colors hover:bg-accent"
+    >
+      <div
+        aria-label={`Rank ${rank}`}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold ${getRankColor(rank)}`}
+      >
         #{rank}
       </div>
       <div className="flex-1">
@@ -43,7 +53,7 @@ function LeaderboardRowComponent({
       </div>
       <div className="text-right">
         <div className="text-lg font-bold text-primary">
-          {points.toLocaleString()}
+          {formattedPoints}
         </div>
         <div className="text-xs text-muted-foreground">points</div>
       </div>

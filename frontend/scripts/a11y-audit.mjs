@@ -26,34 +26,99 @@ const PAGES = [
   { name: 'Login',          path: '/login' },
   { name: 'Dashboard',      path: '/dashboard' },
   { name: 'Waste List',     path: '/wastes' },
+  { name: 'Waste Submit',   path: '/wastes/new' },
   { name: 'Incentives',     path: '/incentives' },
   { name: 'Profile',        path: '/profile' },
   { name: 'Settings',       path: '/settings' },
   { name: 'Marketplace',    path: '/marketplace' },
   { name: 'Analytics',      path: '/analytics' },
   { name: 'Recycling Guide',path: '/recycling-guide' },
+  // Modal / dialog surfaces — focus management (issue #1678)
+  { name: 'Waste Submit Modal', path: '/wastes?modal=submit' },
+  { name: 'Confirm Dialog',     path: '/wastes?modal=confirm' },
+  { name: 'Settings Dialog',    path: '/settings?modal=preferences' },
 ]
 
 const IMPACT_LEVELS = /** @type {const} */ (['critical', 'serious'])
 
+/**
+ * Rules that specifically cover focus management / keyboard navigation
+ * (issue #1678) and ARIA labelling (issue #1679).  Violations of these
+ * rules are always reported, even if axe classifies them below "serious".
+ */
+const FOCUS_ARIA_RULES = /** @type {const} */ ([
+  'focus-trap',
+  'focus-order-semantics',
+  'focusable-content',
+  'focusable-element',
+  'focusable-modal-open',
+  'focusable-no-name',
+  'aria-allowed-attr',
+  'aria-hidden-focus',
+  'aria-input-field-name',
+  'aria-required-attr',
+  'aria-required-children',
+  'aria-required-parent',
+  'aria-roles',
+  'aria-valid-attr-value',
+  'aria-valid-attr',
+  'aria-dialog-name',
+  'aria-command-name',
+  'aria-toggle-field-name',
+  'aria-tooltip-name',
+  'aria-progressbar-name',
+  'aria-meter-name',
+  'aria-braille-equivalent',
+  'aria-conditional-attr',
+  'aria-deprecated-role',
+  'aria-prohibited-attr',
+  'aria-text',
+  'dialog-name',
+  'tabindex',
+])
+
 async function auditPage(page, url) {
   await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 })
   const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice'])
     .analyze()
   return results.violations
 }
 
-function formatViolations(violations) {
+/**
+ * Returns true when a violation should fail the audit: either it is a
+ * serious/critical impact violation, or it targets focus/ARIA rules.
+ *
+ * @param {{ impact?: string | null, id: string }} violation
+ * @returns {boolean}
+ */
+export function isBlockingViolation(violation) {
+  if (IMPACT_LEVELS.includes(violation.impact)) return true
+  return FOCUS_ARIA_RULES.includes(violation.id)
+}
+
+/**
+ * Formats a list of axe violations into a human-readable report.
+ * Focus-management and ARIA violations are tagged so they are easy to spot.
+ *
+ * @param {Array<{ id: string, impact?: string | null, description: string, nodes: Array<{ html: string, target?: string[] }> }>} violations
+ * @returns {string}
+ */
+export function formatViolations(violations) {
   return violations
     .map((v) => {
+      const tag = FOCUS_ARIA_RULES.includes(v.id) ? ' [focus/aria]' : ''
       const nodes = v.nodes
-        .map((n) => `    • ${n.html.slice(0, 120)}`)
+        .map((n) => {
+          const target = n.target?.length ? ` (${n.target.join(' ')})` : ''
+          return `    • ${n.html.slice(0, 120)}${target}`
+        })
         .join('\n')
-      return `  [${v.impact?.toUpperCase()}] ${v.id}: ${v.description}\n${nodes}`
+      return `  [${v.impact?.toUpperCase() ?? 'UNKNOWN'}]${tag} ${v.id}: ${v.description}\n${nodes}`
     })
     .join('\n\n')
 }
+=======
 
 async function run() {
   console.log(`\n🔍  Accessibility audit — ${BASE_URL}\n`)
@@ -80,14 +145,20 @@ async function run() {
 
     const critical = violations.filter((v) => v.impact === 'critical')
     const serious  = violations.filter((v) => v.impact === 'serious')
+    const focusAria = violations.filter(
+      (v) => FOCUS_ARIA_RULES.includes(v.id) && !IMPACT_LEVELS.includes(v.impact),
+    )
     totalCritical += critical.length
     totalSerious  += serious.length
 
     const badge =
       critical.length > 0 ? '❌' : serious.length > 0 ? '⚠️ ' : '✅'
-    console.log(`${badge}  ${violations.length} violation(s)  (${critical.length} critical, ${serious.length} serious)`)
+    console.log(
+      `${badge}  ${violations.length} violation(s)  ` +
+        `(${critical.length} critical, ${serious.length} serious, ${focusAria.length} focus/aria)`,
+    )
 
-    const relevant = violations.filter((v) => IMPACT_LEVELS.includes(v.impact))
+    const relevant = violations.filter(isBlockingViolation)
     if (relevant.length > 0) {
       report.push({ name, url, violations: relevant })
     }
@@ -113,7 +184,16 @@ async function run() {
   process.exit(0)
 }
 
-run().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+// Only auto-run when executed directly (so the formatter can be unit-tested).
+const isDirectRun =
+  typeof process !== 'undefined' &&
+  Array.isArray(process.argv) &&
+  process.argv[1] &&
+  import.meta.url === `file://${process.argv[1]}`
+
+if (isDirectRun) {
+  run().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
+}

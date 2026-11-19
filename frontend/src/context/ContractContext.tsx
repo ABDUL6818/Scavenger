@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import { config as envConfig } from '@/config'
+import { Network, NETWORKS } from '@/lib/constants'
 
 interface ContractConfig {
   contractId: string
-  network: 'TESTNET' | 'MAINNET' | 'FUTURENET' | 'STANDALONE'
+  network: Network
   rpcUrl: string
 }
 
@@ -17,7 +18,7 @@ interface ContractContextType {
 // This avoids duplicating defaults that already live in config.ts / config/app.ts.
 const getCanonicalConfig = (): ContractConfig => ({
   contractId: envConfig.contractId,
-  network: envConfig.network,
+  network: envConfig.network as Network,
   rpcUrl: envConfig.rpcUrl
 })
 
@@ -49,3 +50,6 @@ export const useContract = () => {
   }
   return context
 }
+
+// Re-export network constants for convenience and backwards compatibility
+export { Network, NETWORKS }

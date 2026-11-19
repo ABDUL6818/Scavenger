@@ -20,6 +20,10 @@ module.exports = {
         terms: ['todo', 'fixme', 'xxx', 'hack'],
         location: 'anywhere'
       }
-    ]
+    ],
+    'no-console': ['error', { allow: ['warn', 'error'] }],
+    'no-inline-comments': 'off',
+    'spaced-comment': ['error', 'always', { markers: ['/'] }],
+    'multiline-comment-style': ['error', 'separate-lines']
   }
 }

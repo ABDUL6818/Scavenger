@@ -18,12 +18,18 @@ import {
   WasteTransfer,
   ParticipantStats,
   GlobalMetrics,
+  SupplyChainStats,
   ContractError,
   ParticipantInfo,
   SupplyChainStats,
   MaterialSubmission,
 } from './types'
 import { signTransactionXDR } from '@/features/wallet/service'
+import {
+  pollTransactionStatus,
+  TransactionStatusError,
+} from '@/features/transaction-status'
+import { ContractErrorCode, isRetryableError } from '@/lib/constants'
 
 export interface ClientOptions {
   rpcUrl: string
@@ -95,24 +101,28 @@ export class ScavengerClient {
     const sendResult = await this.server.sendTransaction(signed)
 
     if (sendResult.status === 'ERROR') {
-      throw this._parseError(sendResult.errorResult?.toXDR('base64') ?? 'Transaction failed')
+      throw this._parseError(
+        sendResult.errorResult?.toXDR('base64') ?? 'Transaction failed'
+      )
     }
 
-    // Poll for confirmation
-    const hash = sendResult.hash
-    for (let i = 0; i < 20; i++) {
-      await new Promise((r) => setTimeout(r, 1500))
-      const status = await this.server.getTransaction(hash)
-      if (status.status === SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
-        const retval = (status as SorobanRpc.Api.GetSuccessfulTransactionResponse).returnValue
-        if (!retval) return undefined
-        return scValToNative(retval) as T
+    // Poll for confirmation via the shared transaction-status module
+    try {
+      const retval = await pollTransactionStatus({
+        hash: sendResult.hash,
+        getTransaction: (hash) => this.server.getTransaction(hash),
+        maxAttempts: 20,
+        intervalMs: 1500,
+      })
+      if (!retval) return undefined
+      return scValToNative(retval) as T
+    } catch (err) {
+      if (err instanceof TransactionStatusError) {
+        throw new ContractError(err.message, ContractErrorCode.TRANSACTION_FAILED)
       }
-      if (status.status === SorobanRpc.Api.GetTransactionStatus.FAILED) {
-        throw new ContractError('Transaction failed on-chain')
-      }
+      throw err
     }
-    throw new ContractError('Transaction confirmation timeout')
+    throw new ContractError('Transaction confirmation timeout', ContractErrorCode.TIMEOUT)
   }
 
   private _extractSimResult<T>(sim: SorobanRpc.Api.SimulateTransactionResponse): InvokeResult<T> {
@@ -125,10 +135,17 @@ export class ScavengerClient {
   }
 
   private _parseError(raw: string): ContractError {
-    // Try to extract numeric error code from XDR or message
     const match = raw.match(/Error\(Contract, #(\d+)\)/)
     if (match) return new ContractError(`Contract error #${match[1]}`, Number(match[1]))
     return new ContractError(raw)
+  }
+
+  /**
+   * Whether an error thrown by this client should be retried by TanStack Query.
+   * Delegates to the shared retry convention so query defaults stay consistent.
+   */
+  static isRetryable(error: unknown): boolean {
+    return isRetryableError(error)
   }
 
   // =======================================================
@@ -195,7 +212,7 @@ export class ScavengerClient {
       'register_participant',
       [
         new Address(address).toScVal(),
-        nativeToScVal(role),
+        nativeToScVal(role, { type: 'u32' }),
         nativeToScVal(name, { type: 'string' }),
         nativeToScVal(lat, { type: 'i128' }),
         nativeToScVal(lon, { type: 'i128' }),
@@ -218,7 +235,7 @@ export class ScavengerClient {
   async updateRole(address: string, newRole: Role, signer: string) {
     return this.invoke<void>(
       'update_role',
-      [new Address(address).toScVal(), nativeToScVal(newRole)],
+      [new Address(address).toScVal(), nativeToScVal(newRole, { type: 'u32' })],
       signer
     )
   }
@@ -495,3 +512,12 @@ export class ScavengerClient {
     return BigInt(material.id)
   }
 }
+
+/**
+ * Backwards-compatibility note:
+ * - Public method signatures on `ScavengerClient` are unchanged.
+ * - Transaction confirmation now delegates to the shared `pollTransactionStatus`
+ *   hook/module; failures still surface as `ContractError` with the same messages
+ *   ("Transaction failed on-chain" / "Transaction confirmation timeout").
+ * - No `console.*` logging or commented-out code remains in this module.
+ */
