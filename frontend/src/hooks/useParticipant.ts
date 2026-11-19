@@ -3,6 +3,7 @@ import { Participant } from '@/api/types'
 import { useWallet } from '@/context/WalletContext'
 import { useContract } from '@/context/ContractContext'
 import { cacheKeys } from '@/lib/cacheKeys'
+import { queryCachePolicy } from '@/lib/queryClient'
 import { useContractQuery } from './useContractQuery'
 
 /**
@@ -34,6 +35,7 @@ export function useParticipant() {
       return client.getParticipant(address)
     },
     enabled: !!address,
+    ...queryCachePolicy,
     retry: false,
     config,
   })

@@ -17,6 +17,7 @@ import {
 import { TransactionConfirmDialog } from '@/components/ui/TransactionConfirmDialog'
 import { Heart, Download, ExternalLink, History } from 'lucide-react'
 import { formatTokenAmount, formatDate } from '@/lib/helpers'
+import { CharityTab } from '@/lib/constants'
 
 // ── Charity Profile Card ──────────────────────────────────────────────────────
 
@@ -218,7 +219,7 @@ export function CharityDonationsPage() {
   const { charities, donations, totalDonated, balance, donate, downloadReceipt, isPending, error } =
     useCharityDonations(address)
 
-  const [tab, setTab] = useState<'charities' | 'history'>('charities')
+  const [tab, setTab] = useState<CharityTab>(CharityTab.Charities)
   const [donateTarget, setDonateTarget] = useState<Charity | null>(null)
   const [profileTarget, setProfileTarget] = useState<Charity | null>(null)
 
@@ -251,7 +252,7 @@ export function CharityDonationsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg border p-1 w-fit">
-        {(['charities', 'history'] as const).map((t) => (
+        {([CharityTab.Charities, CharityTab.History] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -264,7 +265,7 @@ export function CharityDonationsPage() {
         ))}
       </div>
 
-      {tab === 'charities' && (
+      {tab === CharityTab.Charities && (
         <div className="grid gap-4 sm:grid-cols-2">
           {charities.map((c) => (
             <CharityCard
@@ -277,7 +278,7 @@ export function CharityDonationsPage() {
         </div>
       )}
 
-      {tab === 'history' && (
+      {tab === CharityTab.History && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Donation History</CardTitle>

@@ -1,5 +1,12 @@
 import type { Config } from 'tailwindcss'
-import { colors, typography, spacing, borderRadius, shadows, animation } from './src/design-system/tokens'
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
+  animation,
+} from './src/design-system/tokens'
 
 export default {
   darkMode: ['class'],
