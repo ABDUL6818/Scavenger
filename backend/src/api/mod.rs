@@ -3,9 +3,12 @@ pub mod audit;
 pub mod compliance_api;
 pub mod contracts;
 pub mod export;
+pub mod openapi;
 pub mod pagination;
 pub mod search;
 pub mod signing_api;
 pub mod verification;
 pub mod ws;
 // analytics module removed — legacy endpoints were never registered (#906)
+
+pub use openapi::{build_openapi_spec, openapi_json};

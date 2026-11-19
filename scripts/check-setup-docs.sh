@@ -35,6 +35,40 @@ for env in .env.example frontend/.env.example indexer/.env.example; do
   [ -f "$env" ] || fail "env example '$env' named in guide is missing"
 done
 
+# --- README.md setup section ------------------------------------------------
+README="README.md"
+[ -f "$README" ] || fail "$README is missing"
+grep -q "getting-started.md" "$README" || fail "$README does not link to $GUIDE"
+
+# Prerequisites named in the README must be documented.
+for tool in rustc cargo pnpm soroban docker; do
+  grep -qi "$tool" "$README" || fail "$README prerequisites do not mention '$tool'"
+done
+
+# Env vars listed in the README env table must exist in docker-compose.dev.yml
+# or one of the .env.example files.
+env_vars="$(awk '/^```/{f=!f; next} !f' "$README" \
+  | grep -oE '\b[A-Z][A-Z0-9_]{2,}\b' \
+  | grep -E '_(URL|URI|PORT|HOST|SECRET|KEY|PASSWORD|USER|NAME|DSN|NETWORK|ID)$' \
+  | sort -u || true)"
+while IFS= read -r var; do
+  [ -z "$var" ] && continue
+  if grep -q "$var" docker-compose.dev.yml 2>/dev/null; then continue; fi
+  found=0
+  for env in .env.example frontend/.env.example indexer/.env.example; do
+    [ -f "$env" ] && grep -q "$var" "$env" && found=1
+  done
+  [ "$found" -eq 1 ] || fail "env var '$var' in $README not found in docker-compose.dev.yml or .env.example"
+done <<< "$env_vars"
+
+# Relative links in the README setup section must resolve.
+readme_targets="$(awk '/^```/{f=!f; next} !f' "$README" | grep -oE '\]\([^)]+\)' | sed -E 's/^\]\(//; s/\)$//' || true)"
+while IFS= read -r t; do
+  [ -z "$t" ] && continue
+  case "$t" in http://*|https://*|\#*|mailto:*) continue ;; esac
+  [ -e "${t%%#*}" ] || fail "broken link in $README: $t"
+done <<< "$readme_targets"
+
 if [ "$failures" -eq 0 ]; then
   echo "Setup docs check passed."
 fi
