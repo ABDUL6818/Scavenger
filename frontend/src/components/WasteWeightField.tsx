@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { type UseFormRegister, type UseFormWatch, type FieldErrors } from 'react-hook-form'
 import { Input } from '@/components/ui/Input'
 import { convertWeight, type WeightUnit } from '@/lib/validation/wasteSubmission'
@@ -19,13 +20,15 @@ export function WasteWeightField({
   weightUnit,
   setWeightUnit,
 }: WasteWeightFieldProps) {
+  const { t } = useTranslation()
   const weightValue = watch('weight')
   const convertedWeight = useMemo(() => convertWeight(weightValue, weightUnit), [weightValue, weightUnit])
+  const nextUnit = weightUnit === 'grams' ? 'kilograms' : 'grams'
 
   return (
     <section>
       <label htmlFor="weight-input" className="block text-sm font-medium mb-2">
-        Weight <span className="text-destructive">*</span>
+        {t('waste.form.weight.label')} <span className="text-destructive">*</span>
       </label>
       <div className="flex gap-2">
         <Input
@@ -33,20 +36,26 @@ export function WasteWeightField({
           type="number"
           step="any"
           min="0"
-          placeholder={weightUnit === 'grams' ? 'e.g. 500' : 'e.g. 0.5'}
+          placeholder={t(
+            weightUnit === 'grams'
+              ? 'waste.form.weight.placeholderGrams'
+              : 'waste.form.weight.placeholderKilograms'
+          )}
           {...register('weight')}
         />
         <button
           type="button"
-          onClick={() => setWeightUnit(weightUnit === 'grams' ? 'kilograms' : 'grams')}
+          onClick={() => setWeightUnit(nextUnit)}
           className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
-          aria-label={`Switch to ${weightUnit === 'grams' ? 'kilograms' : 'grams'}`}
+          aria-label={t('waste.form.weight.switchUnit', { unit: t(`waste.units.${nextUnit}`) })}
         >
-          {weightUnit === 'grams' ? 'g' : 'kg'}
+          {t(`waste.units.${weightUnit}`)}
         </button>
       </div>
       {convertedWeight && (
-        <p className="mt-1 text-xs text-muted-foreground">= {convertedWeight}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t('waste.form.weight.converted', { value: convertedWeight })}
+        </p>
       )}
       {errors.weight && (
         <p className="mt-1 text-sm text-destructive" role="alert">{errors.weight.message}</p>

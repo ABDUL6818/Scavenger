@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useCollectorDashboard } from '@/hooks/useCollectorDashboard'
 import { useWallet } from '@/context/WalletContext'
@@ -25,17 +26,20 @@ function WasteRow({
   material: Material
   onTransfer: (id: number) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-3 rounded-md border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <Badge variant="secondary">{wasteTypeLabel(material.waste_type)}</Badge>
-        <span className="text-muted-foreground">ID #{material.id}</span>
-        <span>{material.weight.toLocaleString()} g</span>
+        <span className="text-muted-foreground">
+          {t('collectorDashboard.wasteId', { id: material.id })}
+        </span>
+        <span>{t('collectorDashboard.weightGrams', { weight: material.weight.toLocaleString() })}</span>
       </div>
       <div className="flex items-center justify-between gap-3 sm:justify-start">
         <span className="text-xs text-muted-foreground">{formatDate(material.submitted_at)}</span>
         <Button size="sm" variant="outline" onClick={() => onTransfer(material.id)}>
-          Transfer
+          {t('collectorDashboard.transfer')}
         </Button>
       </div>
     </div>
@@ -43,7 +47,8 @@ function WasteRow({
 }
 
 export function CollectorDashboardPage() {
-  useAppTitle('Collector Dashboard')
+  const { t } = useTranslation()
+  useAppTitle(t('collectorDashboard.title'))
   const { address } = useWallet()
   const navigate = useNavigate()
   const {
@@ -64,7 +69,7 @@ export function CollectorDashboardPage() {
   if (!address) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Connect your wallet to view the dashboard.
+        {t('collectorDashboard.connectWallet')}
       </div>
     )
   }
@@ -104,7 +109,7 @@ export function CollectorDashboardPage() {
       <div className="flex h-64 flex-col items-center justify-center gap-3 text-destructive">
         <p>{error}</p>
         <Button variant="outline" size="sm" onClick={refetch}>
-          Retry
+          {t('common.retry')}
         </Button>
       </div>
     )
@@ -114,7 +119,7 @@ export function CollectorDashboardPage() {
     <div className="space-y-6 overflow-x-hidden px-4 py-6 sm:px-0 sm:py-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Collector Dashboard</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{t('collectorDashboard.title')}</h1>
           <p className="text-sm text-muted-foreground">{formatAddress(address)}</p>
         </div>
       </div>
@@ -124,7 +129,7 @@ export function CollectorDashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Coins className="h-4 w-4" /> Token Balance
+              <Coins className="h-4 w-4" /> {t('collectorDashboard.tokenBalance')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -135,7 +140,7 @@ export function CollectorDashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <ArrowDownToLine className="h-4 w-4" /> Pending Transfers
+              <ArrowDownToLine className="h-4 w-4" /> {t('collectorDashboard.pendingTransfers')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -146,7 +151,7 @@ export function CollectorDashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Package className="h-4 w-4" /> Collected Wastes
+              <Package className="h-4 w-4" /> {t('collectorDashboard.collectedWastes')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -157,7 +162,7 @@ export function CollectorDashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <BarChart3 className="h-4 w-4" /> Total Transfers
+              <BarChart3 className="h-4 w-4" /> {t('collectorDashboard.totalTransfers')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -169,14 +174,14 @@ export function CollectorDashboardPage() {
       {/* Pending incoming transfers */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Pending Incoming Transfers</CardTitle>
+          <CardTitle className="text-base">{t('collectorDashboard.pendingIncomingTransfers')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {pendingTransfers.length === 0 ? (
             <EmptyState
               icon={ArrowDownToLine}
-              title="No pending transfers"
-              description="Transfers heading your way will appear here"
+              title={t('collectorDashboard.noPendingTransfers')}
+              description={t('collectorDashboard.noPendingTransfersDescription')}
             />
           ) : (
             pendingTransfers.map((m) => (
@@ -189,14 +194,14 @@ export function CollectorDashboardPage() {
       {/* Collected wastes with transfer actions */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Collected Wastes</CardTitle>
+          <CardTitle className="text-base">{t('collectorDashboard.collectedWastes')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {collectedWastes.length === 0 ? (
             <EmptyState
               icon={Package}
-              title="No collected wastes"
-              description="Collected waste items will appear here"
+              title={t('collectorDashboard.noCollectedWastes')}
+              description={t('collectorDashboard.noCollectedWastesDescription')}
             />
           ) : (
             collectedWastes.map((m) => (
@@ -209,7 +214,7 @@ export function CollectorDashboardPage() {
       {/* Collection statistics by waste type */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Collection Statistics by Waste Type</CardTitle>
+          <CardTitle className="text-base">{t('collectorDashboard.statisticsByWasteType')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

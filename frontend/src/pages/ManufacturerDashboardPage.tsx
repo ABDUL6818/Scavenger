@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Plus, PackageCheck, Zap, History, Gift } from 'lucide-react'
 import { useManufacturerDashboard } from '@/hooks/useManufacturerDashboard'
 import { useDistributeRewards } from '@/hooks/useDistributeRewards'
@@ -24,14 +25,14 @@ import {
   SelectValue
 } from '@/components/ui/Select'
 
-const WASTE_TYPE_LABELS: Record<WasteType, string> = {
-  [WasteType.Paper]: 'Paper',
-  [WasteType.PetPlastic]: 'PET Plastic',
-  [WasteType.Plastic]: 'Plastic',
-  [WasteType.Metal]: 'Metal',
-  [WasteType.Glass]: 'Glass',
-  [WasteType.Organic]: 'Organic',
-  [WasteType.Electronic]: 'Electronic',
+const WASTE_TYPE_LABEL_KEYS: Record<WasteType, string> = {
+  [WasteType.Paper]: 'wasteTypes.paper',
+  [WasteType.PetPlastic]: 'wasteTypes.petPlastic',
+  [WasteType.Plastic]: 'wasteTypes.plastic',
+  [WasteType.Metal]: 'wasteTypes.metal',
+  [WasteType.Glass]: 'wasteTypes.glass',
+  [WasteType.Organic]: 'wasteTypes.organic',
+  [WasteType.Electronic]: 'wasteTypes.electronic',
 }
 
 // ── Distribute Rewards Dialog ─────────────────────────────────────────────────
@@ -45,6 +46,7 @@ function DistributeRewardsDialog({
   incentives: Incentive[]
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const matchingIncentives = incentives.filter((i) => i.waste_type === waste.waste_type)
   const [selectedIncentiveId, setSelectedIncentiveId] = useState(
     matchingIncentives[0]?.id ? String(matchingIncentives[0].id) : ''
@@ -71,12 +73,17 @@ function DistributeRewardsDialog({
     <>
       <TransactionConfirmDialog
         open={showConfirm}
-        action="Distribute Rewards"
+        action={t('manufacturerDashboard.distributeRewards')}
         params={[
-          { label: 'Waste ID', value: `#${waste.id}` },
-          { label: 'Type', value: WASTE_TYPE_LABELS[waste.waste_type] },
-          { label: 'Incentive', value: `#${selectedIncentiveId}` },
-          { label: 'Est. total', value: `~${estimatedTotal.toLocaleString()} tokens` },
+          { label: t('manufacturerDashboard.wasteId'), value: `#${waste.id}` },
+          { label: t('manufacturerDashboard.type'), value: t(WASTE_TYPE_LABEL_KEYS[waste.waste_type]) },
+          { label: t('manufacturerDashboard.incentive'), value: `#${selectedIncentiveId}` },
+          {
+            label: t('manufacturerDashboard.estTotal'),
+            value: t('manufacturerDashboard.tokensEstimate', {
+              amount: estimatedTotal.toLocaleString()
+            })
+          },
         ]}
         isPending={distribute.isPending}
         onConfirm={handleDistribute}
@@ -84,31 +91,40 @@ function DistributeRewardsDialog({
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Distribute Rewards — Waste #{waste.id}</DialogTitle>
+          <DialogTitle>
+            {t('manufacturerDashboard.distributeRewardsTitle', { id: waste.id })}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-            <dt className="text-muted-foreground">Type</dt>
-            <dd>{WASTE_TYPE_LABELS[waste.waste_type]}</dd>
-            <dt className="text-muted-foreground">Weight</dt>
-            <dd>{waste.weight} kg</dd>
+            <dt className="text-muted-foreground">{t('manufacturerDashboard.type')}</dt>
+            <dd>{t(WASTE_TYPE_LABEL_KEYS[waste.waste_type])}</dd>
+            <dt className="text-muted-foreground">{t('manufacturerDashboard.weight')}</dt>
+            <dd>{t('manufacturerDashboard.weightKg', { weight: waste.weight })}</dd>
           </dl>
 
           {matchingIncentives.length === 0 ? (
-            <p className="text-sm text-destructive">No active incentives for this waste type.</p>
+            <p className="text-sm text-destructive">
+              {t('manufacturerDashboard.noActiveIncentivesForType')}
+            </p>
           ) : (
             <>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Select Incentive</label>
+                <label className="text-sm font-medium">
+                  {t('manufacturerDashboard.selectIncentive')}
+                </label>
                 <Select value={selectedIncentiveId} onValueChange={setSelectedIncentiveId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose incentive" />
+                    <SelectValue placeholder={t('manufacturerDashboard.chooseIncentive')} />
                   </SelectTrigger>
                   <SelectContent>
                     {matchingIncentives.map((inc) => (
                       <SelectItem key={inc.id} value={String(inc.id)}>
-                        #{inc.id} — {inc.reward_points} pts/unit (budget:{' '}
-                        {inc.remaining_budget.toLocaleString()})
+                        {t('manufacturerDashboard.incentiveOption', {
+                          id: inc.id,
+                          points: inc.reward_points,
+                          budget: inc.remaining_budget.toLocaleString()
+                        })}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -117,15 +133,22 @@ function DistributeRewardsDialog({
 
               {selectedIncentive && (
                 <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
-                  <p className="font-medium">Estimated Reward Breakdown</p>
+                  <p className="font-medium">
+                    {t('manufacturerDashboard.estimatedRewardBreakdown')}
+                  </p>
                   <p className="text-muted-foreground">
-                    {selectedIncentive.reward_points} pts × {waste.weight} kg ={' '}
+                    {t('manufacturerDashboard.rewardCalculation', {
+                      points: selectedIncentive.reward_points,
+                      weight: waste.weight
+                    })}{' '}
                     <span className="font-semibold text-foreground">
-                      ~{estimatedTotal.toLocaleString()} tokens
+                      {t('manufacturerDashboard.tokensEstimate', {
+                        amount: estimatedTotal.toLocaleString()
+                      })}
                     </span>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Actual split is determined by on-chain percentages (collector + owner shares).
+                    {t('manufacturerDashboard.actualSplitNote')}
                   </p>
                 </div>
               )}
@@ -134,13 +157,13 @@ function DistributeRewardsDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={() => setShowConfirm(true)}
             disabled={distribute.isPending || !selectedIncentiveId || matchingIncentives.length === 0}
           >
-            Distribute
+            {t('manufacturerDashboard.distribute')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -151,6 +174,7 @@ function DistributeRewardsDialog({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ManufacturerDashboardPage() {
+  const { t } = useTranslation()
   const {
     pendingWastes,
     incentives,
@@ -191,10 +215,10 @@ export function ManufacturerDashboardPage() {
   return (
     <div className="space-y-6 overflow-x-hidden px-4 py-6 sm:px-0 sm:py-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold sm:text-2xl">Manufacturer Dashboard</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">{t('manufacturerDashboard.title')}</h1>
         <Button onClick={() => setCreateDialogOpen(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
-          Create Incentive
+          {t('manufacturerDashboard.createIncentive')}
         </Button>
       </div>
 
@@ -243,14 +267,16 @@ export function ManufacturerDashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center gap-2 pb-3">
               <PackageCheck className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Received Waste — Pending Confirmation</CardTitle>
+              <CardTitle className="text-base">
+                {t('manufacturerDashboard.pendingWasteTitle')}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {pendingWastes.length === 0 ? (
                 <EmptyState
                   icon={PackageCheck}
-                  title="No pending waste"
-                  description="Waste waiting for confirmation will appear here"
+                  title={t('manufacturerDashboard.noPendingWaste')}
+                  description={t('manufacturerDashboard.noPendingWasteDescription')}
                 />
               ) : (
                 <ul className="space-y-3">
@@ -261,18 +287,23 @@ export function ManufacturerDashboardPage() {
                     >
                       <div className="space-y-0.5">
                         <p className="text-sm font-medium">
-                          {WASTE_TYPE_LABELS[w.waste_type]} — {w.weight.toString()} kg
+                          {t('manufacturerDashboard.wasteSummary', {
+                            type: t(WASTE_TYPE_LABEL_KEYS[w.waste_type]),
+                            weight: w.weight.toString()
+                          })}
                         </p>
-                        <p className="text-xs text-muted-foreground">ID #{w.id}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t('manufacturerDashboard.idLabel', { id: w.id })}
+                        </p>
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => setConfirmTarget(w)}>
-                          Confirm
+                          {t('manufacturerDashboard.confirm')}
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          title="Distribute rewards"
+                          title={t('manufacturerDashboard.distributeRewards')}
                           onClick={() => setDistributeTarget(w)}
                         >
                           <Gift className="h-4 w-4" />
@@ -289,15 +320,18 @@ export function ManufacturerDashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center gap-2 pb-3">
               <Zap className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Active Incentives</CardTitle>
+              <CardTitle className="text-base">{t('manufacturerDashboard.activeIncentives')}</CardTitle>
             </CardHeader>
             <CardContent>
               {incentives.length === 0 ? (
                 <EmptyState
                   icon={Zap}
-                  title="No active incentives"
-                  description="Incentives will appear here once created"
-                  action={{ label: 'Create Incentive', onClick: () => setCreateDialogOpen(true) }}
+                  title={t('manufacturerDashboard.noActiveIncentives')}
+                  description={t('manufacturerDashboard.noActiveIncentivesDescription')}
+                  action={{
+                    label: t('manufacturerDashboard.createIncentive'),
+                    onClick: () => setCreateDialogOpen(true)
+                  }}
                 />
               ) : (
                 <ul className="space-y-3">
@@ -307,13 +341,17 @@ export function ManufacturerDashboardPage() {
                       className="flex items-center justify-between rounded-md border p-3"
                     >
                       <div className="space-y-0.5">
-                        <p className="text-sm font-medium">{WASTE_TYPE_LABELS[inc.waste_type]}</p>
+                        <p className="text-sm font-medium">
+                          {t(WASTE_TYPE_LABEL_KEYS[inc.waste_type])}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {inc.reward_points} pts/unit
+                          {t('manufacturerDashboard.pointsPerUnit', { points: inc.reward_points })}
                         </p>
                       </div>
                       <Badge variant="secondary">
-                        {inc.remaining_budget.toLocaleString()} left
+                        {t('manufacturerDashboard.budgetLeft', {
+                          amount: inc.remaining_budget.toLocaleString()
+                        })}
                       </Badge>
                     </li>
                   ))}
@@ -326,14 +364,16 @@ export function ManufacturerDashboardPage() {
           <Card className="md:col-span-2">
             <CardHeader className="flex flex-row items-center gap-2 pb-3">
               <History className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Reward Distribution History</CardTitle>
+              <CardTitle className="text-base">
+                {t('manufacturerDashboard.rewardHistoryTitle')}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {rewardHistory.length === 0 ? (
                 <EmptyState
                   icon={History}
-                  title="No rewards distributed"
-                  description="Rewards will appear here as they are distributed"
+                  title={t('manufacturerDashboard.noRewardsDistributed')}
+                  description={t('manufacturerDashboard.noRewardsDistributedDescription')}
                 />
               ) : (
                 <ul className="space-y-3">
@@ -342,14 +382,21 @@ export function ManufacturerDashboardPage() {
                       <div className="space-y-0.5">
                         {r.wasteId > 0 && (
                           <p className="text-sm font-medium">
-                            Waste #{r.wasteId} · Incentive #{r.incentiveId}
+                            {t('manufacturerDashboard.historyEntry', {
+                              wasteId: r.wasteId,
+                              incentiveId: r.incentiveId
+                            })}
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground">
                           {new Date(r.distributedAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <Badge>{r.amount.toLocaleString()} tokens</Badge>
+                      <Badge>
+                        {t('manufacturerDashboard.tokensAmount', {
+                          amount: r.amount.toLocaleString()
+                        })}
+                      </Badge>
                     </li>
                   ))}
                 </ul>
@@ -363,12 +410,12 @@ export function ManufacturerDashboardPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Incentive</DialogTitle>
+            <DialogTitle>{t('manufacturerDashboard.createIncentive')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <label htmlFor="manufacturer-waste-type" className="text-sm font-medium">
-                Waste Type
+                {t('manufacturerDashboard.wasteType')}
               </label>
               <Select
                 value={form.wasteType}
@@ -378,9 +425,9 @@ export function ManufacturerDashboardPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(WASTE_TYPE_LABELS).map(([val, label]) => (
+                  {Object.entries(WASTE_TYPE_LABEL_KEYS).map(([val, labelKey]) => (
                     <SelectItem key={val} value={val}>
-                      {label}
+                      {t(labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -388,26 +435,26 @@ export function ManufacturerDashboardPage() {
             </div>
             <div className="space-y-1.5">
               <label htmlFor="manufacturer-reward-points" className="text-sm font-medium">
-                Reward Points (per unit)
+                {t('manufacturerDashboard.rewardPointsLabel')}
               </label>
               <Input
                 id="manufacturer-reward-points"
                 type="number"
                 min="1"
-                placeholder="e.g. 100"
+                placeholder={t('manufacturerDashboard.rewardPointsPlaceholder')}
                 value={form.rewardPoints}
                 onChange={(e) => setForm((f) => ({ ...f, rewardPoints: e.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
               <label htmlFor="manufacturer-budget" className="text-sm font-medium">
-                Total Budget (tokens)
+                {t('manufacturerDashboard.budgetLabel')}
               </label>
               <Input
                 id="manufacturer-budget"
                 type="number"
                 min="1"
-                placeholder="e.g. 10000"
+                placeholder={t('manufacturerDashboard.budgetPlaceholder')}
                 value={form.budget}
                 onChange={(e) => setForm((f) => ({ ...f, budget: e.target.value }))}
               />
@@ -415,13 +462,13 @@ export function ManufacturerDashboardPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => setShowCreateConfirm(true)}
               disabled={submitting || !form.rewardPoints || !form.budget}
             >
-              Create
+              {t('common.create')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -441,11 +488,17 @@ export function ManufacturerDashboardPage() {
       {/* Confirm Waste — transaction confirm */}
       <TransactionConfirmDialog
         open={!!confirmTarget}
-        action="Confirm Waste"
+        action={t('manufacturerDashboard.confirmWaste')}
         params={confirmTarget ? [
-          { label: 'Waste ID', value: `#${confirmTarget.id}` },
-          { label: 'Type', value: WASTE_TYPE_LABELS[confirmTarget.waste_type] },
-          { label: 'Weight', value: `${confirmTarget.weight} kg` },
+          { label: t('manufacturerDashboard.wasteId'), value: `#${confirmTarget.id}` },
+          {
+            label: t('manufacturerDashboard.type'),
+            value: t(WASTE_TYPE_LABEL_KEYS[confirmTarget.waste_type])
+          },
+          {
+            label: t('manufacturerDashboard.weight'),
+            value: t('manufacturerDashboard.weightKg', { weight: confirmTarget.weight })
+          },
         ] : []}
         isPending={false}
         onConfirm={() => {
@@ -460,11 +513,20 @@ export function ManufacturerDashboardPage() {
       {/* Create Incentive — transaction confirm */}
       <TransactionConfirmDialog
         open={showCreateConfirm}
-        action="Create Incentive"
+        action={t('manufacturerDashboard.createIncentive')}
         params={[
-          { label: 'Waste type', value: WASTE_TYPE_LABELS[Number(form.wasteType) as WasteType] },
-          { label: 'Reward per unit', value: `${form.rewardPoints} pts` },
-          { label: 'Total budget', value: `${form.budget} tokens` },
+          {
+            label: t('manufacturerDashboard.wasteType'),
+            value: t(WASTE_TYPE_LABEL_KEYS[Number(form.wasteType) as WasteType])
+          },
+          {
+            label: t('manufacturerDashboard.rewardPerUnit'),
+            value: t('manufacturerDashboard.pointsValue', { points: form.rewardPoints })
+          },
+          {
+            label: t('manufacturerDashboard.totalBudget'),
+            value: t('manufacturerDashboard.tokensValue', { amount: form.budget })
+          },
         ]}
         isPending={submitting}
         onConfirm={handleCreate}

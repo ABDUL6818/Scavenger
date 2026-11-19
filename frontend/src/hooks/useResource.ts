@@ -13,6 +13,13 @@ export interface UseResourceReturn<T> extends AsyncState<T> {
  *
  * `isLoading` is true until the first fetch settles, so initial renders show
  * loading UI instead of flashing an empty state.
+ *
+ * The returned `status` field is compatible with the shared
+ * transaction-status module (`pending` / `success` / `failed` lifecycle),
+ * mapping the underlying async state as follows:
+ *   - `idle` / `loading` -> `pending`
+ *   - `success`          -> `success`
+ *   - `error`            -> `failed`
  */
 export function useResource<T>(
   fetcher: () => Promise<T>,

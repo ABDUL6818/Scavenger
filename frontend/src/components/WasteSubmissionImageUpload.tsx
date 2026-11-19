@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import type { UploadImage } from '@/hooks/useImageUpload'
 
@@ -16,10 +17,15 @@ export function WasteSubmissionImageUpload({
   validationError,
   photoError,
 }: WasteSubmissionImageUploadProps) {
+  const { t } = useTranslation()
+
   return (
     <section>
       <label className="block text-sm font-medium mb-2">
-        Photos <span className="text-destructive">*</span>
+        {t('wasteSubmission.imageUpload.label')}{' '}
+        <span className="text-destructive" aria-hidden="true">
+          *
+        </span>
       </label>
       <ImageUpload
         images={images}

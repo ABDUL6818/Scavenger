@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Incentive } from '@/api/types'
 import { useToast } from '@/hooks/useToast'
+import { useTransactionStatus } from '@/hooks/useTransactionStatus'
 import { cacheKeys } from '@/lib/cacheKeys'
 
 /**
@@ -13,6 +14,7 @@ import { cacheKeys } from '@/lib/cacheKeys'
 export function useIncentivesClaim() {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const { status, start, succeed, fail, reset } = useTransactionStatus()
 
   const mutation = useMutation<void, Error, number, { previousIncentives: Incentive[] | undefined }>({
     mutationFn: async (_incentiveId: number) => {
@@ -24,6 +26,9 @@ export function useIncentivesClaim() {
     },
 
     onMutate: async (incentiveId: number) => {
+      // Enter the shared pending lifecycle state
+      start()
+
       // Cancel any in-flight refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: cacheKeys.incentives() })
 
@@ -48,7 +53,12 @@ export function useIncentivesClaim() {
       if (context?.previousIncentives !== undefined) {
         queryClient.setQueryData(cacheKeys.incentives(), context.previousIncentives)
       }
+      fail('Failed to claim incentive. Please try again.')
       toast.error('Failed to claim incentive. Please try again.')
+    },
+
+    onSuccess: () => {
+      succeed()
     },
 
     onSettled: () => {
@@ -60,5 +70,8 @@ export function useIncentivesClaim() {
   return {
     claimIncentive: (incentiveId: number) => mutation.mutateAsync(incentiveId),
     isClaiming: mutation.isPending,
+    // Shared transaction lifecycle state (pending/success/failed)
+    status,
+    resetStatus: reset,
   }
 }

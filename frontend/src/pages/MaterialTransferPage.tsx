@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, History, Loader2,Send } from 'lucide-react'
 import { useCallback, useEffect,useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { Waste } from '@/api/types'
 import { Button } from '@/components/ui/Button'
@@ -51,11 +52,27 @@ interface LocalTransferRecord {
   status: TransferStatus
 }
 
-const STEPS: { key: TransferStep; label: string; icon: React.ReactNode }[] = [
-  { key: 'select', label: 'Select Waste', icon: <Package className="h-4 w-4" /> },
-  { key: 'destination', label: 'Destination', icon: <MapPin className="h-4 w-4" /> },
-  { key: 'documentation', label: 'Documentation', icon: <FileText className="h-4 w-4" /> },
-  { key: 'review', label: 'Review', icon: <CheckCircle2 className="h-4 w-4" /> },
+const STEPS: { key: TransferStep; labelKey: string; icon: React.ReactNode }[] = [
+  {
+    key: 'select',
+    labelKey: 'materialTransfer.steps.select',
+    icon: <Package className="h-4 w-4" />,
+  },
+  {
+    key: 'destination',
+    labelKey: 'materialTransfer.steps.destination',
+    icon: <MapPin className="h-4 w-4" />,
+  },
+  {
+    key: 'documentation',
+    labelKey: 'materialTransfer.steps.documentation',
+    icon: <FileText className="h-4 w-4" />,
+  },
+  {
+    key: 'review',
+    labelKey: 'materialTransfer.steps.review',
+    icon: <CheckCircle2 className="h-4 w-4" />,
+  },
 ]
 
 const INITIAL_FORM: TransferFormData = {
@@ -167,10 +184,11 @@ function StepIndicator({
   currentStep: TransferStep
   onStepClick: (step: TransferStep) => void
 }) {
+  const { t } = useTranslation()
   const currentIdx = STEPS.findIndex((s) => s.key === currentStep)
 
   return (
-    <nav aria-label="Transfer progress" className="mb-6">
+    <nav aria-label={t('materialTransfer.progressLabel')} className="mb-6">
       <ol className="flex items-center gap-2">
         {STEPS.map((step, idx) => {
           const isCompleted = idx < currentIdx
@@ -184,7 +202,11 @@ function StepIndicator({
                 onClick={() => isClickable && onStepClick(step.key)}
                 disabled={!isClickable}
                 aria-current={isCurrent ? 'step' : undefined}
-                aria-label={`Step ${idx + 1}: ${step.label}${isCompleted ? ' (completed)' : ''}`}
+                aria-label={t('materialTransfer.stepAriaLabel', {
+                  number: idx + 1,
+                  label: t(step.labelKey),
+                  completed: isCompleted ? t('materialTransfer.completedSuffix') : '',
+                })}
                 className={`flex w-full flex-col items-center gap-1 rounded-lg p-2 text-xs transition-colors sm:flex-row sm:gap-2 sm:p-3 sm:text-sm ${
                   isCurrent
                     ? 'bg-primary/10 font-medium text-primary'
@@ -204,7 +226,7 @@ function StepIndicator({
                 >
                   {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : idx + 1}
                 </span>
-                <span className="hidden sm:inline">{step.label}</span>
+                <span className="hidden sm:inline">{t(step.labelKey)}</span>
               </button>
               {idx < STEPS.length - 1 && (
                 <ArrowRight
@@ -234,6 +256,8 @@ function SelectWasteStep({
   selectedId: bigint | null
   onSelect: (waste: Waste) => void
 }) {
+  const { t } = useTranslation()
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -248,8 +272,8 @@ function SelectWasteStep({
     return (
       <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed py-16 text-muted-foreground">
         <Package className="h-10 w-10 opacity-30" />
-        <p className="text-sm">No active waste materials found.</p>
-        <p className="text-xs">Submit materials first before transferring.</p>
+        <p className="text-sm">{t('materialTransfer.selectWaste.emptyTitle')}</p>
+        <p className="text-xs">{t('materialTransfer.selectWaste.emptyDescription')}</p>
       </div>
     )
   }
@@ -257,7 +281,7 @@ function SelectWasteStep({
   return (
     <div className="space-y-2">
       <p className="text-sm text-muted-foreground">
-        Select the waste material you want to transfer.
+        {t('materialTransfer.selectWaste.instructions')}
       </p>
       <div className="divide-y divide-border rounded-lg border">
         {wastes.map((waste) => {
@@ -268,14 +292,19 @@ function SelectWasteStep({
               type="button"
               onClick={() => onSelect(waste)}
               aria-pressed={isSelected}
-              aria-label={`Select waste #${waste.waste_id} - ${wasteTypeLabel(waste.waste_type)}`}
+              aria-label={t('materialTransfer.selectWaste.selectAriaLabel', {
+                id: waste.waste_id.toString(),
+                type: wasteTypeLabel(waste.waste_type),
+              })}
               className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-accent/50 ${
                 isSelected ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''
               }`}
             >
               <div className="space-y-1">
                 <p className="font-medium">
-                  Waste #{waste.waste_id.toString()}
+                  {t('materialTransfer.selectWaste.wasteLabel', {
+                    id: waste.waste_id.toString(),
+                  })}
                 </p>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="secondary">{wasteTypeLabel(waste.waste_type)}</Badge>
@@ -285,7 +314,9 @@ function SelectWasteStep({
                       : `${waste.weight.toString()} g`}
                   </span>
                   {waste.is_confirmed && (
-                    <Badge className="bg-emerald-100 text-emerald-700">Confirmed</Badge>
+                    <Badge className="bg-emerald-100 text-emerald-700">
+                      {t('materialTransfer.status.confirmed')}
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -315,18 +346,19 @@ function DestinationStep({
   recipientAddress: string
   onRecipientChange: (addr: string) => void
 }) {
+  const { t } = useTranslation()
   const isValid = recipientAddress.length === 0 || isValidStellarAddress(recipientAddress)
   const isFilled = recipientAddress.length > 0
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Enter the Stellar address of the recipient.
+        {t('materialTransfer.destination.instructions')}
       </p>
 
       <div className="space-y-2">
         <label htmlFor="recipient-address" className="text-sm font-medium">
-          Recipient Address
+          {t('materialTransfer.destination.recipientLabel')}
         </label>
         <Input
           id="recipient-address"
@@ -334,7 +366,7 @@ function DestinationStep({
           placeholder="G..."
           value={recipientAddress}
           onChange={(e) => onRecipientChange(e.target.value.toUpperCase())}
-          aria-label="Recipient Stellar address"
+          aria-label={t('materialTransfer.destination.recipientAriaLabel')}
           aria-invalid={isFilled && !isValid}
           className={`font-mono text-xs ${
             isFilled && !isValid ? 'border-destructive focus-visible:ring-destructive' : ''
@@ -343,17 +375,17 @@ function DestinationStep({
         {isFilled && !isValid && (
           <p className="flex items-center gap-1 text-xs text-destructive" role="alert">
             <AlertTriangle className="h-3 w-3" />
-            Invalid Stellar address. Must start with G and be 56 characters.
+            {t('materialTransfer.destination.invalidAddress')}
           </p>
         )}
         {isFilled && isValid && (
           <p className="flex items-center gap-1 text-xs text-emerald-600">
             <CheckCircle2 className="h-3 w-3" />
-            Valid Stellar address
+            {t('materialTransfer.destination.validAddress')}
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          Stellar addresses start with G and are 56 characters long.
+          {t('materialTransfer.destination.addressHint')}
         </p>
       </div>
     </div>
@@ -373,6 +405,7 @@ function PhotoUploadSection({
   onPhotosChange: (files: File[]) => void
   inputId: string
 }) {
+  const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = useCallback(
@@ -411,7 +444,9 @@ function PhotoUploadSection({
             <button
               type="button"
               onClick={() => removePhoto(idx)}
-              aria-label={`Remove photo ${idx + 1}`}
+              aria-label={t('materialTransfer.documentation.removePhotoAriaLabel', {
+                number: idx + 1,
+              })}
               className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
             >
               <X className="h-3 w-3" />
@@ -423,10 +458,12 @@ function PhotoUploadSection({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-            aria-label={`Add ${label.toLowerCase()}`}
+            aria-label={t('materialTransfer.documentation.addPhotoAriaLabel', {
+              label: label.toLowerCase(),
+            })}
           >
             <Camera className="h-5 w-5" />
-            <span className="text-[10px]">Add</span>
+            <span className="text-[10px]">{t('materialTransfer.documentation.addPhoto')}</span>
           </button>
         )}
       </div>
@@ -438,10 +475,12 @@ function PhotoUploadSection({
         multiple
         className="sr-only"
         onChange={handleFileChange}
-        aria-label={`Upload ${label.toLowerCase()}`}
+        aria-label={t('materialTransfer.documentation.uploadPhotoAriaLabel', {
+          label: label.toLowerCase(),
+        })}
       />
       <p className="text-xs text-muted-foreground">
-        Up to 5 photos. Accepted: JPEG, PNG, WebP.
+        {t('materialTransfer.documentation.photoHint')}
       </p>
     </div>
   )
@@ -454,66 +493,68 @@ function DocumentationStep({
   form: TransferFormData
   onChange: (updates: Partial<TransferFormData>) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Add notes and documentation for the transfer.
+        {t('materialTransfer.documentation.instructions')}
       </p>
 
       <div className="space-y-2">
         <label htmlFor="transfer-notes" className="text-sm font-medium">
-          Transfer Notes
+          {t('materialTransfer.documentation.transferNotesLabel')}
         </label>
         <textarea
           id="transfer-notes"
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           rows={3}
-          placeholder="General notes about this transfer..."
+          placeholder={t('materialTransfer.documentation.transferNotesPlaceholder')}
           value={form.transferNotes}
           onChange={(e) => onChange({ transferNotes: e.target.value })}
-          aria-label="Transfer notes"
+          aria-label={t('materialTransfer.documentation.transferNotesAriaLabel')}
         />
       </div>
 
       <div className="space-y-2">
         <label htmlFor="condition-notes" className="text-sm font-medium">
-          Condition Notes
+          {t('materialTransfer.documentation.conditionNotesLabel')}
         </label>
         <textarea
           id="condition-notes"
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           rows={2}
-          placeholder="Describe the current condition of the material..."
+          placeholder={t('materialTransfer.documentation.conditionNotesPlaceholder')}
           value={form.conditionNotes}
           onChange={(e) => onChange({ conditionNotes: e.target.value })}
-          aria-label="Condition notes"
+          aria-label={t('materialTransfer.documentation.conditionNotesAriaLabel')}
         />
       </div>
 
       <div className="space-y-2">
         <label htmlFor="handling-instructions" className="text-sm font-medium">
-          Handling Instructions
+          {t('materialTransfer.documentation.handlingInstructionsLabel')}
         </label>
         <textarea
           id="handling-instructions"
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           rows={2}
-          placeholder="Special handling requirements or instructions..."
+          placeholder={t('materialTransfer.documentation.handlingInstructionsPlaceholder')}
           value={form.handlingInstructions}
           onChange={(e) => onChange({ handlingInstructions: e.target.value })}
-          aria-label="Handling instructions"
+          aria-label={t('materialTransfer.documentation.handlingInstructionsAriaLabel')}
         />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <PhotoUploadSection
-          label="Before Photos"
+          label={t('materialTransfer.documentation.beforePhotosLabel')}
           photos={form.beforePhotos}
           onPhotosChange={(files) => onChange({ beforePhotos: files })}
           inputId="before-photos"
         />
         <PhotoUploadSection
-          label="After Photos"
+          label={t('materialTransfer.documentation.afterPhotosLabel')}
           photos={form.afterPhotos}
           onPhotosChange={(files) => onChange({ afterPhotos: files })}
           inputId="after-photos"
@@ -532,6 +573,7 @@ function SignaturePad({
   onSign: (signed: boolean) => void
   signed: boolean
 }) {
+  const { t } = useTranslation()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [hasDrawn, setHasDrawn] = useState(false)
@@ -602,16 +644,18 @@ function SignaturePad({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">Digital Signature</label>
+        <label className="text-sm font-medium">
+          {t('materialTransfer.signature.label')}
+        </label>
         {hasDrawn && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={clearSignature}
-            aria-label="Clear signature"
+            aria-label={t('materialTransfer.signature.clearAriaLabel')}
           >
-            Clear
+            {t('materialTransfer.signature.clear')}
           </Button>
         )}
       </div>
@@ -632,12 +676,12 @@ function SignaturePad({
           onTouchStart={startDrawing}
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
-          aria-label="Signature pad - draw your signature"
+          aria-label={t('materialTransfer.signature.padAriaLabel')}
           role="img"
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Draw your signature above to confirm the transfer.
+        {t('materialTransfer.signature.hint')}
       </p>
     </div>
   )
@@ -652,29 +696,37 @@ function ReviewStep({
   senderAddress: string
   onConfirmChange: (confirmed: boolean) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Review all details before submitting the transfer.
+        {t('materialTransfer.review.instructions')}
       </p>
 
       {/* Transfer summary */}
       <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-        <h4 className="text-sm font-semibold">Transfer Summary</h4>
+        <h4 className="text-sm font-semibold">{t('materialTransfer.review.summaryTitle')}</h4>
 
         <div className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <span className="text-muted-foreground">Waste ID</span>
+            <span className="text-muted-foreground">
+              {t('materialTransfer.review.wasteIdLabel')}
+            </span>
             <p className="font-medium">#{form.waste?.waste_id.toString()}</p>
           </div>
           <div>
-            <span className="text-muted-foreground">Material Type</span>
+            <span className="text-muted-foreground">
+              {t('materialTransfer.review.materialTypeLabel')}
+            </span>
             <p className="font-medium">
               {form.waste ? wasteTypeLabel(form.waste.waste_type) : '-'}
             </p>
           </div>
           <div>
-            <span className="text-muted-foreground">Weight</span>
+            <span className="text-muted-foreground">
+              {t('materialTransfer.review.weightLabel')}
+            </span>
             <p className="font-medium">
               {form.waste
                 ? Number(form.waste.weight) >= 1000
@@ -684,9 +736,13 @@ function ReviewStep({
             </p>
           </div>
           <div>
-            <span className="text-muted-foreground">Status</span>
+            <span className="text-muted-foreground">
+              {t('materialTransfer.review.statusLabel')}
+            </span>
             <p className="font-medium">
-              {form.waste?.is_confirmed ? 'Confirmed' : 'Unconfirmed'}
+              {form.waste?.is_confirmed
+                ? t('materialTransfer.status.confirmed')
+                : t('materialTransfer.status.unconfirmed')}
             </p>
           </div>
         </div>
@@ -694,12 +750,12 @@ function ReviewStep({
         <div className="border-t pt-3">
           <div className="flex items-center gap-3 text-sm">
             <div className="flex-1">
-              <span className="text-muted-foreground">From</span>
+              <span className="text-muted-foreground">{t('materialTransfer.review.fromLabel')}</span>
               <p className="font-mono text-xs">{formatAddress(senderAddress)}</p>
             </div>
             <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="flex-1">
-              <span className="text-muted-foreground">To</span>
+              <span className="text-muted-foreground">{t('materialTransfer.review.toLabel')}</span>
               <p className="font-mono text-xs">{formatAddress(form.recipientAddress)}</p>
             </div>
           </div>
@@ -707,32 +763,43 @@ function ReviewStep({
 
         {form.transferNotes && (
           <div className="border-t pt-3">
-            <span className="text-xs text-muted-foreground">Transfer Notes</span>
+            <span className="text-xs text-muted-foreground">
+              {t('materialTransfer.review.transferNotesLabel')}
+            </span>
             <p className="text-sm">{form.transferNotes}</p>
           </div>
         )}
 
         {form.conditionNotes && (
           <div className="border-t pt-3">
-            <span className="text-xs text-muted-foreground">Condition Notes</span>
+            <span className="text-xs text-muted-foreground">
+              {t('materialTransfer.review.conditionNotesLabel')}
+            </span>
             <p className="text-sm">{form.conditionNotes}</p>
           </div>
         )}
 
         {form.handlingInstructions && (
           <div className="border-t pt-3">
-            <span className="text-xs text-muted-foreground">Handling Instructions</span>
+            <span className="text-xs text-muted-foreground">
+              {t('materialTransfer.review.handlingInstructionsLabel')}
+            </span>
             <p className="text-sm">{form.handlingInstructions}</p>
           </div>
         )}
 
         {(form.beforePhotos.length > 0 || form.afterPhotos.length > 0) && (
           <div className="border-t pt-3">
-            <span className="text-xs text-muted-foreground">Documentation Photos</span>
+            <span className="text-xs text-muted-foreground">
+              {t('materialTransfer.review.documentationPhotosLabel')}
+            </span>
             <div className="mt-1 flex items-center gap-2 text-sm">
               <ImageIcon className="h-4 w-4 text-muted-foreground" />
               <span>
-                {form.beforePhotos.length} before, {form.afterPhotos.length} after
+                {t('materialTransfer.review.photoCount', {
+                  before: form.beforePhotos.length,
+                  after: form.afterPhotos.length,
+                })}
               </span>
             </div>
           </div>
@@ -749,11 +816,10 @@ function ReviewStep({
           checked={form.senderConfirmed}
           onChange={(e) => onConfirmChange(e.target.checked)}
           className="mt-0.5 h-4 w-4 rounded border"
-          aria-label="Confirm transfer details are correct"
+          aria-label={t('materialTransfer.review.confirmAriaLabel')}
         />
         <label htmlFor="confirm-checkbox" className="text-sm">
-          I confirm that all transfer details are correct and I authorize this material transfer
-          to the specified recipient.
+          {t('materialTransfer.review.confirmLabel')}
         </label>
       </div>
     </div>
@@ -766,28 +832,28 @@ const STATUS_ORDER: TransferStatus[] = ['pending', 'in-transit', 'delivered', 'c
 
 const STATUS_CONFIG: Record<
   TransferStatus,
-  { label: string; icon: React.ReactNode; color: string; bgColor: string }
+  { labelKey: string; icon: React.ReactNode; color: string; bgColor: string }
 > = {
   pending: {
-    label: 'Pending',
+    labelKey: 'materialTransfer.status.pending',
     icon: <Clock className="h-4 w-4" />,
     color: 'text-yellow-600',
     bgColor: 'bg-yellow-100',
   },
   'in-transit': {
-    label: 'In Transit',
+    labelKey: 'materialTransfer.status.inTransit',
     icon: <Truck className="h-4 w-4" />,
     color: 'text-blue-600',
     bgColor: 'bg-blue-100',
   },
   delivered: {
-    label: 'Delivered',
+    labelKey: 'materialTransfer.status.delivered',
     icon: <Package className="h-4 w-4" />,
     color: 'text-purple-600',
     bgColor: 'bg-purple-100',
   },
   confirmed: {
-    label: 'Confirmed',
+    labelKey: 'materialTransfer.status.confirmed',
     icon: <ShieldCheck className="h-4 w-4" />,
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-100',
@@ -795,10 +861,15 @@ const STATUS_CONFIG: Record<
 }
 
 function StatusTimeline({ status }: { status: TransferStatus }) {
+  const { t } = useTranslation()
   const currentIdx = STATUS_ORDER.indexOf(status)
 
   return (
-    <div className="flex items-center gap-1" role="group" aria-label="Transfer status timeline">
+    <div
+      className="flex items-center gap-1"
+      role="group"
+      aria-label={t('materialTransfer.statusTimelineAriaLabel')}
+    >
       {STATUS_ORDER.map((s, idx) => {
         const config = STATUS_CONFIG[s]
         const isCompleted = idx <= currentIdx
@@ -811,7 +882,14 @@ function StatusTimeline({ status }: { status: TransferStatus }) {
                 className={`flex h-8 w-8 items-center justify-center rounded-full ${
                   isCompleted ? `${config.bgColor} ${config.color}` : 'bg-muted text-muted-foreground'
                 } ${isCurrent ? 'ring-2 ring-offset-1 ring-primary' : ''}`}
-                aria-label={`${config.label}${isCurrent ? ' (current)' : isCompleted ? ' (completed)' : ''}`}
+                aria-label={t('materialTransfer.statusStepAriaLabel', {
+                  label: t(config.labelKey),
+                  suffix: isCurrent
+                    ? t('materialTransfer.currentSuffix')
+                    : isCompleted
+                      ? t('materialTransfer.completedSuffix')
+                      : '',
+                })}
               >
                 {config.icon}
               </div>
@@ -820,7 +898,7 @@ function StatusTimeline({ status }: { status: TransferStatus }) {
                   isCompleted ? 'font-medium' : 'text-muted-foreground'
                 }`}
               >
-                {config.label}
+                {t(config.labelKey)}
               </span>
             </div>
             {idx < STATUS_ORDER.length - 1 && (
@@ -840,6 +918,7 @@ function StatusTimeline({ status }: { status: TransferStatus }) {
 // ── Transfer history tab ────────────────────────────────────────────────────
 
 function TransferHistoryTab() {
+  const { t } = useTranslation()
   const { address } = useWallet()
   const [localHistory] = useState<LocalTransferRecord[]>(getTransferHistory())
 
@@ -847,8 +926,8 @@ function TransferHistoryTab() {
     return (
       <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed py-16 text-muted-foreground">
         <History className="h-10 w-10 opacity-30" />
-        <p className="text-sm">No transfers recorded this session.</p>
-        <p className="text-xs">Completed transfers will appear here.</p>
+        <p className="text-sm">{t('materialTransfer.history.emptyTitle')}</p>
+        <p className="text-xs">{t('materialTransfer.history.emptyDescription')}</p>
       </div>
     )
   }
@@ -862,28 +941,38 @@ function TransferHistoryTab() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Waste #{record.wasteId}</span>
+                  <span className="text-sm font-medium">
+                    {t('materialTransfer.history.wasteLabel', { id: record.wasteId })}
+                  </span>
                 </div>
                 <Badge
                   variant="secondary"
                   className={`${STATUS_CONFIG[record.status].bgColor} ${STATUS_CONFIG[record.status].color}`}
                 >
-                  {STATUS_CONFIG[record.status].label}
+                  {t(STATUS_CONFIG[record.status].labelKey)}
                 </Badge>
               </div>
 
               <div className="flex items-center gap-3 text-xs">
                 <div className="flex-1">
-                  <span className="text-muted-foreground">From</span>
+                  <span className="text-muted-foreground">
+                    {t('materialTransfer.history.fromLabel')}
+                  </span>
                   <p className="font-mono">
-                    {record.from === address ? 'You' : formatAddress(record.from)}
+                    {record.from === address
+                      ? t('materialTransfer.history.you')
+                      : formatAddress(record.from)}
                   </p>
                 </div>
                 <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
                 <div className="flex-1">
-                  <span className="text-muted-foreground">To</span>
+                  <span className="text-muted-foreground">
+                    {t('materialTransfer.history.toLabel')}
+                  </span>
                   <p className="font-mono">
-                    {record.to === address ? 'You' : formatAddress(record.to)}
+                    {record.to === address
+                      ? t('materialTransfer.history.you')
+                      : formatAddress(record.to)}
                   </p>
                 </div>
               </div>

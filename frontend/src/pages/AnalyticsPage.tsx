@@ -15,9 +15,11 @@ import { TopMaterialsChart } from '@/components/analytics/TopMaterialsChart'
 import { ParticipantContributionChart } from '@/components/analytics/ParticipantContributionChart'
 import { QuickStatsCard } from '@/components/analytics/QuickStatsCard'
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export function AnalyticsPage() {
-  useAppTitle('Analytics')
+  const { t } = useTranslation()
+  useAppTitle(t('analytics.title'))
   const { totalWastes, isLoading } = useStats()
   const { exportToCSV, exportToPDF } = useAnalyticsExport()
   const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
@@ -45,9 +47,9 @@ export function AnalyticsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <h1 className="text-3xl font-bold">{t('analytics.dashboard')}</h1>
           <p className="mt-1 text-muted-foreground">
-            Track waste management trends and performance metrics
+            {t('analytics.subtitle')}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -67,37 +69,37 @@ export function AnalyticsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={<Package className="h-4 w-4" />}
-          label="Total Waste Processed"
+          label={t('analytics.kpi.totalWasteProcessed')}
           value={Number(totalWastes)}
           trend="up"
-          trendLabel="+12% from last month"
+          trendLabel={t('analytics.kpi.totalWasteTrend')}
           isLoading={isLoading}
           variant="primary"
         />
         <StatCard
           icon={<Users className="h-4 w-4" />}
-          label="Active Participants"
+          label={t('analytics.kpi.activeParticipants')}
           value={0}
           trend="up"
-          trendLabel="+5 new this week"
+          trendLabel={t('analytics.kpi.activeParticipantsTrend')}
           isLoading={isLoading}
           variant="success"
         />
         <StatCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label="Recycling Rate"
+          label={t('analytics.kpi.recyclingRate')}
           value="87%"
           trend="up"
-          trendLabel="+3% improvement"
+          trendLabel={t('analytics.kpi.recyclingRateTrend')}
           isLoading={isLoading}
           variant="default"
         />
         <StatCard
           icon={<BarChart3 className="h-4 w-4" />}
-          label="Avg Processing Time"
-          value="2.4 days"
+          label={t('analytics.kpi.avgProcessingTime')}
+          value={t('analytics.kpi.avgProcessingTimeValue')}
           trend="down"
-          trendLabel="15% faster"
+          trendLabel={t('analytics.kpi.avgProcessingTimeTrend')}
           isLoading={isLoading}
           variant="warning"
         />
@@ -131,7 +133,7 @@ export function AnalyticsPage() {
 
       {/* User Behavior Analytics */}
       <div>
-        <h2 className="mb-4 text-xl font-semibold">User Behavior Analytics</h2>
+        <h2 className="mb-4 text-xl font-semibold">{t('analytics.userBehavior')}</h2>
         <UserBehaviorDashboard />
       </div>
     </div>

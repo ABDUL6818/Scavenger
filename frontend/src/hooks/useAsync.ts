@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+/**
+ * Lifecycle status shared with the transaction-status module so async state
+ * (including polling hooks) can be mapped onto the same pending/success/failed
+ * UI without translation layers.
+ */
 export type AsyncStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export interface AsyncState<T> {
@@ -46,6 +51,11 @@ export function useAsync<T, Args extends unknown[] = []>(
     }
   }, [])
 
+  // Backwards-compatibility: `status` values are unchanged ('idle' | 'loading'
+  // | 'success' | 'error') and `isLoading` is still derived from `status`, so
+  // existing callers keep working. New consumers (e.g. the transaction-status
+  // polling hook) can map `status` directly onto pending/success/failed.
+
   const run = useCallback(async (...args: Args): Promise<T | undefined> => {
     const callId = ++callIdRef.current
     setState((prev) => ({ ...prev, status: 'loading', error: null }))
@@ -68,6 +78,9 @@ export function useAsync<T, Args extends unknown[] = []>(
     callIdRef.current++
     setState({ status: 'idle', data: null, error: null })
   }, [])
+
+  // No console.* calls or commented-out code here: failures are surfaced via
+  // `error` in the returned state for callers to render.
 
   return { ...state, isLoading: state.status === 'loading', run, reset }
 }

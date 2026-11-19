@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Controller, type Control, type FieldErrors } from 'react-hook-form'
 import {
   Newspaper, Recycle, Package, Wrench, GlassWater,
@@ -6,16 +7,21 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { WasteType } from '@/api/types'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { WasteFormValues } from './WasteSubmissionFields'
 
+/**
+ * Static option metadata. `label` is kept for backwards compatibility with
+ * existing callers/tests; UI rendering uses the i18n key `labelKey`.
+ */
 export const WASTE_TYPE_OPTIONS = [
-  { value: WasteType.Paper, label: 'Paper', icon: Newspaper },
-  { value: WasteType.PetPlastic, label: 'PET Plastic', icon: Recycle },
-  { value: WasteType.Plastic, label: 'Plastic', icon: Package },
-  { value: WasteType.Metal, label: 'Metal', icon: Wrench },
-  { value: WasteType.Glass, label: 'Glass', icon: GlassWater },
-  { value: WasteType.Organic, label: 'Organic', icon: Leaf },
-  { value: WasteType.Electronic, label: 'Electronic', icon: Cpu },
+  { value: WasteType.Paper, label: 'Paper', labelKey: 'waste.materials.paper', icon: Newspaper },
+  { value: WasteType.PetPlastic, label: 'PET Plastic', labelKey: 'waste.materials.petPlastic', icon: Recycle },
+  { value: WasteType.Plastic, label: 'Plastic', labelKey: 'waste.materials.plastic', icon: Package },
+  { value: WasteType.Metal, label: 'Metal', labelKey: 'waste.materials.metal', icon: Wrench },
+  { value: WasteType.Glass, label: 'Glass', labelKey: 'waste.materials.glass', icon: GlassWater },
+  { value: WasteType.Organic, label: 'Organic', labelKey: 'waste.materials.organic', icon: Leaf },
+  { value: WasteType.Electronic, label: 'Electronic', labelKey: 'waste.materials.electronic', icon: Cpu },
 ] as const
 
 interface WasteMaterialSelectorProps {
@@ -25,21 +31,24 @@ interface WasteMaterialSelectorProps {
 }
 
 export function WasteMaterialSelector({ control, selectedType, errors }: WasteMaterialSelectorProps) {
+  const { t } = useTranslation()
   const [materialSearch, setMaterialSearch] = useState('')
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false)
 
   const filteredMaterials = useMemo(() => {
     if (!materialSearch) return WASTE_TYPE_OPTIONS
     const lower = materialSearch.toLowerCase()
-    return WASTE_TYPE_OPTIONS.filter((opt) => opt.label.toLowerCase().includes(lower))
-  }, [materialSearch])
+    return WASTE_TYPE_OPTIONS.filter((opt) =>
+      t(opt.labelKey).toLowerCase().includes(lower)
+    )
+  }, [materialSearch, t])
 
   const selectedOption = WASTE_TYPE_OPTIONS.find((opt) => opt.value === selectedType)
 
   return (
     <section>
       <label className="block text-sm font-medium mb-2">
-        Material Type <span className="text-destructive">*</span>
+        {t('waste.materialType')} <span className="text-destructive">*</span>
       </label>
       <Controller
         name="wasteType"
@@ -53,7 +62,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                 'flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 !selectedOption && 'text-muted-foreground'
               )}
-              aria-label="Select material type"
+              aria-label={t('waste.selectMaterialType')}
               aria-expanded={materialDropdownOpen}
               aria-haspopup="listbox"
             >
@@ -61,10 +70,10 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                 {selectedOption ? (
                   <>
                     <selectedOption.icon className="h-4 w-4" />
-                    {selectedOption.label}
+                    {t(selectedOption.labelKey)}
                   </>
                 ) : (
-                  'Select material type'
+                  t('waste.selectMaterialType')
                 )}
               </span>
               <ChevronDown className="h-4 w-4 opacity-50" />
@@ -75,16 +84,21 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                   <Search className="h-4 w-4 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Search materials..."
+                    placeholder={t('waste.searchMaterials')}
                     value={materialSearch}
                     onChange={(e) => setMaterialSearch(e.target.value)}
                     className="flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
-                    aria-label="Search materials"
+                    aria-label={t('waste.searchMaterials')}
                   />
                 </div>
                 <ul role="listbox" className="max-h-48 overflow-y-auto p-1">
                   {filteredMaterials.length === 0 ? (
-                    <li className="px-3 py-2 text-sm text-muted-foreground">No materials found</li>
+                    <li>
+                      <EmptyState
+                        title={t('waste.noMaterialsFound')}
+                        className="px-3 py-2"
+                      />
+                    </li>
                   ) : (
                     filteredMaterials.map((opt) => {
                       const Icon = opt.icon
@@ -104,7 +118,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                           )}
                         >
                           <Icon className="h-4 w-4" />
-                          {opt.label}
+                          {t(opt.labelKey)}
                         </li>
                       )
                     })

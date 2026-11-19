@@ -1,4 +1,5 @@
 import { ShieldAlert, AlertTriangle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/context/AuthContext'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useAdminTabs } from '@/hooks/useAdminTabs'
@@ -14,7 +15,8 @@ import {
 } from '@/components/admin'
 
 export function AdminDashboardPage() {
-  useAppTitle('Admin Dashboard')
+  const { t } = useTranslation()
+  useAppTitle(t('admin.dashboard.title'))
   const { user } = useAuth()
   const isAdmin = user?.role === 'Admin'
   const { activeTab, setActiveTab, visibleTabs } = useAdminTabs({ isAdmin })
@@ -24,22 +26,22 @@ export function AdminDashboardPage() {
       <div className="flex items-center gap-3">
         <ShieldAlert className="h-6 w-6 text-destructive" />
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Admin Dashboard</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">System management and oversight.</p>
+          <h1 className="text-xl font-bold sm:text-2xl">{t('admin.dashboard.title')}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{t('admin.dashboard.subtitle')}</p>
         </div>
       </div>
 
       {!isAdmin && (
         <div className="flex items-center gap-2 rounded-md border border-yellow-400 bg-yellow-50 px-4 py-2 text-sm text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          Some sections are restricted to admin accounts only.
+          {t('admin.dashboard.restrictedNotice')}
         </div>
       )}
 
       {/* Tab bar */}
       <div
         role="tablist"
-        aria-label="Admin sections"
+        aria-label={t('admin.dashboard.tabListLabel')}
         className="flex flex-wrap gap-1 rounded-lg border bg-muted p-1"
       >
         {visibleTabs.map((tab) => (

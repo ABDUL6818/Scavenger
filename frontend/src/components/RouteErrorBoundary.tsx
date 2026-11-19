@@ -1,5 +1,7 @@
 import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 // Vite's dynamic import() rejects with messages like this when a route chunk
 // fails to load (e.g. a stale chunk hash after a new deployment).
@@ -14,37 +16,37 @@ const CHUNK_LOAD_ERROR_RE = /fetch dynamically imported module|importing a modul
 export function RouteErrorBoundary() {
   const error = useRouteError()
   const navigate = useNavigate()
-
-  console.error('[RouteErrorBoundary]', error)
+  const { t } = useTranslation()
 
   const message = error instanceof Error ? error.message : String(error)
   const isChunkLoadError = error instanceof Error && CHUNK_LOAD_ERROR_RE.test(message)
 
   if (isChunkLoadError) {
     return (
-      <div role="alert" className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="text-lg font-semibold">Failed to load this page.</p>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          The page could not be loaded, possibly due to a network error or a new deployment.
-          Reloading usually fixes it.
-        </p>
-        <Button onClick={() => window.location.reload()}>Reload page</Button>
-      </div>
+      <EmptyState
+        role="alert"
+        title={t('errors.chunkLoad.title')}
+        description={t('errors.chunkLoad.description')}
+        action={<Button onClick={() => window.location.reload()}>{t('errors.chunkLoad.reload')}</Button>}
+      />
     )
   }
 
   const description = isRouteErrorResponse(error)
-    ? error.statusText || `Error ${error.status}`
-    : message || 'An unexpected error occurred.'
+    ? error.statusText || t('errors.route.status', { status: error.status })
+    : message || t('errors.route.unexpected')
 
   return (
-    <div role="alert" className="flex min-h-[60vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <p className="text-lg font-semibold">Something went wrong on this page.</p>
-      <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
-      <div className="flex gap-3">
-        <Button variant="outline" onClick={() => navigate(0)}>Try again</Button>
-        <Button onClick={() => navigate('/dashboard')}>Go to dashboard</Button>
-      </div>
-    </div>
+    <EmptyState
+      role="alert"
+      title={t('errors.route.title')}
+      description={description}
+      action={
+        <>
+          <Button variant="outline" onClick={() => navigate(0)}>{t('errors.route.tryAgain')}</Button>
+          <Button onClick={() => navigate('/dashboard')}>{t('errors.route.goToDashboard')}</Button>
+        </>
+      }
+    />
   )
 }

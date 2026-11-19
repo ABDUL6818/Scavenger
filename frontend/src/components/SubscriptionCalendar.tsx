@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Subscription } from '@/lib/subscriptionStorage'
 import { CalendarGrid } from '@/components/CalendarGrid'
+import { EmptyState } from '@/components/EmptyState'
 import { getMonthLabel, isInMonth } from '@/lib/date'
 
 interface Props {
@@ -9,6 +11,7 @@ interface Props {
 }
 
 export function SubscriptionCalendar({ subscriptions, month = new Date() }: Props) {
+  const { t } = useTranslation()
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
 
@@ -27,6 +30,7 @@ export function SubscriptionCalendar({ subscriptions, month = new Date() }: Prop
   }, [subscriptions, year, monthIdx])
 
   const monthLabel = getMonthLabel(month)
+  const hasPickups = Object.keys(pickupsByDay).length > 0
 
   return (
     <div className="rounded-lg border p-4">
@@ -39,9 +43,17 @@ export function SubscriptionCalendar({ subscriptions, month = new Date() }: Prop
           )
         }
       />
+      {!hasPickups && (
+        <div className="mt-3">
+          <EmptyState
+            title={t('subscriptionCalendar.empty.title')}
+            description={t('subscriptionCalendar.empty.description')}
+          />
+        </div>
+      )}
       <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
         <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
-        Scheduled pickup
+        {t('subscriptionCalendar.legend.scheduledPickup')}
       </div>
     </div>
   )

@@ -1,6 +1,8 @@
 import { Recycle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export interface WasteSubmissionSummaryProps {
   onDone: () => void
@@ -10,20 +12,28 @@ export interface WasteSubmissionSummaryProps {
 
 export function WasteSubmissionSummary({
   onDone,
-  title = 'Waste Submitted Successfully',
-  description = 'Your waste submission has been recorded.',
+  title,
+  description,
 }: WasteSubmissionSummaryProps) {
+  const { t } = useTranslation()
+
+  const resolvedTitle = title ?? t('waste.submissionSummary.title')
+  const resolvedDescription = description ?? t('waste.submissionSummary.description')
+
   return (
     <Card>
-      <CardContent className="flex flex-col items-center gap-4 py-12">
-        <div className="rounded-full bg-green-100 p-3">
-          <Recycle className="h-8 w-8 text-green-600" />
-        </div>
-        <h2 className="text-xl font-semibold">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        <Button variant="outline" onClick={onDone}>
-          Done
-        </Button>
+      <CardContent className="py-12">
+        <EmptyState
+          icon={<Recycle className="h-8 w-8 text-green-600" />}
+          iconClassName="rounded-full bg-green-100 p-3"
+          title={resolvedTitle}
+          description={resolvedDescription}
+          action={
+            <Button variant="outline" onClick={onDone}>
+              {t('common.done')}
+            </Button>
+          }
+        />
       </CardContent>
     </Card>
   )

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Flag, RotateCcw, ChevronDown, ChevronUp, BarChart2, Info } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -12,6 +13,7 @@ function FlagRow({ flag, value, hasOverride, onToggle, onClear }: {
   onToggle: (v: boolean) => void
   onClear: () => void
 }) {
+  const { t } = useTranslation()
   const isOn = Boolean(value)
 
   return (
@@ -21,19 +23,19 @@ function FlagRow({ flag, value, hasOverride, onToggle, onClear }: {
           <span className="font-mono text-sm font-medium">{flag.key}</span>
           {hasOverride && (
             <Badge className="text-xs bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400">
-              overridden
+              {t('featureFlags.overridden')}
             </Badge>
           )}
           {flag.rolloutPercentage !== undefined && (
             <Badge className="text-xs bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400">
-              {flag.rolloutPercentage}% rollout
+              {t('featureFlags.rolloutPercentage', { percentage: flag.rolloutPercentage })}
             </Badge>
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-0.5">{flag.description}</p>
         {flag.environments && !flag.environments.includes('all') && (
           <p className="text-xs text-muted-foreground mt-0.5">
-            Environments: {flag.environments.join(', ')}
+            {t('featureFlags.environments', { environments: flag.environments.join(', ') })}
           </p>
         )}
       </div>
@@ -42,9 +44,9 @@ function FlagRow({ flag, value, hasOverride, onToggle, onClear }: {
           <button
             onClick={onClear}
             className="text-xs text-muted-foreground hover:text-foreground underline"
-            title="Clear override"
+            title={t('featureFlags.clearOverride')}
           >
-            reset
+            {t('featureFlags.reset')}
           </button>
         )}
         <button
@@ -67,6 +69,7 @@ function FlagRow({ flag, value, hasOverride, onToggle, onClear }: {
 }
 
 export function FeatureFlagsPage() {
+  const { t } = useTranslation()
   const { flags, values, overrides, override, clearOverride, clearAll } = useFeatureFlags()
   const [showAnalytics, setShowAnalytics] = useState(false)
   const analytics = getFlagAnalytics().slice(-20).reverse()
@@ -80,10 +83,10 @@ export function FeatureFlagsPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Flag className="h-6 w-6" />
-            Feature Flags
+            {t('featureFlags.title')}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Manage gradual rollouts, A/B tests, and environment-specific features.
+            {t('featureFlags.subtitle')}
           </p>
         </div>
         {overrideCount > 0 && (
@@ -92,7 +95,7 @@ export function FeatureFlagsPage() {
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <RotateCcw className="h-4 w-4" />
-            Reset all
+            {t('featureFlags.resetAll')}
           </button>
         )}
       </div>
@@ -102,19 +105,19 @@ export function FeatureFlagsPage() {
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold">{Object.keys(flags).length}</p>
-            <p className="text-sm text-muted-foreground">Total flags</p>
+            <p className="text-sm text-muted-foreground">{t('featureFlags.totalFlags')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold text-green-600">{enabledCount}</p>
-            <p className="text-sm text-muted-foreground">Enabled</p>
+            <p className="text-sm text-muted-foreground">{t('featureFlags.enabled')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4">
             <p className="text-2xl font-bold text-yellow-600">{overrideCount}</p>
-            <p className="text-sm text-muted-foreground">Overridden</p>
+            <p className="text-sm text-muted-foreground">{t('featureFlags.overriddenCount')}</p>
           </CardContent>
         </Card>
       </div>
@@ -122,10 +125,9 @@ export function FeatureFlagsPage() {
       {/* Flag list */}
       <Card>
         <CardHeader>
-          <CardTitle>All Flags</CardTitle>
+          <CardTitle>{t('featureFlags.allFlags')}</CardTitle>
           <CardDescription>
-            Toggles here create local overrides stored in your browser. Production changes
-            require a deployment configuration update.
+            {t('featureFlags.allFlagsDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="divide-y p-0 px-6">
@@ -151,7 +153,7 @@ export function FeatureFlagsPage() {
           >
             <CardTitle className="flex items-center gap-2">
               <BarChart2 className="h-4 w-4" />
-              Recent Flag Events
+              {t('featureFlags.recentEvents')}
             </CardTitle>
             {showAnalytics ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
@@ -159,7 +161,7 @@ export function FeatureFlagsPage() {
         {showAnalytics && (
           <CardContent>
             {analytics.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No flag events recorded yet.</p>
+              <p className="text-sm text-muted-foreground">{t('featureFlags.noEvents')}</p>
             ) : (
               <ul className="space-y-1 text-sm">
                 {analytics.map((e, i) => (
@@ -182,8 +184,9 @@ export function FeatureFlagsPage() {
       <div className="flex gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-sm text-blue-700 dark:text-blue-300">
         <Info className="h-4 w-4 mt-0.5 shrink-0" />
         <p>
-          Overrides apply only to this browser session. For permanent rollout changes, update{' '}
-          <code className="font-mono text-xs">frontend/src/lib/featureFlags.ts</code> and redeploy.
+          {t('featureFlags.infoCallout')}{' '}
+          <code className="font-mono text-xs">frontend/src/lib/featureFlags.ts</code>{' '}
+          {t('featureFlags.infoCalloutSuffix')}
         </p>
       </div>
     </main>
