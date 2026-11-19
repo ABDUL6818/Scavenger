@@ -4,6 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { WasteType } from '@/api/types'
 import { useImageUpload } from '@/hooks/useImageUpload'
+import { useAuth } from '@/contexts/AuthContext'
+import { useNetwork } from '@/contexts/NetworkContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { wasteSubmissionSchema, toWeightInGrams, type WeightUnit } from '@/lib/validation/wasteSubmission'
@@ -27,9 +30,24 @@ export interface WasteSubmissionFormData {
 interface WasteSubmissionFormProps {
   onSubmit: (data: WasteSubmissionFormData) => Promise<void>
   onCancel: () => void
+  /** @deprecated Auth values are now read from AuthContext. Kept for backwards compatibility. */
+  isAuthenticated?: boolean
+  /** @deprecated Network values are now read from NetworkContext. Kept for backwards compatibility. */
+  isOnline?: boolean
+  /** @deprecated Theme values are now read from ThemeContext. Kept for backwards compatibility. */
+  theme?: 'light' | 'dark'
 }
 
-export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormProps) {
+export function WasteSubmissionForm({
+  onSubmit,
+  onCancel,
+  isAuthenticated: _isAuthenticatedProp,
+  isOnline: _isOnlineProp,
+  theme: _themeProp,
+}: WasteSubmissionFormProps) {
+  const { isAuthenticated } = useAuth()
+  const { isOnline } = useNetwork()
+  const { theme } = useTheme()
   const { images, addImages, removeImage, uploadIds, isUploading, validationError: imageValidationError } = useImageUpload()
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('grams')
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -43,6 +61,16 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
   })
 
   const onFormSubmit = handleSubmit(async (data) => {
+    if (!isAuthenticated) {
+      setSubmitError('You must be signed in to submit waste')
+      setSubmitState('error')
+      return
+    }
+    if (!isOnline) {
+      setSubmitError('You must be online to submit waste')
+      setSubmitState('error')
+      return
+    }
     if (uploadIds.length === 0) return
     const weightInGrams = toWeightInGrams(data.weight, weightUnit)
     setSubmitState('loading')
@@ -73,7 +101,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
   }
 
   return (
-    <form onSubmit={onFormSubmit} noValidate>
+    <form onSubmit={onFormSubmit} noValidate data-theme={theme}>
       <Card>
         <CardHeader>
           <CardTitle>Submit Waste</CardTitle>
@@ -102,7 +130,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
             <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={submitState === 'loading' || isUploading}>
+            <Button type="submit" className="flex-1" disabled={submitState === 'loading' || isUploading || !isAuthenticated || !isOnline}>
               {submitState === 'loading' ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</>
               ) : isUploading ? (

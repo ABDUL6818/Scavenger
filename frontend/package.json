@@ -11,6 +11,9 @@
     "lint": "eslint . --max-warnings 0",
     "depcheck": "npx depcheck --ignores=\"@chromatic-com/storybook,@storybook/addon-a11y,@storybook/addon-docs,@storybook/addon-onboarding,@stryker-mutator/typescript-checker,@stryker-mutator/vitest-runner,autoprefixer\"",
     "lint:prune": "ts-prune -i '\\.stories\\.tsx?$|/index\\.tsx?$|^src/test-utils/|\\.d\\.ts$'",
+    "lint:dead-code": "knip || npm run lint:prune",
+    "lint:dead-code:knip": "knip",
+    "lint:dead-code:prune": "npm run lint:prune",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest --run",
@@ -129,6 +132,7 @@
     "eslint-plugin-simple-import-sort": "^11.0.0",
     "eslint-plugin-storybook": "^10.3.5",
     "jsdom": "^29.0.2",
+    "knip": "^5.46.0",
     "msw": "^2.15.0",
     "playwright": "^1.59.1",
     "prettier": "^3.4.2",
@@ -138,5 +142,58 @@
     "ts-prune": "0.10.3",
     "vite": "^6.4.4",
     "vitest": "^4.1.5"
+  },
+  "knip": {
+    "entry": [
+      "src/main.tsx",
+      "src/**/*.stories.tsx",
+      "src/**/*.test.{ts,tsx}",
+      "src/**/*.spec.{ts,tsx}",
+      "tests/**/*.{ts,tsx}",
+      "e2e/**/*.{ts,tsx}",
+      "scripts/**/*.{mjs,js,ts}",
+      "*.config.{js,cjs,mjs,ts}",
+      "stryker.config.cjs"
+    ],
+    "project": [
+      "src/**/*.{ts,tsx}",
+      "public/**/*.{ts,tsx,js,mjs}"
+    ],
+    "ignore": [
+      "src/vite-env.d.ts",
+      "src/**/*.d.ts",
+      "src/test-utils/**",
+      "public/**/*.min.{js,css}",
+      "public/sw.js",
+      "public/workbox-*.js"
+    ],
+    "ignoreDependencies": [
+      "@chromatic-com/storybook",
+      "@storybook/addon-a11y",
+      "@storybook/addon-docs",
+      "@storybook/addon-onboarding",
+      "@stryker-mutator/typescript-checker",
+      "@stryker-mutator/vitest-runner",
+      "autoprefixer",
+      "tailwindcss-animate"
+    ],
+    "ignoreBinaries": [
+      "playwright",
+      "stryker",
+      "storybook",
+      "vite"
+    ],
+    "includeEntryExports": false,
+    "rules": {
+      "files": "error",
+      "dependencies": "warn",
+      "devDependencies": "warn",
+      "unlisted": "error",
+      "binaries": "warn",
+      "unresolved": "error",
+      "exports": "warn",
+      "types": "warn",
+      "duplicates": "warn"
+    }
   }
 }

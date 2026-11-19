@@ -6,9 +6,9 @@ import {
 } from 'next-themes'
 
 export type ThemeName = 'light' | 'dark' | 'high-contrast' | 'system'
-type ResolvedTheme = 'light' | 'dark' | 'high-contrast'
+export type ResolvedTheme = 'light' | 'dark' | 'high-contrast'
 
-interface ThemeContextValue {
+export interface ThemeContextValue {
   theme: ThemeName
   resolvedTheme: ResolvedTheme
   isDark: boolean
@@ -18,16 +18,23 @@ interface ThemeContextValue {
   toggleTheme: () => void
 }
 
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
+// Single source of truth for theme state across the app. Config modules
+// (e.g. config.ts / config/app.ts) must not carry theme values; consumers
+// should read theme state exclusively through `useTheme()`.
+export const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
+
+export function resolveTheme(theme: ThemeName | undefined, resolvedTheme: string | undefined): ResolvedTheme {
+  if (resolvedTheme === 'dark') return 'dark'
+  if (resolvedTheme === 'high-contrast' || theme === 'high-contrast') return 'high-contrast'
+  return 'light'
+}
 
 function ThemeContextBridge({ children }: { children: ReactNode }) {
   const { theme, resolvedTheme, setTheme } = useNextTheme()
 
   const currentTheme: ThemeName =
     theme === 'light' || theme === 'dark' || theme === 'system' || theme === 'high-contrast' ? theme : 'system'
-  let currentResolvedTheme: ResolvedTheme = 'light'
-  if (resolvedTheme === 'dark') currentResolvedTheme = 'dark'
-  if (resolvedTheme === 'high-contrast' || theme === 'high-contrast') currentResolvedTheme = 'high-contrast'
+  const currentResolvedTheme = resolveTheme(currentTheme, resolvedTheme)
   const isDark = currentResolvedTheme === 'dark'
   const isHighContrast = currentResolvedTheme === 'high-contrast'
 
@@ -47,7 +54,7 @@ function ThemeContextBridge({ children }: { children: ReactNode }) {
       isHighContrast,
       isReady: theme !== undefined || resolvedTheme !== undefined,
       setTheme: (nextTheme) => setTheme(nextTheme),
-      toggleTheme: () => setTheme(isDark ? 'light' : isHighContrast ? 'light' : 'dark'),
+      toggleTheme: () => setTheme(currentResolvedTheme === 'dark' ? 'light' : 'dark'),
     }),
     [currentResolvedTheme, currentTheme, isDark, isHighContrast, resolvedTheme, setTheme, theme]
   )
@@ -70,11 +77,11 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   )
 }
 
-export function useTheme() {
+export function useTheme(): ThemeContextValue {
   const context = useContext(ThemeContext)
 
   if (!context) {
-    throw new Error('UseTheme must be used within ThemeProvider.')
+    throw new Error('useTheme must be used within ThemeProvider.')
   }
 
   return context

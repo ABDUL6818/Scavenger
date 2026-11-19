@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import { config as envConfig } from '@/config'
 
 interface ContractConfig {
@@ -10,26 +10,34 @@ interface ContractConfig {
 interface ContractContextType {
   config: ContractConfig
   updateConfig: (newConfig: Partial<ContractConfig>) => void
+  resetConfig: () => void
 }
 
-// Default Testnet configuration for Soroban
-const defaultConfig: ContractConfig = {
+// Derive the canonical config from the single source of truth ('@/config').
+// This avoids duplicating defaults that already live in config.ts / config/app.ts.
+const getCanonicalConfig = (): ContractConfig => ({
   contractId: envConfig.contractId,
   network: envConfig.network,
   rpcUrl: envConfig.rpcUrl
-}
+})
 
 const ContractContext = createContext<ContractContextType | undefined>(undefined)
 
 export const ContractProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [config, setConfig] = useState<ContractConfig>(defaultConfig)
+  const [config, setConfig] = useState<ContractConfig>(getCanonicalConfig)
 
-  const updateConfig = (newConfig: Partial<ContractConfig>) => {
+  const updateConfig = useCallback((newConfig: Partial<ContractConfig>) => {
     setConfig((prev) => ({ ...prev, ...newConfig }))
-  }
+  }, [])
+
+  const resetConfig = useCallback(() => {
+    setConfig(getCanonicalConfig())
+  }, [])
 
   return (
-    <ContractContext.Provider value={{ config, updateConfig }}>{children}</ContractContext.Provider>
+    <ContractContext.Provider value={{ config, updateConfig, resetConfig }}>
+      {children}
+    </ContractContext.Provider>
   )
 }
 
