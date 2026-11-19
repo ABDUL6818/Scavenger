@@ -1,6 +1,6 @@
 use crate::services::{ArchivalService, ArchiveQuery, ArchiveStatus, RetentionPolicy, StorageTier};
 use actix_web::{web, HttpResponse, Result};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 
 /// API handlers for data archival
@@ -224,37 +224,10 @@ pub async fn delete_archive(
     })))
 }
 
-/// List archive jobs
-pub async fn list_jobs(
-    service: web::Data<Arc<ArchivalService>>,
-    status: web::Query<Option<String>>,
-) -> Result<HttpResponse> {
-    let filter_status = status.0.as_ref().and_then(|s| match s.as_str() {
-        "pending" => Some(ArchiveStatus::Pending),
-        "in_progress" => Some(ArchiveStatus::InProgress),
-        "completed" => Some(ArchiveStatus::Completed),
-        "failed" => Some(ArchiveStatus::Failed),
-        _ => None,
-    });
-
-    let jobs = service
-        .list_jobs(filter_status)
-        .map_err(actix_web::error::ErrorInternalServerError)?;
-
-    Ok(HttpResponse::Ok().json(jobs))
-}
-
-/// Get archive job
-pub async fn get_job(service: web::Data<Arc<ArchivalService>>, job_id: web::Path<String>) -> Result<HttpResponse> {
-    let job = service.get_job(&job_id).map_err(actix_web::error::ErrorNotFound)?;
-
-    Ok(HttpResponse::Ok().json(job))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::{ArchiveJob, ArchiveRecord, ArchivalError};
+    use crate::services::{ArchiveRecord, ArchivalError};
     use actix_web::{test, web, App};
     use chrono::Utc;
     use std::sync::Mutex;
@@ -265,7 +238,6 @@ mod tests {
     #[derive(Default)]
     struct FakeArchivalService {
         records: Mutex<Vec<ArchiveRecord>>,
-        jobs: Mutex<Vec<ArchiveJob>>,
         policies: Mutex<Vec<RetentionPolicy>>,
         /// When set, the next `archive_data` call fails after the storage
         /// write has already happened, simulating a partial failure where
@@ -351,23 +323,6 @@ mod tests {
                 return Err(ArchivalError::NotFound);
             }
             Ok(())
-        }
-
-        fn list_jobs(&self, status: Option<ArchiveStatus>) -> Result<Vec<ArchiveJob>, ArchivalError> {
-            let jobs = self.jobs.lock().unwrap();
-            Ok(jobs
-                .iter()
-                .filter(|j| status.as_ref().map_or(true, |s| &j.status == s))
-                .cloned()
-                .collect())
-        }
-
-        fn get_job(&self, job_id: &str) -> Result<ArchiveJob, ArchivalError> {
-            let jobs = self.jobs.lock().unwrap();
-            jobs.iter()
-                .find(|j| j.id == job_id)
-                .cloned()
-                .ok_or(ArchivalError::NotFound)
         }
 
         fn record_count(&self) -> usize {
@@ -514,33 +469,5 @@ mod tests {
 
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), actix_web::http::StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    #[actix_web::test]
-    async fn list_jobs_filters_by_status() {
-        let fake = Arc::new(FakeArchivalService::new());
-        fake.jobs.lock().unwrap().push(ArchiveJob {
-            id: "job-1".to_string(),
-            status: ArchiveStatus::Completed,
-            created_at: Utc::now(),
-        });
-        fake.jobs.lock().unwrap().push(ArchiveJob {
-            id: "job-2".to_string(),
-            status: ArchiveStatus::Failed,
-            created_at: Utc::now(),
-        });
-
-        let completed = fake.list_jobs(Some(ArchiveStatus::Completed)).unwrap();
-        assert_eq!(completed.len(), 1);
-        assert_eq!(completed[0].id, "job-1");
-
-        let all = fake.list_jobs(None).unwrap();
-        assert_eq!(all.len(), 2);
-    }
-
-    #[actix_web::test]
-    async fn get_job_returns_not_found_for_unknown_id() {
-        let fake = Arc::new(FakeArchivalService::new());
-        assert!(matches!(fake.get_job("missing"), Err(ArchivalError::NotFound)));
     }
 }

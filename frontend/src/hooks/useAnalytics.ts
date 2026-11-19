@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { analytics, type EventCategory } from '@/lib/analyticsService'
 
 /**
@@ -10,6 +10,11 @@ import { analytics, type EventCategory } from '@/lib/analyticsService'
  * caching, retries, and invalidation semantics that do not apply here).
  * Data fetching in this codebase is standardized on TanStack Query; keep
  * analytics tracking separate from that layer.
+ *
+ * The returned helpers are memoized so their references stay stable across
+ * renders as long as `userId` does not change. This lets consumers safely use
+ * them in dependency arrays (e.g. `useEffect`, `useMemo`, `useCallback`)
+ * without triggering unnecessary re-runs or re-renders.
  */
 export function useAnalytics(userId?: string) {
   const track = useCallback(
@@ -26,5 +31,5 @@ export function useAnalytics(userId?: string) {
     [userId],
   )
 
-  return { track, pageView }
+  return useMemo(() => ({ track, pageView }), [track, pageView])
 }

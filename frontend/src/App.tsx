@@ -1,7 +1,21 @@
+import { lazy, Suspense } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { router } from '@/router'
 import { queryCachePolicy } from '@/lib/queryCachePolicy'
+import { config } from '@/config'
+
+const LazyAppShell = lazy(() =>
+  import('@/components/AppShell').then((m) => ({ default: m.AppShell })),
+)
+
+function AppFallback() {
+  return (
+    <div role="status" aria-live="polite" aria-busy="true">
+      Loading…
+    </div>
+  )
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +34,9 @@ const queryClient = new QueryClient({
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <Suspense fallback={<AppFallback />}>
+        <RouterProvider router={router} />
+      </Suspense>
     </QueryClientProvider>
   )
 }

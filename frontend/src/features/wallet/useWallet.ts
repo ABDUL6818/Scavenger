@@ -1,5 +1,5 @@
 import { useWalletStore } from '@/store'
-import { connectWallet, getNetworkMismatchMessage } from './service'
+import { connectWallet, getNetworkMismatchMessage, signTransactionXDR } from './service'
 
 export interface WalletContextType {
   address: string | null
@@ -7,6 +7,7 @@ export interface WalletContextType {
   isInstalled: boolean
   connect: () => Promise<void>
   disconnect: () => void
+  signTransaction: (xdr: string, network?: string) => Promise<string>
   isLoading: boolean
   error: string | null
 }
@@ -45,6 +46,21 @@ export function useWallet(): WalletContextType {
     dispatch({ type: 'WALLET_DISCONNECTED' })
   }
 
+  const signTransaction = async (xdr: string, network?: string): Promise<string> => {
+    if (!state.isConnected || !state.address) {
+      const msg = 'Wallet is not connected. Please connect your wallet before signing.'
+      dispatch({ type: 'WALLET_ERROR', payload: msg })
+      throw new Error(msg)
+    }
+    try {
+      return await signTransactionXDR(xdr, network)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      dispatch({ type: 'WALLET_ERROR', payload: msg })
+      throw err instanceof Error ? err : new Error(msg)
+    }
+  }
+
   return {
     address: state.address,
     isConnected: state.isConnected,
@@ -53,5 +69,6 @@ export function useWallet(): WalletContextType {
     error: state.error,
     connect,
     disconnect,
+    signTransaction,
   }
 }

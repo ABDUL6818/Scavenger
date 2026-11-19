@@ -2,7 +2,6 @@ use crate::search::{build_search_query, format_search_response, SearchClient};
 use actix_web::{web, HttpResponse, Result};
 use elasticsearch::SearchParts;
 use serde::Deserialize;
-use serde_json::json;
 use std::sync::Arc;
 
 /// Search API handlers.
@@ -56,26 +55,4 @@ pub async fn search(client: web::Data<Arc<SearchClient>>, params: web::Query<Sea
     Ok(HttpResponse::Ok().json(response))
 }
 
-/// Get search suggestions/autocomplete
-pub async fn suggest(
-    _client: web::Data<Arc<SearchClient>>,
-    _params: web::Query<SearchParams>,
-) -> Result<HttpResponse> {
-    let suggestions = vec!["waste type A", "waste type B", "participant name"];
 
-    Ok(HttpResponse::Ok().json(json!({
-        "suggestions": suggestions
-    })))
-}
-
-/// Search configuration endpoint
-pub async fn get_search_config() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(json!({
-        "max_results": 10000,
-        "default_page_size": 20,
-        "max_page_size": 100,
-        "available_filters": ["status", "type", "date_range", "participant"],
-        "available_facets": ["status", "type", "created_date"],
-        "searchable_fields": ["title", "description", "content", "tags"]
-    })))
-}

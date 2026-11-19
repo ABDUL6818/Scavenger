@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Badge } from '@/components/ui/Badge'
 
 export type Tier = 'free' | 'basic' | 'pro' | 'enterprise'
@@ -18,7 +19,7 @@ function isTier(value: string): value is Tier {
   return value in tierTokenClasses
 }
 
-export function TierBadge({ tier, className }: TierBadgeProps) {
+export const TierBadge = memo(function TierBadge({ tier, className }: TierBadgeProps) {
   const tokenClass = isTier(tier) ? tierTokenClasses[tier] : undefined
   const combinedClassName = [tokenClass, className].filter(Boolean).join(' ') || undefined
 
@@ -27,4 +28,4 @@ export function TierBadge({ tier, className }: TierBadgeProps) {
       {tier}
     </Badge>
   )
-}
+})

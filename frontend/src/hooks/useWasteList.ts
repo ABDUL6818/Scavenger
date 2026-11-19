@@ -1,33 +1,38 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@/context/WalletContext'
-import { useContract } from '@/context/ContractContext'
-import { ScavengerClient } from '@/api/client'
 import { Material } from '@/api/types'
-import { getNetworkPassphrase } from '@/lib/stellar'
 import { useToast } from '@/hooks/useToast'
 import { cacheKeys } from '@/lib/queryClient'
 import { queryCachePolicy } from '@/lib/queryCachePolicy'
+import { useScavengerClient } from '@/hooks/useScavengerClient'
 
+/**
+ * Contract for `useWasteList`:
+ *
+ * - Reads the connected wallet address from `WalletContext` and the contract
+ *   client from the consolidated `useScavengerClient` hook.
+ * - Loads the participant's waste materials plus the contract admin address
+ *   via a React Query cache entry (which owns loading/error state and reload
+ *   semantics).
+ * - Exposes mutation helpers (`confirmWaste`, `transferWaste`, and the
+ *   `batch*` variants) that perform optimistic updates where applicable and
+ *   reload the list afterwards.
+ * - The returned object shape is stable for backwards compatibility:
+ *   `{ wastes, isLoading, error, isAdmin, reload, confirmWaste, transferWaste,
+ *      batchConfirmWastes, batchVerifyWastes, batchTransferWastes,
+ *      batchDeactivateWastes }`.
+ */
 export function useWasteList() {
   const { address } = useWallet()
-  const { config } = useContract()
   const toast = useToast()
   const queryClient = useQueryClient()
-
-  const getClient = useCallback(
-    () =>
-      new ScavengerClient({
-        rpcUrl: config.rpcUrl,
-        networkPassphrase: getNetworkPassphrase(config.network),
-        contractId: config.contractId,
-      }),
-    [config]
-  )
+  const getClient = useScavengerClient()
 
   const wastesQuery = useQuery({
     queryKey: cacheKeys.wasteList(address ?? ''),
     queryFn: async () => {
+      if (!address) return { adminAddress: null, wastes: [] as Material[] }
       const client = getClient()
       const [admin, ids] = await Promise.all([
         client.getAdmin().catch(() => null),
@@ -254,17 +259,51 @@ export function useWasteList() {
     [address, adminAddress, getClient, load, queryClient, toast]
   )
 
-  return {
-    wastes,
-    isLoading,
-    error,
-    isAdmin: Boolean(address && adminAddress && String(address) === String(adminAddress)),
-    reload: load,
-    confirmWaste,
-    transferWaste,
-    batchConfirmWastes,
-    batchVerifyWastes,
-    batchTransferWastes,
-    batchDeactivateWastes,
-  }
+  const isAdmin = useMemo(
+    () => Boolean(address && adminAddress && String(address) === String(adminAddress)),
+    [address, adminAddress]
+  )
+
+  const confirmedWastes = useMemo(
+    () => wastes.filter((w) => w.is_confirmed),
+    [wastes]
+  )
+
+  const unconfirmedWastes = useMemo(
+    () => wastes.filter((w) => !w.is_confirmed),
+    [wastes]
+  )
+
+  return useMemo(
+    () => ({
+      wastes,
+      confirmedWastes,
+      unconfirmedWastes,
+      isLoading,
+      error,
+      isAdmin,
+      reload: load,
+      confirmWaste,
+      transferWaste,
+      batchConfirmWastes,
+      batchVerifyWastes,
+      batchTransferWastes,
+      batchDeactivateWastes,
+    }),
+    [
+      wastes,
+      confirmedWastes,
+      unconfirmedWastes,
+      isLoading,
+      error,
+      isAdmin,
+      load,
+      confirmWaste,
+      transferWaste,
+      batchConfirmWastes,
+      batchVerifyWastes,
+      batchTransferWastes,
+      batchDeactivateWastes,
+    ]
+  )
 }

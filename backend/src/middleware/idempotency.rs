@@ -44,6 +44,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
+use tracing::{debug, warn};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -161,6 +162,13 @@ where
 
         // Key too long → 400
         if key.len() > MAX_KEY_LEN {
+            warn!(
+                idempotency_key = %key,
+                method = %req.method(),
+                path = %req.path(),
+                max_key_len = MAX_KEY_LEN,
+                "rejecting request: idempotency key too long"
+            );
             return Box::pin(async move {
                 Err(actix_web::error::ErrorBadRequest(format!(
                     "Idempotency-Key must not exceed {MAX_KEY_LEN} bytes"
@@ -184,6 +192,14 @@ where
                 let status = cached.status;
                 let body = cached.body.clone();
                 drop(guard);
+
+                debug!(
+                    idempotency_key = %key,
+                    status = status.as_u16(),
+                    method = %req.method(),
+                    path = %req.path(),
+                    "replaying cached idempotent response"
+                );
 
                 return Box::pin(async move {
                     let http_resp = HttpResponse::build(status)
@@ -211,7 +227,7 @@ where
             if status.is_success() || status.is_client_error() {
                 let mut guard = super::lock_unpoisoned(&store);
                 guard.insert(
-                    key,
+                    key.clone(),
                     Cached {
                         status,
                         body: bytes.clone(),
@@ -219,6 +235,14 @@ where
                     },
                 );
             }
+
+            debug!(
+                idempotency_key = %key,
+                status = status.as_u16(),
+                method = %http_req.method(),
+                path = %http_req.path(),
+                "caching idempotent response"
+            );
 
             let http_resp = HttpResponse::build(status)
                 .insert_header((STATUS_HEADER, "created"))

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { cn } from '@/lib/cn'
 import { buildCalendarCells, getTodayDayInMonth } from '@/lib/date'
 
@@ -10,7 +10,7 @@ interface Props {
   dayClassName?: string
 }
 
-export function CalendarGrid({
+function CalendarGridComponent({
   month,
   activeDay,
   onDayHover,
@@ -20,12 +20,14 @@ export function CalendarGrid({
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
 
-  const todayDay = getTodayDayInMonth(year, monthIdx)
-
-  const cells: (number | null)[] = useMemo(
-    () => buildCalendarCells(year, monthIdx),
-    [year, monthIdx]
-  )
+  const { cells, todayDay } = useMemo(() => {
+    const today = new Date()
+    const todayDay = getTodayDayInMonth(year, monthIdx)
+    return {
+      cells: buildCalendarCells(year, monthIdx) as (number | null)[],
+      todayDay: todayDay ?? -1,
+    }
+  }, [year, monthIdx])
 
   return (
     <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
@@ -55,3 +57,6 @@ export function CalendarGrid({
     </div>
   )
 }
+
+export const CalendarGrid = memo(CalendarGridComponent)
+CalendarGrid.displayName = 'CalendarGrid'

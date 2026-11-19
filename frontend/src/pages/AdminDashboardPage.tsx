@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useAdminTabs } from '@/hooks/useAdminTabs'
 import { ROLES } from '@/lib/constants'
+import { Button } from '@/components/ui/Button'
 import {
   OverviewTab,
   UsersTab,
@@ -44,20 +45,20 @@ export function AdminDashboardPage() {
         className="flex flex-wrap gap-1 rounded-lg border bg-muted p-1"
       >
         {visibleTabs.map((tab) => (
-          <button
+          <Button
             key={tab.id}
             role="tab"
             aria-selected={activeTab === tab.id}
+            variant={activeTab === tab.id ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-              activeTab === tab.id
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+            className={`gap-1.5 font-medium ${
+              activeTab === tab.id ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab.icon}
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -75,4 +76,3 @@ export function AdminDashboardPage() {
     </div>
   )
 }
-

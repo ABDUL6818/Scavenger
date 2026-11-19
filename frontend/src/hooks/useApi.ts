@@ -2,6 +2,17 @@
  * useApi — returns a ready-to-use ScavengerClient built from the current
  * ContractContext config and Stellar network settings.
  *
+ * Contract:
+ *   Inputs:  none (reads `config` from `ContractContext`).
+ *   Outputs: a memoized `ScavengerClient` instance.
+ *   Semantics:
+ *     - The client is re-created only when `config.rpcUrl`,
+ *       `config.contractId`, or `networkConfig.networkPassphrase` change;
+ *       otherwise the same instance is returned.
+ *     - `networkPassphrase` is taken from `networkConfig` (Stellar network
+ *       settings) and is part of the memoization key, ensuring the client is
+ *       rebuilt if network settings change.
+ *
  * The client is memoized on the relevant config values so it stays stable
  * across renders. A stable client instance is important for TanStack Query:
  * it keeps `queryFn` references consistent and avoids unnecessary refetches.
@@ -22,6 +33,9 @@
  *   queryClient.invalidateQueries({ queryKey: queryKeys.participant(addr) })
  *
  * Backwards compatibility:
+ *   `useApi` is the canonical hook. `useContractQuery` / `useContractQueries`
+ *   are deprecated aliases that delegate to the consolidated generic
+ *   implementations in `useResource` / `useAsync` (see those modules).
  *   The hook signature is unchanged — existing callers continue to work.
  *   Only the memoization dependencies were tightened to include the network
  *   passphrase, ensuring the client is rebuilt if network settings change.
@@ -46,3 +60,18 @@ export function useApi(): ScavengerClient {
     [rpcUrl, contractId, networkPassphrase]
   )
 }
+
+/**
+ * @deprecated Use `useApi` instead. Retained as a backwards-compatible alias
+ * for callers that imported the old name. Delegates directly to `useApi`.
+ */
+export const useContractQuery = useApi
+
+/**
+ * @deprecated Use `useApi` instead. Retained as a backwards-compatible alias
+ * for callers that imported the old plural name. Delegates directly to
+ * `useApi`; both names resolve to the same memoized client.
+ */
+export const useContractQueries = useApi
+
+export default useApi

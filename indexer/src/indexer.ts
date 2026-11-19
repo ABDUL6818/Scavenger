@@ -1,3 +1,10 @@
+/**
+ * Indexer entry point.
+ *
+ * See docs/adr/0001-indexer-backend-data-flow.md for the architecture decision
+ * record covering event ingestion, ordering guarantees, reorg handling and
+ * downstream propagation to the backend (WebSocket + webhooks).
+ */
 import { PoolClient } from 'pg';
 import { RawContractEvent } from './types';
 import { fetchEvents, getLatestLedger, StreamerConfig } from './stellar/streamer';
@@ -12,8 +19,24 @@ import {
 } from './sync/syncStatus';
 import { logger } from './utils/logger';
 
+// Number of ledgers fetched per polling iteration. Events are grouped by
+// ledger and processed inside a single transaction (see processEvents).
 const BATCH_SIZE = 200;
 
+/**
+ * Process a batch of raw contract events.
+ *
+ * Ordering: events are grouped by ledgerSequence and ledgers are processed in
+ * the order they appear in the batch (ascending, as returned by the streamer).
+ * Within a ledger, events are processed in arrival order.
+ *
+ * Reorg handling: for each ledger, detectAndHandleReorg compares the incoming
+ * transaction hashes against previously stored ones; a mismatch increments the
+ * reorgsDetected metric and emits a warning log.
+ *
+ * Persistence: each event is stored via storeRawEvent before dispatchEvent is
+ * invoked, so raw events are durable even if a handler fails.
+ */
 export async function processEvents(
   events: RawContractEvent[],
   metrics?: { eventsProcessed: number; eventsFailed: number; eventsByType: Record<string, number>; reorgsDetected?: number },
@@ -69,6 +92,13 @@ export async function processEvents(
   });
 }
 
+/**
+ * Poll the Stellar RPC for new ledgers and feed events into processEvents.
+ *
+ * Polls every pollIntervalMs, fetching up to BATCH_SIZE ledgers per run.
+ * Progress is persisted via updateSyncStatus; broadcastEvent is used to push
+ * batch/event notifications to backend WebSocket clients.
+ */
 export async function runIndexer(
   config: StreamerConfig,
   pollIntervalMs = 5000,

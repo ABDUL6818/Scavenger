@@ -11,40 +11,33 @@
  * See Issue #1056 for the consolidation effort.
  */
 
-import { useQuery } from '@tanstack/react-query'
-import { ScavengerClient } from '@/api/client'
 import { WasteType } from '@/api/types'
-import { useContract } from '@/context/ContractContext'
-import { getNetworkPassphrase } from '@/lib/stellar'
+import { useContractQuery } from '@/hooks/useContractQuery'
 import { cacheKeys } from '@/lib/cacheKeys'
 import { queryCachePolicy } from '@/lib/queryClient'
 
-function useClient() {
-  const { config } = useContract()
-  return new ScavengerClient({
-    contractId: config.contractId,
-    rpcUrl: config.rpcUrl,
-    networkPassphrase: getNetworkPassphrase(config.network),
-  })
-}
-
 /**
  * Query participant data by address.
- * For getting current wallet's participant, use useParticipant() from useParticipant.ts instead.
+ *
+ * Contract:
+ * - Input: `address` — participant address; when undefined the query is disabled.
+ * - Output: standard React Query result whose `data` is the participant record.
+ * - Cache: keyed by `cacheKeys.participant(address)`, stale after 60s.
+ *
+ * For getting the current wallet's participant, use useParticipant() from useParticipant.ts instead.
  */
 export function useParticipantById(address: string | undefined) {
-  const client = useClient()
-  return useQuery({
+  return useContractQuery({
     queryKey: cacheKeys.participant(address ?? ''),
-    queryFn: () => client.getParticipant(address!),
+    queryFn: (client) => client.getParticipant(address!),
     enabled: !!address,
     ...queryCachePolicy.participant,
   })
 }
 
 /**
- * Deprecated: Use useParticipantStats from useParticipantStats.ts instead.
- * Kept for backward compatibility.
+ * Deprecated: Use useParticipantById(address) or useParticipant() from useParticipant.ts instead.
+ * Kept for backward compatibility; delegates to useParticipantById.
  */
 export function useParticipant(address: string | undefined) {
   return useParticipantById(address)
@@ -54,13 +47,18 @@ export { useParticipantStats } from '@/hooks/useParticipantStats'
 
 /**
  * Query waste data by ID.
- * For getting current participant's wastes, use useWastes() from useWastes.ts instead.
+ *
+ * Contract:
+ * - Input: `id` — waste id; when undefined the query is disabled.
+ * - Output: standard React Query result whose `data` is the waste record.
+ * - Cache: keyed by `cacheKeys.waste(id)`, stale after 30s.
+ *
+ * For getting the current participant's wastes, use useWastes() from useWastes.ts instead.
  */
 export function useWaste(id: bigint | undefined) {
-  const client = useClient()
-  return useQuery({
+  return useContractQuery({
     queryKey: cacheKeys.waste(id?.toString() ?? ''),
-    queryFn: () => client.getWaste(id!),
+    queryFn: (client) => client.getWaste(id!),
     enabled: id !== undefined,
     ...queryCachePolicy.waste,
   })
@@ -71,13 +69,18 @@ export { useActiveIncentives } from '@/hooks/useActiveIncentives'
 
 /**
  * Query incentives by waste type.
+ *
+ * Contract:
+ * - Input: `wasteType` — waste type filter; when undefined the query is disabled.
+ * - Output: standard React Query result whose `data` is the incentives list.
+ * - Cache: keyed by `cacheKeys.incentives(wasteType)`, stale after 5 minutes.
+ *
  * For getting all incentives, use useActiveIncentives() instead.
  */
 export function useIncentives(wasteType: WasteType | undefined) {
-  const client = useClient()
-  return useQuery({
+  return useContractQuery({
     queryKey: cacheKeys.incentives(wasteType),
-    queryFn: () => client.getIncentives(wasteType!),
+    queryFn: (client) => client.getIncentives(wasteType!),
     enabled: wasteType !== undefined,
     ...queryCachePolicy.incentives,
   })
