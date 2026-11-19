@@ -4,6 +4,8 @@ import Joyride, { CallBackProps, STATUS, EVENTS } from 'react-joyride'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { getOnboardingSteps, getOnboardingStyles } from '@/lib/onboardingSteps'
 import { UserRole } from '@/hooks/useOnboarding'
+import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
@@ -11,13 +13,20 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { Play } from 'lucide-react'
 
 interface OnboardingTutorialProps {
-  userRole: UserRole | null
+  /**
+   * @deprecated The current user role is now read from AuthContext.
+   * This prop is kept for backwards compatibility and ignored.
+   */
+  userRole?: UserRole | null
   isVisible: boolean
   onComplete: () => void
 }
 
-export function OnboardingTutorial({ userRole, isVisible, onComplete }: OnboardingTutorialProps) {
+export function OnboardingTutorial({ isVisible, onComplete }: OnboardingTutorialProps) {
+  const { user } = useAuth()
+  const { theme } = useTheme()
   const { t } = useTranslation('onboarding')
+  const userRole = (user?.role as UserRole | undefined) ?? null
   const { state, startOnboarding, completeOnboarding, skipOnboarding, updateStep } = useOnboarding()
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
@@ -142,7 +151,7 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
         showSkipButton
         disableOverlayClose
         disableCloseOnEsc
-        styles={getOnboardingStyles()}
+        styles={getOnboardingStyles(theme)}
         locale={{
           back: t('joyride.back'),
           close: t('joyride.close'),
@@ -158,7 +167,9 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
 }
 
 // Hook to easily use onboarding in components
-export function useOnboardingTutorial(userRole: UserRole | null) {
+export function useOnboardingTutorial(userRoleOverride?: UserRole | null) {
+  const { user } = useAuth()
+  const userRole = userRoleOverride ?? ((user?.role as UserRole | undefined) ?? null)
   const { shouldShowOnboarding, resetOnboarding } = useOnboarding()
   const [isVisible, setIsVisible] = useState(false)
 

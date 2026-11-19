@@ -6,7 +6,7 @@ import { Toaster, toast } from 'sonner'
 import { App } from '@/App'
 import { AuthProvider } from '@/context/AuthContext'
 import { WalletProvider } from '@/context/WalletContext'
-import { ContractProvider } from '@/context/ContractContext'
+import { NetworkProvider } from '@/context/NetworkContext'
 import { ThemeProvider, useTheme } from '@/context/ThemeProvider'
 import { StoreProvider } from '@/store'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -113,16 +113,26 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ErrorBoundary>
+          {/*
+           * Single source of truth per domain (#1671):
+           * - StoreProvider owns the consolidated app store (wallet + auth + contract slices).
+           * - WalletProvider and AuthProvider are thin, backwards-compatible shims that read
+           *   from the store, so existing `useWallet()` / `useAuth()` callers keep working.
+           * - ContractProvider was removed; contract state now lives in the store and is
+           *   exposed via the auth/wallet shims' `contract` field.
+           * - NetworkProvider (#1673) provides scoped network context to components.
+           */}
           <StoreProvider>
-            <WalletProvider>
-              <AuthProvider>
-                <ContractProvider>
+            <NetworkProvider>
+              <WalletProvider>
+                <AuthProvider>
                   <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading…</div>}>
                     <App />
                   </Suspense>
-                </ContractProvider>
-              </AuthProvider>
-            </WalletProvider>
+                  <ThemedToaster />
+                </AuthProvider>
+              </WalletProvider>
+            </NetworkProvider>
           </StoreProvider>
           {/* Toaster lives inside the boundary so fallback UI and boundary
               errors can still surface toast notifications. */}
