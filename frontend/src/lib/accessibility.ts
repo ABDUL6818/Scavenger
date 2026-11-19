@@ -1,38 +1,172 @@
 /**
  * Accessibility utilities for keyboard navigation and ARIA support
+ *
+ * Focus management API (WCAG 2.1 AA):
+ * - `getFocusableElements(container)` returns the currently focusable elements
+ *   inside a container, in DOM order.
+ * - `createFocusTrap(container, options)` activates a focus trap: it captures
+ *   the previously focused element, moves focus into the container (to
+ *   `options.initialFocus` or the first focusable element), cycles Tab /
+ *   Shift+Tab within the container, invokes `options.onEscape` on Escape, and
+ *   returns a cleanup function that removes listeners and restores focus to
+ *   the previously focused element.
+ * - `useFocusTrap(ref, options)` is the React hook wrapper around
+ *   `createFocusTrap`; it activates while `options.active` (default `true`)
+ *   and cleans up on deactivation/unmount.
+ * - `trapFocus(element)` is DEPRECATED and kept for backwards compatibility.
+ *   It is now implemented on top of `createFocusTrap`. Migrate to
+ *   `createFocusTrap` (or `useFocusTrap`) to gain Escape handling and focus
+ *   restoration.
  */
 
+import { useEffect, useRef } from 'react';
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'area[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'textarea:not([disabled])',
+  'select:not([disabled])',
+  'iframe',
+  'object',
+  'embed',
+  '[contenteditable="true"]',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
 /**
- * Trap focus within a modal or dialog
+ * Return the focusable elements inside a container, in DOM order.
+ * Elements that are hidden (display: none / visibility: hidden) are excluded.
  */
-export function trapFocus(element: HTMLElement): () => void {
-  const focusableElements = element.querySelectorAll<HTMLElement>(
-    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+export function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  const candidates = Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
   );
-  
-  const firstElement = focusableElements[0];
-  const lastElement = focusableElements[focusableElements.length - 1];
-  
-  const handleTab = (e: KeyboardEvent) => {
-    if (e.key !== 'Tab') return;
-    
-    if (e.shiftKey) {
-      if (document.activeElement === firstElement) {
+
+  return candidates.filter((el) => {
+    if (el.hasAttribute('disabled')) return false;
+    if (el.getAttribute('aria-hidden') === 'true') return false;
+    // offsetParent is null for display:none elements (and fixed-position ones,
+    // so fall back to a computed-style check for those).
+    if (el.offsetParent === null) {
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+export interface FocusTrapOptions {
+  /** Element to focus when the trap activates. Defaults to the first focusable element. */
+  initialFocus?: HTMLElement | null;
+  /** Called when Escape is pressed while the trap is active. */
+  onEscape?: () => void;
+  /** Whether to restore focus to the previously focused element on deactivation. Defaults to true. */
+  restoreFocus?: boolean;
+}
+
+/**
+ * Activate a focus trap on `container`.
+ * Returns a cleanup function that deactivates the trap and restores focus.
+ */
+export function createFocusTrap(
+  container: HTMLElement,
+  options: FocusTrapOptions = {},
+): () => void {
+  const { initialFocus, onEscape, restoreFocus = true } = options;
+  const previouslyFocused = document.activeElement as HTMLElement | null;
+
+  const focusInitial = () => {
+    const target =
+      initialFocus ?? getFocusableElements(container)[0] ?? container;
+    if (target === container && !container.hasAttribute('tabindex')) {
+      container.setAttribute('tabindex', '-1');
+    }
+    target.focus();
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (onEscape) {
         e.preventDefault();
-        lastElement?.focus();
+        e.stopPropagation();
+        onEscape();
+      }
+      return;
+    }
+
+    if (e.key !== 'Tab') return;
+
+    const focusable = getFocusableElements(container);
+    if (focusable.length === 0) {
+      e.preventDefault();
+      container.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+
+    if (e.shiftKey) {
+      if (active === first || !container.contains(active)) {
+        e.preventDefault();
+        last.focus();
       }
     } else {
-      if (document.activeElement === lastElement) {
+      if (active === last || !container.contains(active)) {
         e.preventDefault();
-        firstElement?.focus();
+        first.focus();
       }
     }
   };
-  
-  element.addEventListener('keydown', handleTab);
-  firstElement?.focus();
-  
-  return () => element.removeEventListener('keydown', handleTab);
+
+  container.addEventListener('keydown', handleKeyDown);
+  focusInitial();
+
+  return () => {
+    container.removeEventListener('keydown', handleKeyDown);
+    if (restoreFocus && previouslyFocused && typeof previouslyFocused.focus === 'function') {
+      previouslyFocused.focus();
+    }
+  };
+}
+
+/**
+ * React hook wrapper around `createFocusTrap`.
+ * Activates while `options.active` is true (default) and cleans up on
+ * deactivation or unmount, restoring focus to the previously focused element.
+ */
+export function useFocusTrap(
+  ref: React.RefObject<HTMLElement | null>,
+  options: FocusTrapOptions & { active?: boolean } = {},
+): void {
+  const { active = true, initialFocus, onEscape, restoreFocus } = options;
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
+
+  useEffect(() => {
+    if (!active || !ref.current) return;
+    const cleanup = createFocusTrap(ref.current, {
+      initialFocus,
+      restoreFocus,
+      onEscape: () => onEscapeRef.current?.(),
+    });
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, ref, initialFocus, restoreFocus]);
+}
+
+/**
+ * Trap focus within a modal or dialog.
+ * @deprecated Use `createFocusTrap` (or the `useFocusTrap` hook) instead;
+ * this wrapper does not handle Escape or focus restoration.
+ */
+export function trapFocus(element: HTMLElement): () => void {
+  return createFocusTrap(element, { restoreFocus: false });
 }
 
 /**
@@ -48,6 +182,42 @@ export function announce(message: string, priority: 'polite' | 'assertive' = 'po
   
   document.body.appendChild(announcement);
   setTimeout(() => document.body.removeChild(announcement), 1000);
+}
+
+/**
+ * Get (creating if needed) a persistent aria-live region for announcements.
+ * Reusing a single region avoids dropped announcements from rapid updates.
+ */
+export function getLiveRegion(
+  priority: 'polite' | 'assertive' = 'polite',
+): HTMLElement {
+  const id = `a11y-live-region-${priority}`;
+  let region = document.getElementById(id);
+  if (!region) {
+    region = document.createElement('div');
+    region.id = id;
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', priority);
+    region.setAttribute('aria-atomic', 'true');
+    region.className = 'sr-only';
+    document.body.appendChild(region);
+  }
+  return region;
+}
+
+/**
+ * Announce a message through the persistent aria-live region.
+ */
+export function announceInLiveRegion(
+  message: string,
+  priority: 'polite' | 'assertive' = 'polite',
+): void {
+  const region = getLiveRegion(priority);
+  region.textContent = '';
+  // Force a re-announcement even when the message is unchanged.
+  setTimeout(() => {
+    region.textContent = message;
+  }, 50);
 }
 
 /**

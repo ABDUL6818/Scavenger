@@ -14,6 +14,7 @@ import { getSubmitErrorMessage, getPhotoError } from '@/lib/format'
 import { WasteSubmissionFields, type WasteFormValues } from './WasteSubmissionFields'
 import { WasteSubmissionImageUpload } from './WasteSubmissionImageUpload'
 import { WasteSubmissionSummary } from './WasteSubmissionSummary'
+import { useToast } from '@/components/ui/Toast'
 
 export { WasteSubmissionFields } from './WasteSubmissionFields'
 export { WasteSubmissionImageUpload } from './WasteSubmissionImageUpload'
@@ -48,6 +49,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('grams')
   const [submitState, setSubmitState] = useState<Status>(STATUSES.IDLE)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const schema = useMemo(() => wasteSubmissionSchema(weightUnit), [weightUnit])
 
@@ -73,8 +75,10 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
       })
       setSubmitState(STATUSES.SUCCESS)
     } catch (e) {
-      setSubmitError(getSubmitErrorMessage(e))
+      const message = getSubmitErrorMessage(e)
+      setSubmitError(message)
       setSubmitState(STATUSES.ERROR)
+      toast({ title: 'Submission failed', description: message, variant: 'destructive' })
     }
   })
 
@@ -90,10 +94,10 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
   }
 
   return (
-    <form onSubmit={onFormSubmit} noValidate>
+    <form onSubmit={onFormSubmit} noValidate aria-label="Submit waste" aria-busy={submitState === 'loading'}>
       <Card>
         <CardHeader>
-          <CardTitle>{t('wasteSubmission.title')}</CardTitle>
+          <CardTitle id="waste-submission-title">{t('wasteSubmission.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <WasteSubmissionFields
@@ -113,7 +117,7 @@ export function WasteSubmissionForm({ onSubmit, onCancel }: WasteSubmissionFormP
             photoError={photoError}
           />
           {submitError && (
-            <p className="text-sm text-destructive" role="alert">{submitError}</p>
+            <p className="text-sm text-destructive" role="alert" aria-live="assertive">{submitError}</p>
           )}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onCancel} className="flex-1">

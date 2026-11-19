@@ -1,15 +1,24 @@
-import React, { Component, ReactNode } from 'react'
+import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from './EmptyState'
 
 interface Props {
   children: ReactNode
   fallback?: ReactNode
+  onError?: (error: Error, info: ErrorInfo) => void
+  resetKeys?: unknown[]
 }
 
 interface State {
   hasError: boolean
   error: Error | null
+}
+
+function keysChanged(prev: unknown[] | undefined, next: unknown[] | undefined): boolean {
+  if (!prev || !next) return false
+  if (prev.length !== next.length) return true
+  return prev.some((value, index) => !Object.is(value, next[index]))
 }
 
 interface DefaultFallbackProps {
@@ -37,8 +46,30 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
-  componentDidCatch(_error: Error, _info: React.ErrorInfo) {
-    // Error reporting hook: integrate with an external error tracking service here.
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // Visible feedback for users via the shared toast strategy.
+    try {
+      toast.error(error.message || 'Something went wrong.')
+    } catch {
+      // Toast may be unavailable (e.g. outside a Toaster); never throw from here.
+    }
+
+    // Development-only logging to keep production consoles clean.
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[ErrorBoundary]', error, info.componentStack)
+    }
+
+    this.props.onError?.(error, info)
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.hasError && keysChanged(prevProps.resetKeys, this.props.resetKeys)) {
+      this.reset()
+    }
+  }
+
+  reset = () => {
+    this.setState({ hasError: false, error: null })
   }
 
   private handleRetry = () => {

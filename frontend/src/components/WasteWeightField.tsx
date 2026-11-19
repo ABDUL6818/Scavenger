@@ -44,6 +44,7 @@ export function WasteWeightField({
     () => formatWeightConversion(convertWeight(weightValue, weightUnit)),
     [weightValue, weightUnit],
   )
+  const hasError = Boolean(errors.weight)
   const nextWeightUnit: WeightUnit = weightUnit === 'grams' ? 'kilograms' : 'grams'
 
   return (
@@ -59,8 +60,8 @@ export function WasteWeightField({
           min="0"
           inputMode="decimal"
           placeholder={getWeightPlaceholder(weightUnit)}
-          aria-invalid={errors.weight ? true : undefined}
-          aria-describedby={errors.weight ? 'weight-error' : undefined}
+          aria-invalid={hasError ? true : undefined}
+          aria-describedby={hasError ? 'weight-error' : undefined}
           {...register('weight', { valueAsNumber: true })}
         />
         <button
@@ -68,12 +69,13 @@ export function WasteWeightField({
           onClick={() => setWeightUnit(nextWeightUnit)}
           className="shrink-0 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
           aria-label={t('waste.form.weight.switchUnit', { unit: t(`waste.units.${nextWeightUnit}`) })}
+          aria-pressed={weightUnit === 'kilograms'}
         >
           {getWeightUnitLabel(weightUnit)}
         </button>
       </div>
       {convertedWeight && (
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
           {t('waste.form.weight.converted', { value: convertedWeight })}
         </p>
       )}

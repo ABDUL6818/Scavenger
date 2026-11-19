@@ -36,7 +36,16 @@ function CalendarGridComponent({
     }
   }, [year, monthIdx])
 
+  const monthLabel = month.toLocaleString('en-US', { month: 'long', year: 'numeric' })
   const weekdayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+
+  const weeks: (number | null)[][] = useMemo(() => {
+    const rows: (number | null)[][] = []
+    for (let i = 0; i < cells.length; i += 7) {
+      rows.push(cells.slice(i, i + 7))
+    }
+    return rows
+  }, [cells])
 
   if (loading) {
     return <LoadingState label={t('calendar.loading')} />
@@ -47,28 +56,50 @@ function CalendarGridComponent({
   }
 
   return (
-    <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
-      {weekdayKeys.map((d) => (
-        <div key={d} className="py-1 font-medium">
-          {t(`calendar.weekdays.${d}`)}
-        </div>
-      ))}
-      {cells.map((day, i) => (
-        <div
-          key={i}
-          className={cn(
-            'relative flex h-8 w-full items-center justify-center rounded-md text-xs',
-            day === null && 'invisible',
-            day === activeDay && 'bg-primary text-primary-foreground font-bold',
-            day === todayDay && day !== activeDay && 'bg-accent',
-            day !== null && day !== activeDay && day !== todayDay && 'hover:bg-muted cursor-pointer',
-            dayClassName
-          )}
-          onMouseEnter={() => onDayHover?.(day)}
-          onMouseLeave={() => onDayHover?.(null)}
-        >
-          {day}
-          {renderDayContent && day && renderDayContent(day)}
+    <div
+      role="grid"
+      aria-label={`Calendar for ${monthLabel}`}
+      className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground"
+    >
+      <span className="sr-only">{monthLabel}</span>
+      <div role="row" className="contents">
+        {weekdayKeys.map((d) => (
+          <div key={d} role="columnheader" className="py-1 font-medium">
+            {t(`calendar.weekdays.${d}`)}
+          </div>
+        ))}
+      </div>
+      {weeks.map((week, wi) => (
+        <div key={wi} role="row" className="contents">
+          {week.map((day, di) => {
+            const isActive = day !== null && day === activeDay
+            const isToday = day !== null && day === todayDay
+            const interactive = day !== null && !!onDayHover
+            return (
+              <div
+                key={di}
+                role="gridcell"
+                aria-selected={isActive || undefined}
+                aria-current={isToday ? 'date' : undefined}
+                aria-label={day !== null ? `${monthLabel} ${day}` : undefined}
+                aria-hidden={day === null || undefined}
+                tabIndex={interactive ? 0 : undefined}
+                className={cn(
+                  'relative flex h-8 w-full items-center justify-center rounded-md text-xs',
+                  day === null && 'invisible',
+                  isActive && 'bg-primary text-primary-foreground font-bold',
+                  isToday && !isActive && 'bg-accent',
+                  day !== null && !isActive && !isToday && 'hover:bg-muted cursor-pointer',
+                  dayClassName
+                )}
+                onMouseEnter={() => onDayHover?.(day)}
+                onMouseLeave={() => onDayHover?.(null)}
+              >
+                {day}
+                {renderDayContent && day && renderDayContent(day)}
+              </div>
+            )
+          })}
         </div>
       ))}
     </div>

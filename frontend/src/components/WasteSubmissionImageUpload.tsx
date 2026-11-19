@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import { FormField } from '@/components/ui/FormField'
@@ -38,6 +39,7 @@ export function WasteSubmissionImageUpload({
   validationError,
   photoError,
 }: WasteSubmissionImageUploadProps) {
+  const errorId = useId()
   const { t } = useTranslation()
 
   return (
@@ -53,6 +55,16 @@ export function WasteSubmissionImageUpload({
         onRemove={onRemove}
         validationError={validationError}
       />
+      {photoError && (
+        <p
+          id={errorId}
+          className="mt-1 text-sm text-destructive"
+          role="alert"
+          aria-live="assertive"
+        >
+          {photoError}
+        </p>
+      )}
     </FormField>
   )
 }

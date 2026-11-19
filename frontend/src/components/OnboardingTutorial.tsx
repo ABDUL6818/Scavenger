@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Joyride, { CallBackProps, STATUS, EVENTS } from 'react-joyride'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -7,6 +7,7 @@ import { UserRole } from '@/hooks/useOnboarding'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { Play } from 'lucide-react'
 
 interface OnboardingTutorialProps {
@@ -21,8 +22,27 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
 
+  const titleId = useId()
+  const descriptionId = useId()
+  const dialogContentRef = useRef<HTMLDivElement>(null)
+  const startButtonRef = useRef<HTMLButtonElement>(null)
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
+
+  // Trap focus inside the welcome dialog and restore it on close (WCAG 2.1 AA)
+  useFocusTrap({
+    active: showWelcomeDialog,
+    containerRef: dialogContentRef,
+    initialFocusRef: startButtonRef,
+    onEscape: () => setShowWelcomeDialog(false),
+    restoreFocusRef: previouslyFocusedRef,
+  })
+
   useEffect(() => {
     if (isVisible && userRole && !state.completed && !state.skipped) {
+      // Remember the trigger element so focus can be restored when the dialog closes
+      if (typeof document !== 'undefined') {
+        previouslyFocusedRef.current = document.activeElement as HTMLElement | null
+      }
       setShowWelcomeDialog(true)
     }
   }, [isVisible, userRole, state.completed, state.skipped])
@@ -63,13 +83,20 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
     <>
       {/* Welcome Dialog */}
       <Dialog open={showWelcomeDialog} onOpenChange={setShowWelcomeDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          ref={dialogContentRef}
+          className="sm:max-w-md"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
+        >
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Play className="h-5 w-5" />
+            <DialogTitle id={titleId} className="flex items-center gap-2">
+              <Play className="h-5 w-5" aria-hidden="true" />
               {t('welcome.title')}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription id={descriptionId}>
               {t('welcome.description', { role: t(`roles.${userRole.toLowerCase()}`) })}
             </DialogDescription>
           </DialogHeader>
@@ -80,6 +107,7 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
                 id="dont-show-again"
                 checked={dontShowAgain}
                 onCheckedChange={(checked) => setDontShowAgain(checked as boolean)}
+                aria-label="Don't show this again"
               />
               <label
                 htmlFor="dont-show-again"
@@ -90,10 +118,10 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleSkipTutorial}>
+              <Button variant="outline" onClick={handleSkipTutorial} aria-label="Skip tutorial">
                 {t('welcome.skipTutorial')}
               </Button>
-              <Button onClick={handleStartTutorial}>
+              <Button ref={startButtonRef} onClick={handleStartTutorial} aria-label="Start tour">
                 {t('welcome.startTour')}
               </Button>
             </div>
@@ -120,6 +148,7 @@ export function OnboardingTutorial({ userRole, isVisible, onComplete }: Onboardi
           open: t('joyride.open'),
           skip: t('joyride.skip'),
         }}
+        aria-label="Onboarding tutorial"
       />
     </>
   )
