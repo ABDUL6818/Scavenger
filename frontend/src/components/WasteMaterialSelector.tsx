@@ -100,7 +100,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
 
   return (
     <section>
-      <span id={`${baseId}-label`} className="block text-sm font-medium mb-2">
+      <span id={`${baseId}-label`} className="mb-2 block text-sm font-medium">
         {t('waste.materialType')} <span className="text-destructive" aria-hidden="true">*</span>
       </span>
       <Controller
@@ -120,7 +120,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
               onClick={() => (materialDropdownOpen ? closeDropdown() : openDropdown())}
               onKeyDown={handleTriggerKeyDown}
               className={cn(
-                'flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-background px-2 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 xs:px-3',
                 !selectedOption && 'text-muted-foreground',
                 fieldState.error && 'border-destructive'
               )}
@@ -131,22 +131,22 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
               aria-controls={materialDropdownOpen ? listboxId : undefined}
               aria-invalid={fieldState.invalid}
             >
-              <span className="flex items-center gap-2">
+              <span className="flex min-w-0 items-center gap-2">
                 {selectedOption ? (
                   <>
-                    <selectedOption.icon className="h-4 w-4" />
-                    {t(selectedOption.labelKey)}
+                    <selectedOption.icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{t(selectedOption.labelKey)}</span>
                   </>
                 ) : (
-                  t('waste.selectMaterialType')
+                  <span className="truncate">{t('waste.selectMaterialType')}</span>
                 )}
               </span>
-              <ChevronDown className="h-4 w-4 opacity-50" />
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
             </button>
             {materialDropdownOpen && (
-              <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-                <div className="flex items-center border-b px-3">
-                  <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <div className="absolute z-50 mt-1 w-full min-w-0 rounded-md border bg-popover shadow-md">
+                <div className="flex items-center border-b px-2 xs:px-3">
+                  <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <label id={searchLabelId} htmlFor={`${baseId}-search`} className="sr-only">
                     Search materials
                   </label>
@@ -161,7 +161,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                       setActiveIndex(0)
                     }}
                     onKeyDown={handleSearchKeyDown}
-                    className="flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                    className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
                     aria-label={t('waste.searchMaterials')}
                     aria-labelledby={searchLabelId}
                     aria-controls={listboxId}
@@ -177,7 +177,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                   id={listboxId}
                   role="listbox"
                   aria-labelledby={`${baseId}-label`}
-                  className="max-h-48 overflow-y-auto p-1"
+                  className="max-h-48 overflow-y-auto p-1 xs:max-h-56 tablet:max-h-64"
                 >
                   {filteredMaterials.length === 0 ? (
                     <li>
@@ -198,13 +198,13 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                           onClick={() => onSelectOption(opt.value)}
                           onMouseEnter={() => setActiveIndex(index)}
                           className={cn(
-                            'flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent',
+                            'flex cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm hover:bg-accent xs:px-3',
                             field.value === opt.value && 'bg-accent',
                             activeIndex === index && 'ring-1 ring-ring'
                           )}
                         >
-                          <Icon className="h-4 w-4" aria-hidden="true" />
-                          {t(opt.labelKey)}
+                          <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <span className="truncate">{t(opt.labelKey)}</span>
                         </li>
                       )
                     })

@@ -133,7 +133,7 @@ export function WasteSubmissionForm({
         <CardHeader>
           <CardTitle id="waste-submission-title">{t('wasteSubmission.title')}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 xs:space-y-5 sm:space-y-6">
           <WasteSubmissionFields
             control={control}
             register={register}
@@ -153,13 +153,17 @@ export function WasteSubmissionForm({
           {submitError && (
             <p className="text-sm text-destructive" role="alert" aria-live="assertive">{submitError}</p>
           )}
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+          <div className="flex flex-col gap-2 pt-2 xs:flex-row xs:gap-3 tablet:gap-4">
+            <Button type="button" variant="outline" onClick={onCancel} className="w-full xs:flex-1">
               {t('common.cancel')}
             </Button>
-            <Button type="submit" className="flex-1" disabled={submitState === STATUSES.LOADING || isUploading || !isAuthenticated || !isOnline}>
+            <Button
+              type="submit"
+              className="w-full xs:flex-1"
+              disabled={submitState === STATUSES.LOADING || isUploading}
+            >
               {submitState === STATUSES.LOADING ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Submitting...</>
               ) : isUploading ? (
                 <LoadingState variant="inline" label={t('wasteSubmission.actions.uploadingPhotos')} />
               ) : (

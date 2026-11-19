@@ -96,6 +96,9 @@
   white-space: normal;
 }
 
+/* High contrast mode — tokens are fully defined in the @layer base block below;
+   this selector only needs to exist so the class can be toggled on <html>. */
+
 /* Reduced motion */
 .reduce-motion *,
 .reduce-motion *::before,
@@ -153,6 +156,12 @@
     --ring: 142 76% 36%;
 
     --radius: 0.5rem;
+
+    /* ── Responsive layout tokens (see utilities below) ──────────────── */
+    --layout-gutter: 1rem;             /* default page gutter */
+    --layout-gutter-xs: 0.75rem;       /* <360px */
+    --layout-gutter-tablet: 1.5rem;    /* >=768px */
+    --layout-content-max: 72rem;       /* max content width */
   }
 
   .dark {
@@ -185,6 +194,8 @@
     --border: 217 33% 22%;
     --input: 217 33% 22%;
     --ring: 142 69% 58%;
+
+    /* Responsive layout tokens are theme-independent; inherited from :root. */
   }
 
   .high-contrast {
@@ -252,6 +263,62 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Responsive layout utilities — consume tokens only, no hard-coded colors. */
+
+  /* Page gutter that shrinks below 360px and grows on tablet. */
+  .layout-gutter {
+    padding-left: var(--layout-gutter);
+    padding-right: var(--layout-gutter);
+  }
+
+  /* Content container with a max width and centered. */
+  .layout-container {
+    width: 100%;
+    max-width: var(--layout-content-max);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Prevent horizontal overflow on very narrow viewports. */
+  .layout-safe {
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-wrap: anywhere;
+  }
+
+  /* Stack children vertically on small screens, row on tablet+. */
+  .layout-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--layout-gutter);
+  }
+
+  /* <360px: tighten gutters and force single-column stacking. */
+  @media (max-width: 359.98px) {
+    .layout-gutter {
+      padding-left: var(--layout-gutter-xs);
+      padding-right: var(--layout-gutter-xs);
+    }
+
+    .layout-stack {
+      gap: var(--layout-gutter-xs);
+    }
+  }
+
+  /* Tablet (>=768px): widen gutters and allow row layouts. */
+  @media (min-width: 768px) {
+    .layout-gutter {
+      padding-left: var(--layout-gutter-tablet);
+      padding-right: var(--layout-gutter-tablet);
+    }
+
+    .layout-stack {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
   }
 
   /* ── Image optimization utilities ──────────────────────────────────────

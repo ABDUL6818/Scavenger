@@ -52,7 +52,7 @@ export function WasteLocationFields({ register, setValue, errors }: WasteLocatio
         {t('waste.location.label')} <span className="text-destructive" aria-hidden="true">*</span>
         <span className="sr-only">(required)</span>
       </span>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 tablet:gap-6">
         <div>
           <Input
             type="number"
@@ -87,7 +87,7 @@ export function WasteLocationFields({ register, setValue, errors }: WasteLocatio
         onClick={useCurrentLocation}
         disabled={locating}
         aria-busy={locating}
-        className="mt-2 flex items-center gap-2 text-sm text-primary hover:underline"
+        className="mt-2 flex w-full items-center justify-center gap-2 text-sm text-primary hover:underline xs:w-auto xs:justify-start"
       >
         <LocateFixed className={cn('h-4 w-4', locating && 'animate-pulse')} aria-hidden="true" />
         {locating ? t('waste.location.locating') : t('waste.location.useCurrentLocation')}

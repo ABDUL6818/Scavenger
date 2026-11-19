@@ -162,13 +162,13 @@ export function BatchUploadPage() {
                 onClick={() => fileRef.current?.click()}
                 onKeyDown={(e) => e.key === 'Enter' && fileRef.current?.click()}
                 className={cn(
-                  'flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-10 text-center cursor-pointer transition-colors',
+                  'flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-4 xs:p-6 sm:p-10 text-center cursor-pointer transition-colors',
                   dragOver ? 'border-primary bg-accent' : 'border-muted-foreground/30 hover:border-primary hover:bg-accent/30'
                 )}
               >
                 <Upload className="h-8 w-8 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">{fileName || t('batchUpload.dropZone.prompt')}</p>
+                <div className="min-w-0 max-w-full">
+                  <p className="font-medium break-words">{fileName || t('batchUpload.dropZone.prompt')}</p>
                   <p className="text-xs text-muted-foreground mt-1">{t('batchUpload.dropZone.hint')}</p>
                 </div>
                 <input
@@ -187,10 +187,10 @@ export function BatchUploadPage() {
           {rows.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center justify-between">
+                <CardTitle className="text-base flex flex-wrap items-center justify-between gap-2">
                   <span>{t('batchUpload.preview.title', { count: rows.length })}</span>
                   <div className="flex gap-2 text-xs font-normal">
-                    <span className="text-green-600">{t('batchUpload.preview.valid', { count: validRows.length })}</span>
+                    <span className="text-success">{t('batchUpload.preview.valid', { count: validRows.length })}</span>
                     {invalidRows.length > 0 && (
                       <span className="text-destructive">{t('batchUpload.preview.invalid', { count: invalidRows.length })}</span>
                     )}
@@ -199,28 +199,28 @@ export function BatchUploadPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-[32rem] text-sm">
                     <thead>
                       <tr className="border-b bg-muted/40">
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.row')}</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.type')}</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.weight')}</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.lat')}</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.lon')}</th>
-                        <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.status')}</th>
+                        <th className="px-2 xs:px-3 sm:px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.row')}</th>
+                        <th className="px-2 xs:px-3 sm:px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.type')}</th>
+                        <th className="px-2 xs:px-3 sm:px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.weight')}</th>
+                        <th className="px-2 xs:px-3 sm:px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.lat')}</th>
+                        <th className="px-2 xs:px-3 sm:px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.lon')}</th>
+                        <th className="px-2 xs:px-3 sm:px-4 py-2 text-left font-medium text-muted-foreground">{t('batchUpload.table.status')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((row) => (
                         <tr key={row.rowIndex} className={cn('border-b last:border-0', !row.valid && 'bg-destructive/5')}>
-                          <td className="px-4 py-2 text-muted-foreground">{row.rowIndex}</td>
-                          <td className="px-4 py-2">{row.waste_type}</td>
-                          <td className="px-4 py-2">{row.weight}</td>
-                          <td className="px-4 py-2">{row.latitude}</td>
-                          <td className="px-4 py-2">{row.longitude}</td>
-                          <td className="px-4 py-2">
+                          <td className="px-2 xs:px-3 sm:px-4 py-2 text-muted-foreground">{row.rowIndex}</td>
+                          <td className="px-2 xs:px-3 sm:px-4 py-2">{row.waste_type}</td>
+                          <td className="px-2 xs:px-3 sm:px-4 py-2">{row.weight}</td>
+                          <td className="px-2 xs:px-3 sm:px-4 py-2">{row.latitude}</td>
+                          <td className="px-2 xs:px-3 sm:px-4 py-2">{row.longitude}</td>
+                          <td className="px-2 xs:px-3 sm:px-4 py-2">
                             {row.valid ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <CheckCircle2 className="h-4 w-4 text-success" />
                             ) : (
                               <span className="flex items-center gap-1 text-destructive text-xs">
                                 <XCircle className="h-4 w-4 shrink-0" />
@@ -261,9 +261,9 @@ export function BatchUploadPage() {
               <CardContent className="pt-6 space-y-3">
                 <div className="flex items-center gap-2">
                   {failed === 0 ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    <CheckCircle2 className="h-5 w-5 text-success" />
                   ) : (
-                    <AlertCircle className="h-5 w-5 text-yellow-500" />
+                    <AlertCircle className="h-5 w-5 text-warning" />
                   )}
                   <span className="font-medium text-sm">
                     {t('batchUpload.results.summary', { succeeded, failed })}
@@ -289,8 +289,8 @@ export function BatchUploadPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <Button variant="outline" className="w-full justify-start" onClick={downloadTemplate}>
-                <Download className="h-4 w-4 mr-2" />
-                {t('batchUpload.actions.downloadTemplate')}
+                <Download className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">{t('batchUpload.actions.downloadTemplate')}</span>
               </Button>
               <Button
                 className="w-full"
@@ -298,9 +298,9 @@ export function BatchUploadPage() {
                 onClick={() => void handleSubmit()}
               >
                 {status === SubmissionStatus.Uploading ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t('batchUpload.actions.uploading')}</>
+                  <><Loader2 className="h-4 w-4 mr-2 shrink-0 animate-spin" />{t('batchUpload.actions.uploading')}</>
                 ) : (
-                  <><Upload className="h-4 w-4 mr-2" />{t('batchUpload.actions.submit', { count: validRows.length })}</>
+                  <><Upload className="h-4 w-4 mr-2 shrink-0" />{t('batchUpload.actions.submit', { count: validRows.length })}</>
                 )}
               </Button>
             </CardContent>
@@ -316,8 +316,8 @@ export function BatchUploadPage() {
             <CardContent className="space-y-2 text-sm">
               <p className="text-muted-foreground text-xs">{t('batchUpload.format.requiredColumns')}</p>
               {['waste_type', 'weight', 'latitude', 'longitude'].map((col) => (
-                <div key={col} className="flex items-center justify-between">
-                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{col}</code>
+                <div key={col} className="flex flex-wrap items-center justify-between gap-1">
+                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded break-all">{col}</code>
                   {col === 'waste_type' && (
                     <span className="text-xs text-muted-foreground">{t('batchUpload.format.types.string')}</span>
                   )}

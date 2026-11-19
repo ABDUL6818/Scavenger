@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -266,6 +266,153 @@ impl Default for ExportTracker {
     }
 }
 
+/// Repository abstraction for export-related data access.
+///
+/// Route handlers should depend on this trait (via `ExportController`) rather
+/// than reaching into storage directly, keeping the HTTP layer thin.
+pub trait ExportRepository: Send + Sync {
+    /// Persist a completed export history entry.
+    fn save_history(&self, entry: ExportHistoryEntry) -> Result<(), ExportError>;
+
+    /// Return all recorded export history entries.
+    fn list_history(&self) -> Result<Vec<ExportHistoryEntry>, ExportError>;
+
+    /// Persist a scheduled export configuration.
+    fn save_scheduled(&self, scheduled: ScheduledExport) -> Result<(), ExportError>;
+
+    /// Return all scheduled export configurations.
+    fn list_scheduled(&self) -> Result<Vec<ScheduledExport>, ExportError>;
+
+    /// Remove a scheduled export by id, returning whether it existed.
+    fn delete_scheduled(&self, id: &str) -> Result<bool, ExportError>;
+}
+
+/// In-memory repository backed by `ExportTracker`.
+///
+/// This preserves the previous behavior of `ExportTracker` while exposing it
+/// through the `ExportRepository` trait so controllers can be tested with mocks.
+pub struct InMemoryExportRepository {
+    tracker: ExportTracker,
+}
+
+impl InMemoryExportRepository {
+    pub fn new() -> Self {
+        Self {
+            tracker: ExportTracker::new(),
+        }
+    }
+}
+
+impl Default for InMemoryExportRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ExportRepository for InMemoryExportRepository {
+    fn save_history(&self, entry: ExportHistoryEntry) -> Result<(), ExportError> {
+        if let Ok(mut history) = self.tracker.history.lock() {
+            history.push(entry);
+            Ok(())
+        } else {
+            Err(ExportError::SerializationError(
+                "failed to lock export history".to_string(),
+            ))
+        }
+    }
+
+    fn list_history(&self) -> Result<Vec<ExportHistoryEntry>, ExportError> {
+        Ok(self.tracker.get_history())
+    }
+
+    fn save_scheduled(&self, scheduled: ScheduledExport) -> Result<(), ExportError> {
+        self.tracker.add_scheduled_export(scheduled);
+        Ok(())
+    }
+
+    fn list_scheduled(&self) -> Result<Vec<ScheduledExport>, ExportError> {
+        Ok(self.tracker.get_scheduled_exports())
+    }
+
+    fn delete_scheduled(&self, id: &str) -> Result<bool, ExportError> {
+        Ok(self.tracker.remove_scheduled_export(id))
+    }
+}
+
+/// Business logic for export operations, extracted from the route handlers.
+///
+/// The controller owns no storage of its own; all persistence goes through the
+/// injected `ExportRepository`, which makes it straightforward to unit test.
+pub struct ExportController {
+    repository: Arc<dyn ExportRepository>,
+}
+
+impl ExportController {
+    pub fn new(repository: Arc<dyn ExportRepository>) -> Self {
+        Self { repository }
+    }
+
+    /// Export the given data in the requested format, optionally anonymizing it.
+    pub fn export_data(
+        &self,
+        format: ExportFormat,
+        data: Vec<ExportData>,
+        anonymize: bool,
+    ) -> Result<Vec<u8>, ExportError> {
+        ExportService::export_with_anonymization(format, data, anonymize)
+            .map_err(|e| ExportError::SerializationError(e.to_string()))
+    }
+
+    /// Export data and record the result in the export history.
+    pub fn export_and_record(
+        &self,
+        format: ExportFormat,
+        data_type: &str,
+        data: Vec<ExportData>,
+        anonymize: bool,
+        requested_by: Option<String>,
+    ) -> Result<ExportHistoryEntry, ExportError> {
+        let record_count = data.len() as u64;
+        let bytes = self.export_data(format.clone(), data, anonymize)?;
+        let now = Utc::now();
+        let entry = ExportHistoryEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            format: format.to_string(),
+            data_type: data_type.to_string(),
+            status: "completed".to_string(),
+            requested_by,
+            created_at: now,
+            completed_at: Some(now),
+            file_size: Some(bytes.len() as u64),
+            record_count: Some(record_count),
+            anonymized: anonymize,
+            error: None,
+        };
+        self.repository.save_history(entry.clone())?;
+        Ok(entry)
+    }
+
+    /// Return the export history.
+    pub fn get_history(&self) -> Result<Vec<ExportHistoryEntry>, ExportError> {
+        self.repository.list_history()
+    }
+
+    /// Register a new scheduled export.
+    pub fn schedule_export(&self, scheduled: ScheduledExport) -> Result<(), ExportError> {
+        self.repository.save_scheduled(scheduled)
+    }
+
+    /// List all scheduled exports.
+    pub fn get_scheduled_exports(&self) -> Result<Vec<ScheduledExport>, ExportError> {
+        self.repository.list_scheduled()
+    }
+
+    /// Remove a scheduled export by id.
+    pub fn cancel_scheduled_export(&self, id: &str) -> Result<bool, ExportError> {
+        self.repository.delete_scheduled(id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -379,5 +526,156 @@ mod tests {
         assert_eq!(ExportFormat::CSV.to_string(), "csv");
         assert_eq!(ExportFormat::JSON.to_string(), "json");
         assert_eq!(ExportFormat::PDF.to_string(), "pdf");
+    }
+
+    /// Mock repository recording calls for controller tests.
+    #[derive(Default)]
+    struct MockExportRepository {
+        history: Mutex<Vec<ExportHistoryEntry>>,
+        scheduled: Mutex<Vec<ScheduledExport>>,
+        fail: bool,
+    }
+
+    impl MockExportRepository {
+        fn failing() -> Self {
+            Self {
+                fail: true,
+                ..Default::default()
+            }
+        }
+    }
+
+    impl ExportRepository for MockExportRepository {
+        fn save_history(&self, entry: ExportHistoryEntry) -> Result<(), ExportError> {
+            if self.fail {
+                return Err(ExportError::SerializationError("mock failure".to_string()));
+            }
+            self.history.lock().unwrap().push(entry);
+            Ok(())
+        }
+
+        fn list_history(&self) -> Result<Vec<ExportHistoryEntry>, ExportError> {
+            Ok(self.history.lock().unwrap().clone())
+        }
+
+        fn save_scheduled(&self, scheduled: ScheduledExport) -> Result<(), ExportError> {
+            self.scheduled.lock().unwrap().push(scheduled);
+            Ok(())
+        }
+
+        fn list_scheduled(&self) -> Result<Vec<ScheduledExport>, ExportError> {
+            Ok(self.scheduled.lock().unwrap().clone())
+        }
+
+        fn delete_scheduled(&self, id: &str) -> Result<bool, ExportError> {
+            let mut scheduled = self.scheduled.lock().unwrap();
+            let before = scheduled.len();
+            scheduled.retain(|s| s.id != id);
+            Ok(scheduled.len() < before)
+        }
+    }
+
+    fn sample_scheduled(id: &str) -> ScheduledExport {
+        ScheduledExport {
+            id: id.to_string(),
+            format: "csv".to_string(),
+            data_type: "waste".to_string(),
+            schedule: "0 0 * * *".to_string(),
+            recipients: vec!["admin@test.com".to_string()],
+            anonymize: true,
+            enabled: true,
+            last_run: None,
+            next_run: None,
+            created_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn test_controller_export_data_csv() {
+        let controller = ExportController::new(Arc::new(MockExportRepository::default()));
+        let bytes = controller
+            .export_data(ExportFormat::CSV, sample_data(), false)
+            .unwrap();
+        let content = String::from_utf8(bytes).unwrap();
+        assert!(content.contains("waste-001"));
+    }
+
+    #[test]
+    fn test_controller_export_data_anonymized() {
+        let controller = ExportController::new(Arc::new(MockExportRepository::default()));
+        let bytes = controller
+            .export_data(ExportFormat::JSON, sample_data(), true)
+            .unwrap();
+        let content = String::from_utf8(bytes).unwrap();
+        assert!(!content.contains("waste-001"));
+    }
+
+    #[test]
+    fn test_controller_export_and_record() {
+        let repo = Arc::new(MockExportRepository::default());
+        let controller = ExportController::new(repo.clone());
+        let entry = controller
+            .export_and_record(
+                ExportFormat::CSV,
+                "waste",
+                sample_data(),
+                false,
+                Some("user-001".to_string()),
+            )
+            .unwrap();
+        assert_eq!(entry.format, "csv");
+        assert_eq!(entry.data_type, "waste");
+        assert_eq!(entry.record_count, Some(2));
+        assert!(entry.file_size.unwrap() > 0);
+        assert_eq!(repo.list_history().unwrap().len(), 1);
+        assert_eq!(controller.get_history().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_controller_export_and_record_repository_failure() {
+        let controller = ExportController::new(Arc::new(MockExportRepository::failing()));
+        let result = controller.export_and_record(
+            ExportFormat::JSON,
+            "waste",
+            sample_data(),
+            false,
+            None,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_controller_scheduled_exports() {
+        let controller = ExportController::new(Arc::new(MockExportRepository::default()));
+        controller.schedule_export(sample_scheduled("sched-001")).unwrap();
+        assert_eq!(controller.get_scheduled_exports().unwrap().len(), 1);
+        assert!(controller.cancel_scheduled_export("sched-001").unwrap());
+        assert_eq!(controller.get_scheduled_exports().unwrap().len(), 0);
+        assert!(!controller.cancel_scheduled_export("missing").unwrap());
+    }
+
+    #[test]
+    fn test_in_memory_repository_roundtrip() {
+        let repo = InMemoryExportRepository::new();
+        let entry = ExportHistoryEntry {
+            id: "hist-001".to_string(),
+            format: "csv".to_string(),
+            data_type: "waste".to_string(),
+            status: "completed".to_string(),
+            requested_by: None,
+            created_at: Utc::now(),
+            completed_at: Some(Utc::now()),
+            file_size: Some(10),
+            record_count: Some(1),
+            anonymized: false,
+            error: None,
+        };
+        repo.save_history(entry).unwrap();
+        assert_eq!(repo.list_history().unwrap().len(), 1);
+
+        repo.save_scheduled(sample_scheduled("sched-002")).unwrap();
+        assert_eq!(repo.list_scheduled().unwrap().len(), 1);
+        assert!(repo.delete_scheduled("sched-002").unwrap());
+        assert_eq!(repo.list_scheduled().unwrap().len(), 0);
     }
 }

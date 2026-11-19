@@ -116,15 +116,93 @@ pub trait VerificationService: Send + Sync {
     async fn send_rejection_notification(&self, participant_id: String, reason: String) -> Result<(), String>;
 }
 
-pub struct DefaultVerificationService {
+// ── Repository layer ──────────────────────────────────────────────────────────
+//
+// Data access for verifications is abstracted behind this trait so that the
+// business logic in `DefaultVerificationService` can be unit-tested with a
+// mocked repository, and so the HTTP layer never touches storage directly.
+
+#[async_trait]
+pub trait VerificationRepository: Send + Sync {
+    async fn get(&self, participant_id: &str) -> Result<Option<ParticipantVerification>, String>;
+    async fn save(&self, verification: ParticipantVerification) -> Result<(), String>;
+    async fn list(&self) -> Result<Vec<ParticipantVerification>, String>;
+    async fn find_document(&self, doc_id: &str) -> Result<Option<Document>, String>;
+    async fn update_document(&self, doc: Document) -> Result<(), String>;
+}
+
+/// In-memory implementation of [`VerificationRepository`].
+pub struct InMemoryVerificationRepository {
     verifications: std::sync::Arc<tokio::sync::Mutex<HashMap<String, ParticipantVerification>>>,
+}
+
+impl InMemoryVerificationRepository {
+    pub fn new() -> Self {
+        Self {
+            verifications: std::sync::Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+impl Default for InMemoryVerificationRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl VerificationRepository for InMemoryVerificationRepository {
+    async fn get(&self, participant_id: &str) -> Result<Option<ParticipantVerification>, String> {
+        let verifications = self.verifications.lock().await;
+        Ok(verifications.get(participant_id).cloned())
+    }
+
+    async fn save(&self, verification: ParticipantVerification) -> Result<(), String> {
+        let mut verifications = self.verifications.lock().await;
+        verifications.insert(verification.participant_id.clone(), verification);
+        Ok(())
+    }
+
+    async fn list(&self) -> Result<Vec<ParticipantVerification>, String> {
+        let verifications = self.verifications.lock().await;
+        Ok(verifications.values().cloned().collect())
+    }
+
+    async fn find_document(&self, doc_id: &str) -> Result<Option<Document>, String> {
+        let verifications = self.verifications.lock().await;
+        for verification in verifications.values() {
+            if let Some(doc) = verification.documents.iter().find(|d| d.id == doc_id) {
+                return Ok(Some(doc.clone()));
+            }
+        }
+        Ok(None)
+    }
+
+    async fn update_document(&self, doc: Document) -> Result<(), String> {
+        let mut verifications = self.verifications.lock().await;
+        for verification in verifications.values_mut() {
+            if let Some(existing) = verification.documents.iter_mut().find(|d| d.id == doc.id) {
+                *existing = doc;
+                return Ok(());
+            }
+        }
+        Err("Document not found".to_string())
+    }
+}
+
+pub struct DefaultVerificationService {
+    repository: std::sync::Arc<dyn VerificationRepository>,
     rules: Vec<VerificationRule>,
 }
 
 impl DefaultVerificationService {
     pub fn new() -> Self {
+        Self::with_repository(std::sync::Arc::new(InMemoryVerificationRepository::new()))
+    }
+
+    pub fn with_repository(repository: std::sync::Arc<dyn VerificationRepository>) -> Self {
         Self {
-            verifications: std::sync::Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            repository,
             rules: vec![
                 VerificationRule {
                     id: "kyc_basic".to_string(),
@@ -178,8 +256,7 @@ impl VerificationService for DefaultVerificationService {
             last_retry_at: None,
         };
 
-        let mut verifications = self.verifications.lock().await;
-        verifications.insert(participant_id, verification.clone());
+        self.repository.save(verification.clone()).await?;
         Ok(verification)
     }
 
@@ -194,32 +271,32 @@ impl VerificationService for DefaultVerificationService {
             verification_notes: None,
         };
 
-        let mut verifications = self.verifications.lock().await;
-        if let Some(verification) = verifications.get_mut(&participant_id) {
-            verification.documents.push(doc.clone());
-            Ok(doc)
-        } else {
-            Err("Verification not found".to_string())
-        }
+        let mut verification = self
+            .repository
+            .get(&participant_id)
+            .await?
+            .ok_or_else(|| "Verification not found".to_string())?;
+        verification.documents.push(doc.clone());
+        self.repository.save(verification).await?;
+        Ok(doc)
     }
 
     async fn verify_document(&self, doc_id: String) -> Result<Document, String> {
-        let mut verifications = self.verifications.lock().await;
-        for verification in verifications.values_mut() {
-            if let Some(doc) = verification.documents.iter_mut().find(|d| d.id == doc_id) {
-                doc.verified = true;
-                doc.verification_notes = Some("Document verified".to_string());
-                return Ok(doc.clone());
-            }
-        }
-        Err("Document not found".to_string())
+        let mut doc = self
+            .repository
+            .find_document(&doc_id)
+            .await?
+            .ok_or_else(|| "Document not found".to_string())?;
+        doc.verified = true;
+        doc.verification_notes = Some("Document verified".to_string());
+        self.repository.update_document(doc.clone()).await?;
+        Ok(doc)
     }
 
     async fn get_verification_status(&self, participant_id: String) -> Result<ParticipantVerification, String> {
-        let verifications = self.verifications.lock().await;
-        verifications
+        self.repository
             .get(&participant_id)
-            .cloned()
+            .await?
             .ok_or_else(|| "Verification not found".to_string())
     }
 
@@ -228,36 +305,39 @@ impl VerificationService for DefaultVerificationService {
         participant_id: String,
         checks: HashMap<String, bool>,
     ) -> Result<VerificationChecklist, String> {
-        let mut verifications = self.verifications.lock().await;
-        if let Some(verification) = verifications.get_mut(&participant_id) {
-            verification.checklist.checks = checks;
-            verification.checklist.completed_at = Some(Utc::now());
-            Ok(verification.checklist.clone())
-        } else {
-            Err("Verification not found".to_string())
-        }
+        let mut verification = self
+            .repository
+            .get(&participant_id)
+            .await?
+            .ok_or_else(|| "Verification not found".to_string())?;
+        verification.checklist.checks = checks;
+        verification.checklist.completed_at = Some(Utc::now());
+        let checklist = verification.checklist.clone();
+        self.repository.save(verification).await?;
+        Ok(checklist)
     }
 
     async fn create_review_queue_item(&self, participant_id: String) -> Result<String, String> {
-        let mut verifications = self.verifications.lock().await;
-        if let Some(verification) = verifications.get_mut(&participant_id) {
-            verification.status = VerificationStatus::UnderReview;
-            Ok(uuid::Uuid::new_v4().to_string())
-        } else {
-            Err("Verification not found".to_string())
-        }
+        let mut verification = self
+            .repository
+            .get(&participant_id)
+            .await?
+            .ok_or_else(|| "Verification not found".to_string())?;
+        verification.status = VerificationStatus::UnderReview;
+        self.repository.save(verification).await?;
+        Ok(uuid::Uuid::new_v4().to_string())
     }
 
     async fn approve_participant(&self, participant_id: String, reviewer_id: String) -> Result<(), String> {
-        let mut verifications = self.verifications.lock().await;
-        if let Some(verification) = verifications.get_mut(&participant_id) {
-            verification.status = VerificationStatus::Approved;
-            verification.reviewed_at = Some(Utc::now());
-            verification.reviewed_by = Some(reviewer_id);
-            Ok(())
-        } else {
-            Err("Verification not found".to_string())
-        }
+        let mut verification = self
+            .repository
+            .get(&participant_id)
+            .await?
+            .ok_or_else(|| "Verification not found".to_string())?;
+        verification.status = VerificationStatus::Approved;
+        verification.reviewed_at = Some(Utc::now());
+        verification.reviewed_by = Some(reviewer_id);
+        self.repository.save(verification).await
     }
 
     async fn reject_participant(
@@ -266,39 +346,39 @@ impl VerificationService for DefaultVerificationService {
         reason: String,
         reviewer_id: String,
     ) -> Result<(), String> {
-        let mut verifications = self.verifications.lock().await;
-        if let Some(verification) = verifications.get_mut(&participant_id) {
-            verification.status = VerificationStatus::Rejected;
-            verification.notes = Some(reason);
-            verification.reviewed_at = Some(Utc::now());
-            verification.reviewed_by = Some(reviewer_id);
-            Ok(())
-        } else {
-            Err("Verification not found".to_string())
-        }
+        let mut verification = self
+            .repository
+            .get(&participant_id)
+            .await?
+            .ok_or_else(|| "Verification not found".to_string())?;
+        verification.status = VerificationStatus::Rejected;
+        verification.notes = Some(reason);
+        verification.reviewed_at = Some(Utc::now());
+        verification.reviewed_by = Some(reviewer_id);
+        self.repository.save(verification).await
     }
 
     async fn get_pending_reviews(&self) -> Result<Vec<ParticipantVerification>, String> {
-        let verifications = self.verifications.lock().await;
-        let pending: Vec<_> = verifications
-            .values()
+        let all = self.repository.list().await?;
+        let pending: Vec<_> = all
+            .into_iter()
             .filter(|v| matches!(v.status, VerificationStatus::UnderReview | VerificationStatus::Pending))
-            .cloned()
             .collect();
         Ok(pending)
     }
 
     async fn retry_verification(&self, participant_id: String) -> Result<ParticipantVerification, String> {
-        let mut verifications = self.verifications.lock().await;
-        if let Some(verification) = verifications.get_mut(&participant_id) {
-            check_retry_allowed(verification.retry_count, MAX_VERIFICATION_RETRIES)?;
-            verification.status = VerificationStatus::Pending;
-            verification.retry_count += 1;
-            verification.last_retry_at = Some(Utc::now());
-            Ok(verification.clone())
-        } else {
-            Err("Verification not found".to_string())
-        }
+        let mut verification = self
+            .repository
+            .get(&participant_id)
+            .await?
+            .ok_or_else(|| "Verification not found".to_string())?;
+        check_retry_allowed(verification.retry_count, MAX_VERIFICATION_RETRIES)?;
+        verification.status = VerificationStatus::Pending;
+        verification.retry_count += 1;
+        verification.last_retry_at = Some(Utc::now());
+        self.repository.save(verification.clone()).await?;
+        Ok(verification)
     }
 
     async fn send_approval_notification(&self, participant_id: String) -> Result<(), String> {
@@ -512,6 +592,135 @@ mod tests {
             checklist.completed_at.is_some(),
             "completed_at must be set after submitting a checklist"
         );
+    }
+
+    // ── repository-backed service tests (mocked repository) ───────────────────
+
+    /// A minimal mock repository that records calls and serves fixed data.
+    struct MockVerificationRepository {
+        stored: std::sync::Arc<tokio::sync::Mutex<HashMap<String, ParticipantVerification>>>,
+        save_calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    impl MockVerificationRepository {
+        fn new() -> Self {
+            Self {
+                stored: std::sync::Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+                save_calls: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl VerificationRepository for MockVerificationRepository {
+        async fn get(&self, participant_id: &str) -> Result<Option<ParticipantVerification>, String> {
+            Ok(self.stored.lock().await.get(participant_id).cloned())
+        }
+
+        async fn save(&self, verification: ParticipantVerification) -> Result<(), String> {
+            self.save_calls
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.stored
+                .lock()
+                .await
+                .insert(verification.participant_id.clone(), verification);
+            Ok(())
+        }
+
+        async fn list(&self) -> Result<Vec<ParticipantVerification>, String> {
+            Ok(self.stored.lock().await.values().cloned().collect())
+        }
+
+        async fn find_document(&self, doc_id: &str) -> Result<Option<Document>, String> {
+            for v in self.stored.lock().await.values() {
+                if let Some(doc) = v.documents.iter().find(|d| d.id == doc_id) {
+                    return Ok(Some(doc.clone()));
+                }
+            }
+            Ok(None)
+        }
+
+        async fn update_document(&self, doc: Document) -> Result<(), String> {
+            let mut stored = self.stored.lock().await;
+            for v in stored.values_mut() {
+                if let Some(existing) = v.documents.iter_mut().find(|d| d.id == doc.id) {
+                    *existing = doc;
+                    return Ok(());
+                }
+            }
+            Err("Document not found".to_string())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_service_uses_injected_repository() {
+        let repo = std::sync::Arc::new(MockVerificationRepository::new());
+        let service = DefaultVerificationService::with_repository(repo.clone());
+
+        service.start_verification("p-mock".to_string()).await.unwrap();
+        assert_eq!(
+            repo.save_calls.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "start_verification should persist through the repository"
+        );
+
+        let v = service.get_verification_status("p-mock".to_string()).await.unwrap();
+        assert_eq!(v.participant_id, "p-mock");
+    }
+
+    #[tokio::test]
+    async fn test_mock_repository_approve_flow() {
+        let repo = std::sync::Arc::new(MockVerificationRepository::new());
+        let service = DefaultVerificationService::with_repository(repo.clone());
+
+        service.start_verification("p-mock-approve".to_string()).await.unwrap();
+        service
+            .approve_participant("p-mock-approve".to_string(), "reviewer".to_string())
+            .await
+            .unwrap();
+
+        let v = service
+            .get_verification_status("p-mock-approve".to_string())
+            .await
+            .unwrap();
+        assert!(matches!(v.status, VerificationStatus::Approved));
+        assert_eq!(v.reviewed_by.as_deref(), Some("reviewer"));
+    }
+
+    #[tokio::test]
+    async fn test_mock_repository_unknown_participant_errors() {
+        let repo = std::sync::Arc::new(MockVerificationRepository::new());
+        let service = DefaultVerificationService::with_repository(repo);
+
+        assert!(service
+            .approve_participant("ghost".to_string(), "reviewer".to_string())
+            .await
+            .is_err());
+        assert!(service
+            .submit_document("ghost".to_string(), "passport".to_string(), "url".to_string())
+            .await
+            .is_err());
+        assert!(service.retry_verification("ghost".to_string()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mock_repository_verify_document() {
+        let repo = std::sync::Arc::new(MockVerificationRepository::new());
+        let service = DefaultVerificationService::with_repository(repo);
+
+        service.start_verification("p-mock-doc".to_string()).await.unwrap();
+        let doc = service
+            .submit_document(
+                "p-mock-doc".to_string(),
+                "passport".to_string(),
+                "http://example.com/doc".to_string(),
+            )
+            .await
+            .unwrap();
+
+        let verified = service.verify_document(doc.id.clone()).await.unwrap();
+        assert!(verified.verified);
+        assert!(service.verify_document("missing-doc".to_string()).await.is_err());
     }
 
     /// `get_pending_reviews` returns only Pending / UnderReview verifications.

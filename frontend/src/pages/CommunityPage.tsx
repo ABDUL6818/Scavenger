@@ -55,15 +55,15 @@ export function CommunityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">{t('community.heading')}</h1>
+        <h1 className="text-2xl font-bold xs:text-3xl">{t('community.heading')}</h1>
         <p className="mt-1 text-muted-foreground">{t('community.subtitle')}</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-6 tablet:grid-cols-3">
+        <Card className="tablet:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-yellow-500" />
+              <Trophy className="h-5 w-5 text-warning" />
               {t('community.leaderboard.title')}
             </CardTitle>
           </CardHeader>
@@ -111,7 +111,7 @@ export function CommunityPage() {
                     >
                       <Icon className="h-5 w-5" />
                     </div>
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <div className="font-medium">{t(achievement.titleKey)}</div>
                       <div className="text-xs text-muted-foreground">
                         {t(achievement.descriptionKey)}
@@ -125,26 +125,26 @@ export function CommunityPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 xs:grid-cols-1 tablet:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t('community.stats.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm text-muted-foreground">
                   {t('community.stats.totalMembers')}
                 </span>
                 <span className="text-xl font-bold">1,247</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm text-muted-foreground">
                   {t('community.stats.activeToday')}
                 </span>
                 <span className="text-xl font-bold">342</span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm text-muted-foreground">
                   {t('community.stats.itemsRecycled')}
                 </span>
@@ -178,8 +178,8 @@ export function CommunityPage() {
           <CardContent>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <Trophy className="h-8 w-8 text-yellow-500" />
-                <div>
+                <Trophy className="h-8 w-8 shrink-0 text-warning" />
+                <div className="min-w-0">
                   <div className="font-medium">{t('community.milestone.target')}</div>
                   <div className="text-xs text-muted-foreground">
                     {t('community.milestone.pointsToGo', { points: 850 })}
@@ -187,7 +187,7 @@ export function CommunityPage() {
                 </div>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full w-[65%] bg-yellow-500" />
+                <div className="h-full w-[65%] bg-warning" />
               </div>
             </div>
           </CardContent>
@@ -196,7 +196,7 @@ export function CommunityPage() {
 
       {/* Contributor Recognition Program */}
       <div>
-        <h2 className="mb-4 text-xl font-semibold">
+        <h2 className="mb-4 text-lg font-semibold xs:text-xl">
           {t('community.contributorRecognition.title')}
         </h2>
         <ContributorRecognition />

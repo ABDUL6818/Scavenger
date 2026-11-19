@@ -29,6 +29,59 @@ export function resolveTheme(theme: ThemeName | undefined, resolvedTheme: string
   return 'light'
 }
 
+/**
+ * Token-based CSS custom properties for each theme.
+ * These are applied to the document root so components can consume tokens
+ * (e.g. `var(--color-bg)`) instead of hard-coded color values.
+ */
+export const themeTokens: Record<ResolvedTheme, Record<string, string>> = {
+  light: {
+    '--color-bg': 'var(--token-color-bg-light)',
+    '--color-surface': 'var(--token-color-surface-light)',
+    '--color-text': 'var(--token-color-text-light)',
+    '--color-text-muted': 'var(--token-color-text-muted-light)',
+    '--color-border': 'var(--token-color-border-light)',
+    '--color-primary': 'var(--token-color-primary)',
+    '--color-primary-contrast': 'var(--token-color-primary-contrast)',
+    '--color-danger': 'var(--token-color-danger)',
+    '--color-success': 'var(--token-color-success)',
+    '--color-warning': 'var(--token-color-warning)',
+  },
+  dark: {
+    '--color-bg': 'var(--token-color-bg-dark)',
+    '--color-surface': 'var(--token-color-surface-dark)',
+    '--color-text': 'var(--token-color-text-dark)',
+    '--color-text-muted': 'var(--token-color-text-muted-dark)',
+    '--color-border': 'var(--token-color-border-dark)',
+    '--color-primary': 'var(--token-color-primary)',
+    '--color-primary-contrast': 'var(--token-color-primary-contrast)',
+    '--color-danger': 'var(--token-color-danger)',
+    '--color-success': 'var(--token-color-success)',
+    '--color-warning': 'var(--token-color-warning)',
+  },
+  'high-contrast': {
+    '--color-bg': 'var(--token-color-bg-high-contrast)',
+    '--color-surface': 'var(--token-color-surface-high-contrast)',
+    '--color-text': 'var(--token-color-text-high-contrast)',
+    '--color-text-muted': 'var(--token-color-text-muted-high-contrast)',
+    '--color-border': 'var(--token-color-border-high-contrast)',
+    '--color-primary': 'var(--token-color-primary)',
+    '--color-primary-contrast': 'var(--token-color-primary-contrast)',
+    '--color-danger': 'var(--token-color-danger)',
+    '--color-success': 'var(--token-color-success)',
+    '--color-warning': 'var(--token-color-warning)',
+  },
+}
+
+function applyThemeTokens(resolved: ResolvedTheme) {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  const tokens = themeTokens[resolved]
+  for (const [name, value] of Object.entries(tokens)) {
+    root.style.setProperty(name, value)
+  }
+}
+
 function ThemeContextBridge({ children }: { children: ReactNode }) {
   const { theme, resolvedTheme, setTheme } = useNextTheme()
 
@@ -37,6 +90,11 @@ function ThemeContextBridge({ children }: { children: ReactNode }) {
   const currentResolvedTheme = resolveTheme(currentTheme, resolvedTheme)
   const isDark = currentResolvedTheme === 'dark'
   const isHighContrast = currentResolvedTheme === 'high-contrast'
+
+  // Apply token-based CSS variables whenever the resolved theme changes
+  useEffect(() => {
+    applyThemeTokens(currentResolvedTheme)
+  }, [currentResolvedTheme])
 
   // Add theme-ready class after mount so transitions don't fire on initial paint
   useEffect(() => {

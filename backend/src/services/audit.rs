@@ -7,7 +7,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Write;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tracing::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -112,6 +112,55 @@ pub struct AuditReport {
     pub entries_by_day: HashMap<String, u64>,
     pub top_users: Vec<(String, u64)>,
     pub top_actions: Vec<(String, u64)>,
+}
+
+/// Repository abstraction for audit persistence. The in-memory implementation
+/// below is the default; tests can substitute a mock to verify the service
+/// logic without touching real storage.
+pub trait AuditRepository: Send + Sync {
+    fn append(&self, entry: AuditEntry);
+    fn all_entries(&self) -> Vec<AuditEntry>;
+    fn find_entry(&self, id: &str) -> Option<AuditEntry>;
+    fn replace_entries(&self, entries: Vec<AuditEntry>);
+}
+
+/// Default in-memory repository backed by a shared, mutex-guarded vector.
+#[derive(Clone, Default)]
+pub struct InMemoryAuditRepository {
+    entries: Arc<Mutex<Vec<AuditEntry>>>,
+}
+
+impl InMemoryAuditRepository {
+    pub fn new() -> Self {
+        Self {
+            entries: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+impl AuditRepository for InMemoryAuditRepository {
+    fn append(&self, entry: AuditEntry) {
+        if let Ok(mut entries) = self.entries.lock() {
+            entries.push(entry);
+        }
+    }
+
+    fn all_entries(&self) -> Vec<AuditEntry> {
+        self.entries.lock().map(|e| e.clone()).unwrap_or_default()
+    }
+
+    fn find_entry(&self, id: &str) -> Option<AuditEntry> {
+        self.entries
+            .lock()
+            .ok()
+            .and_then(|entries| entries.iter().find(|e| e.id == id).cloned())
+    }
+
+    fn replace_entries(&self, new_entries: Vec<AuditEntry>) {
+        if let Ok(mut entries) = self.entries.lock() {
+            *entries = new_entries;
+        }
+    }
 }
 
 /// Read-only audit view. This service only inspects persisted entries and never
@@ -622,6 +671,178 @@ impl Default for AuditService {
     }
 }
 
+/// Business-logic service extracted from the audit route handlers. It owns the
+/// request-level orchestration (validation, filtering defaults, export shaping)
+/// and delegates all persistence to an [`AuditRepository`].
+pub struct AuditBusinessService<R: AuditRepository> {
+    repository: Arc<R>,
+}
+
+impl<R: AuditRepository> AuditBusinessService<R> {
+    pub fn new(repository: Arc<R>) -> Self {
+        Self { repository }
+    }
+
+    /// Persist a new audit entry built from the supplied parameters.
+    pub fn record_event(
+        &self,
+        event_type: AuditEventType,
+        action: AuditAction,
+        user_id: &str,
+        resource_type: &str,
+        details: &str,
+        ip_address: &str,
+        severity: &str,
+    ) -> AuditEntry {
+        let entry = AuditEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            event_type: event_type.to_string(),
+            action: action.to_string(),
+            user_id: user_id.to_string(),
+            resource_type: resource_type.to_string(),
+            resource_id: None,
+            details: details.to_string(),
+            timestamp: Utc::now(),
+            ip_address: ip_address.to_string(),
+            user_agent: None,
+            severity: severity.to_string(),
+            changes: None,
+        };
+        self.repository.append(entry.clone());
+        entry
+    }
+
+    /// Query entries matching the supplied filters, newest first, with paging.
+    pub fn query_entries(&self, query: AuditQuery) -> Vec<AuditEntry> {
+        let mut filtered: Vec<AuditEntry> = self
+            .repository
+            .all_entries()
+            .into_iter()
+            .filter(|e| entry_matches_query(e, &query))
+            .collect();
+
+        filtered.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+        let offset = query.offset.unwrap_or(0) as usize;
+        let limit = query.limit.unwrap_or(u32::MAX) as usize;
+
+        if offset < filtered.len() {
+            let end = (offset + limit).min(filtered.len());
+            filtered[offset..end].to_vec()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Fetch a single entry by id.
+    pub fn get_entry(&self, id: &str) -> Option<AuditEntry> {
+        self.repository.find_entry(id)
+    }
+
+    /// Build an aggregate summary of all persisted entries.
+    pub fn summarize(&self) -> AuditSummary {
+        let entries = self.repository.all_entries();
+        let total = entries.len() as u64;
+        let mut by_event_type: HashMap<String, u64> = HashMap::new();
+        let mut by_severity: HashMap<String, u64> = HashMap::new();
+        let mut by_action: HashMap<String, u64> = HashMap::new();
+        let now = Utc::now();
+        let mut entries_last_24h = 0u64;
+
+        for entry in entries.iter() {
+            *by_event_type.entry(entry.event_type.clone()).or_insert(0) += 1;
+            *by_severity.entry(entry.severity.clone()).or_insert(0) += 1;
+            *by_action.entry(entry.action.clone()).or_insert(0) += 1;
+
+            if now.signed_duration_since(entry.timestamp) < Duration::hours(24) {
+                entries_last_24h += 1;
+            }
+        }
+
+        AuditSummary {
+            total_entries: total,
+            by_event_type,
+            by_severity,
+            by_action,
+            oldest_entry: entries.first().map(|e| e.timestamp.to_rfc3339()),
+            newest_entry: entries.last().map(|e| e.timestamp.to_rfc3339()),
+            entries_last_24h,
+        }
+    }
+
+    /// Generate a report for the given period, optionally filtered by event type.
+    pub fn build_report(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        event_types: Option<Vec<AuditEventType>>,
+    ) -> AuditReport {
+        let entries = self.repository.all_entries();
+        let relevant: Vec<&AuditEntry> = entries
+            .iter()
+            .filter(|e| {
+                e.timestamp >= start
+                    && e.timestamp <= end
+                    && event_types
+                        .as_ref()
+                        .map(|types| types.iter().any(|t| t.to_string() == e.event_type))
+                        .unwrap_or(true)
+            })
+            .collect();
+
+        let total = relevant.len() as u64;
+        let mut by_event_type: HashMap<String, u64> = HashMap::new();
+        let mut by_action: HashMap<String, u64> = HashMap::new();
+        let mut by_user: HashMap<String, u64> = HashMap::new();
+        let mut by_day: HashMap<String, u64> = HashMap::new();
+
+        for entry in &relevant {
+            *by_event_type.entry(entry.event_type.clone()).or_insert(0) += 1;
+            *by_action.entry(entry.action.clone()).or_insert(0) += 1;
+            *by_user.entry(entry.user_id.clone()).or_insert(0) += 1;
+            let day = entry.timestamp.format("%Y-%m-%d").to_string();
+            *by_day.entry(day).or_insert(0) += 1;
+        }
+
+        let mut top_users: Vec<(String, u64)> = by_user.into_iter().collect();
+        top_users.sort_by(|a, b| b.1.cmp(&a.1));
+        top_users.truncate(10);
+
+        let mut top_actions: Vec<(String, u64)> = by_action.clone().into_iter().collect();
+        top_actions.sort_by(|a, b| b.1.cmp(&a.1));
+        top_actions.truncate(10);
+
+        AuditReport {
+            generated_at: Utc::now().to_rfc3339(),
+            period_start: start.to_rfc3339(),
+            period_end: end.to_rfc3339(),
+            total_entries: total,
+            entries_by_event_type: by_event_type,
+            entries_by_action: by_action,
+            entries_by_user: HashMap::new(),
+            entries_by_day: by_day,
+            top_users,
+            top_actions,
+        }
+    }
+
+    /// Remove entries older than the retention cutoff and enforce the max count.
+    pub fn purge_expired(&self, policy: &RetentionPolicy) -> u64 {
+        let cutoff = Utc::now() - Duration::days(policy.max_age_days as i64);
+        let mut entries = self.repository.all_entries();
+        let before = entries.len();
+        entries.retain(|e| e.timestamp > cutoff);
+
+        if entries.len() as u64 > policy.max_entries {
+            entries.truncate(policy.max_entries as usize);
+        }
+
+        let purged = (before - entries.len()) as u64;
+        self.repository.replace_entries(entries);
+        purged
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1114,5 +1335,171 @@ mod tests {
         assert_eq!(entry.resource_id, Some("waste-001".to_string()));
         assert_eq!(entry.user_agent, Some("Mozilla/5.0".to_string()));
         assert!(entry.changes.is_some());
+    }
+
+    // ── AuditBusinessService tests with a mocked repository ────────────────────
+
+    /// Mock repository that records calls and serves a fixed set of entries.
+    struct MockAuditRepository {
+        entries: Mutex<Vec<AuditEntry>>,
+        append_calls: Mutex<u32>,
+        replace_calls: Mutex<u32>,
+    }
+
+    impl MockAuditRepository {
+        fn new(entries: Vec<AuditEntry>) -> Self {
+            Self {
+                entries: Mutex::new(entries),
+                append_calls: Mutex::new(0),
+                replace_calls: Mutex::new(0),
+            }
+        }
+
+        fn append_count(&self) -> u32 {
+            *self.append_calls.lock().unwrap()
+        }
+
+        fn replace_count(&self) -> u32 {
+            *self.replace_calls.lock().unwrap()
+        }
+    }
+
+    impl AuditRepository for MockAuditRepository {
+        fn append(&self, entry: AuditEntry) {
+            *self.append_calls.lock().unwrap() += 1;
+            self.entries.lock().unwrap().push(entry);
+        }
+
+        fn all_entries(&self) -> Vec<AuditEntry> {
+            self.entries.lock().unwrap().clone()
+        }
+
+        fn find_entry(&self, id: &str) -> Option<AuditEntry> {
+            self.entries
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|e| e.id == id)
+                .cloned()
+        }
+
+        fn replace_entries(&self, new_entries: Vec<AuditEntry>) {
+            *self.replace_calls.lock().unwrap() += 1;
+            *self.entries.lock().unwrap() = new_entries;
+        }
+    }
+
+    fn empty_query() -> AuditQuery {
+        AuditQuery {
+            event_type: None,
+            user_id: None,
+            action: None,
+            resource_type: None,
+            start_date: None,
+            end_date: None,
+            severity: None,
+            limit: None,
+            offset: None,
+        }
+    }
+
+    #[test]
+    fn test_business_record_event_appends_to_repository() {
+        let repo = Arc::new(MockAuditRepository::new(Vec::new()));
+        let service = AuditBusinessService::new(Arc::clone(&repo));
+
+        let entry = service.record_event(
+            AuditEventType::Contract,
+            AuditAction::Create,
+            "user-001",
+            "waste",
+            "created",
+            "127.0.0.1",
+            "low",
+        );
+
+        assert_eq!(repo.append_count(), 1);
+        assert_eq!(entry.event_type, "contract");
+        assert_eq!(entry.action, "create");
+        assert_eq!(service.get_entry(&entry.id).unwrap().id, entry.id);
+    }
+
+    #[test]
+    fn test_business_query_entries_filters_and_pages() {
+        let now = Utc::now();
+        let entries = vec![
+            make_entry("contract", "create", "user-001", "waste", "low", now),
+            make_entry("admin", "update", "admin-001", "config", "high", now),
+            make_entry("contract", "read", "user-002", "waste", "low", now),
+        ];
+        let repo = Arc::new(MockAuditRepository::new(entries));
+        let service = AuditBusinessService::new(repo);
+
+        let mut query = empty_query();
+        query.event_type = Some(AuditEventType::Contract);
+        query.limit = Some(1);
+        let results = service.query_entries(query);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].event_type, "contract");
+
+        let all = service.query_entries(empty_query());
+        assert_eq!(all.len(), 3);
+    }
+
+    #[test]
+    fn test_business_summarize() {
+        let now = Utc::now();
+        let entries = vec![
+            make_entry("contract", "create", "user-001", "waste", "low", now),
+            make_entry("admin", "update", "admin-001", "config", "high", now),
+        ];
+        let repo = Arc::new(MockAuditRepository::new(entries));
+        let service = AuditBusinessService::new(repo);
+
+        let summary = service.summarize();
+        assert_eq!(summary.total_entries, 2);
+        assert_eq!(*summary.by_event_type.get("contract").unwrap(), 1);
+        assert_eq!(*summary.by_severity.get("high").unwrap(), 1);
+        assert_eq!(summary.entries_last_24h, 2);
+    }
+
+    #[test]
+    fn test_business_build_report() {
+        let now = Utc::now();
+        let entries = vec![
+            make_entry("contract", "create", "user-001", "waste", "low", now),
+            make_entry("admin", "update", "user-001", "config", "high", now),
+        ];
+        let repo = Arc::new(MockAuditRepository::new(entries));
+        let service = AuditBusinessService::new(repo);
+
+        let report = service.build_report(
+            now - Duration::hours(1),
+            now + Duration::hours(1),
+            Some(vec![AuditEventType::Contract]),
+        );
+        assert_eq!(report.total_entries, 1);
+        assert_eq!(*report.entries_by_event_type.get("contract").unwrap(), 1);
+    }
+
+    #[test]
+    fn test_business_purge_expired_replaces_entries() {
+        let old = Utc::now() - Duration::days(400);
+        let entries = vec![
+            make_entry("contract", "create", "user-001", "waste", "low", old),
+            make_entry("admin", "update", "admin-001", "config", "high", Utc::now()),
+        ];
+        let repo = Arc::new(MockAuditRepository::new(entries));
+        let service = AuditBusinessService::new(Arc::clone(&repo));
+
+        let policy = RetentionPolicy {
+            max_age_days: 365,
+            max_entries: 10_000_000,
+            archive_enabled: true,
+        };
+        let purged = service.purge_expired(&policy);
+        assert_eq!(purged, 1);
+        assert_eq!(repo.replace_count(), 1);
+        assert_eq!(repo.all_entries().len(), 1);
     }
 }

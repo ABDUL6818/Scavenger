@@ -111,15 +111,15 @@ export function IncentivesPage() {
   )
 
   return (
-    <div className="space-y-6 overflow-x-hidden px-4 py-6 sm:px-0 sm:py-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold sm:text-2xl">{t('incentives.title')}</h1>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+    <div className="space-y-6 overflow-x-hidden px-3 py-6 xs:px-4 tablet:px-0 tablet:py-0">
+      <div className="flex flex-col gap-3 tablet:flex-row tablet:flex-wrap tablet:items-center tablet:justify-between">
+        <h1 className="text-lg font-bold xs:text-xl tablet:text-2xl">{t('incentives.title')}</h1>
+        <div className="flex w-full flex-col gap-3 xs:flex-row xs:items-center tablet:w-auto">
           <label htmlFor="incentive-type-filter" className="sr-only">
             {t('incentives.filterLabel')}
           </label>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger id="incentive-type-filter" className="w-full sm:w-36">
+            <SelectTrigger id="incentive-type-filter" className="w-full xs:w-36">
               <SelectValue placeholder={t('incentives.allTypes')} />
             </SelectTrigger>
             <SelectContent>
@@ -132,7 +132,7 @@ export function IncentivesPage() {
             </SelectContent>
           </Select>
           {isManufacturer && (
-            <Button onClick={openCreate} className="w-full sm:w-auto">
+            <Button onClick={openCreate} className="w-full xs:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               {t('incentives.createIncentive')}
             </Button>
@@ -144,7 +144,7 @@ export function IncentivesPage() {
         <p
           role="alert"
           aria-live="assertive"
-          className="rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm text-destructive"
+          className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive xs:px-4"
         >
           {error}
         </p>
@@ -201,14 +201,14 @@ export function IncentivesPage() {
                         <table className="w-full text-sm">
                           <thead className="text-left text-muted-foreground">
                             <tr>
-                              <th className="pb-2 pr-4 font-medium">{t('incentives.table.id')}</th>
-                              <th className="pb-2 pr-4 font-medium">
+                              <th className="pb-2 pr-2 font-medium xs:pr-4">{t('incentives.table.id')}</th>
+                              <th className="pb-2 pr-2 font-medium xs:pr-4">
                                 {t('incentives.table.rewarder')}
                               </th>
-                              <th className="pb-2 pr-4 font-medium">
+                              <th className="pb-2 pr-2 font-medium xs:pr-4">
                                 {t('incentives.table.pointsPerUnit')}
                               </th>
-                              <th className="pb-2 pr-4 font-medium">
+                              <th className="pb-2 pr-2 font-medium xs:pr-4">
                                 {t('incentives.table.budgetRemaining')}
                               </th>
                               {isManufacturer && (
@@ -223,12 +223,12 @@ export function IncentivesPage() {
                               const isOwner = inc.rewarder === address
                               return (
                                 <tr key={inc.id} className="hover:bg-muted/30 transition-colors">
-                                  <td className="py-2 pr-4 font-mono">#{inc.id}</td>
-                                  <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
+                                  <td className="py-2 pr-2 font-mono xs:pr-4">#{inc.id}</td>
+                                  <td className="py-2 pr-2 font-mono text-xs text-muted-foreground xs:pr-4">
                                     <AddressDisplay address={inc.rewarder} showExplorer />
                                   </td>
-                                  <td className="py-2 pr-4">{inc.reward_points}</td>
-                                  <td className="py-2 pr-4">
+                                  <td className="py-2 pr-2 xs:pr-4">{inc.reward_points}</td>
+                                  <td className="py-2 pr-2 xs:pr-4">
                                     <Badge variant="secondary">
                                       {inc.remaining_budget.toLocaleString()}
                                     </Badge>
@@ -287,7 +287,7 @@ export function IncentivesPage() {
               {editTarget ? t('incentives.dialog.editTitle') : t('incentives.dialog.createTitle')}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 xs:space-y-4">
             {!editTarget && (
               <div className="space-y-1.5">
                 <label htmlFor="incentive-waste-type" className="text-sm font-medium">
@@ -341,13 +341,14 @@ export function IncentivesPage() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+          <DialogFooter className="flex-col gap-2 xs:flex-row">
+            <Button variant="outline" onClick={() => setCreateOpen(false)} className="w-full xs:w-auto">
               {t('common.cancel')}
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={submitting || !form.rewardPoints || !form.budget}
+              className="w-full xs:w-auto"
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editTarget ? t('common.save') : t('common.create')}

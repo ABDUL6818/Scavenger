@@ -66,9 +66,23 @@ function addClaimedId(address: string | null | undefined, id: number): void {
 const ALL_WASTE_TYPES = Object.values(WasteType).filter((v): v is WasteType => typeof v === 'number')
 
 const GRID_COLS_DESKTOP = 3
+const GRID_COLS_TABLET = 2
+const GRID_COLS_MOBILE = 1
 const CARD_HEIGHT_LIST = 80
 const CARD_HEIGHT_GRID = 260
 const OVERSCAN = 3
+
+// Breakpoints (px) — keep in sync with Tailwind config / styles tokens
+const BP_XS = 360
+const BP_TABLET = 768
+const BP_DESKTOP = 1024
+
+function gridColsForWidth(width: number): number {
+  if (width < BP_XS) return GRID_COLS_MOBILE
+  if (width < BP_TABLET) return GRID_COLS_MOBILE
+  if (width < BP_DESKTOP) return GRID_COLS_TABLET
+  return GRID_COLS_DESKTOP
+}
 
 // ─── Skeleton card ────────────────────────────────────────────────────────────
 
@@ -95,6 +109,7 @@ interface RowData {
   items: Incentive[][]
   viewMode: ViewMode
   containerWidth: number
+  colCount: number
   compareIds: Set<number>
   onToggleCompare: (id: number) => void
   onCardClick: (inc: Incentive) => void
@@ -169,7 +184,7 @@ function VirtualRow({ index, style, data }: ListChildComponentProps<RowData>) {
           </div>
         </div>
       ))}
-      {Array.from({ length: GRID_COLS_DESKTOP - row.length }).map((_, i) => (
+      {Array.from({ length: data.colCount - row.length }).map((_, i) => (
         <div key={`empty-${i}`} className="flex-1 min-w-0" />
       ))}
     </div>
@@ -195,8 +210,8 @@ function ComparisonPanel({ incentives, selectedIds, onClear }: ComparisonPanelPr
       role="region"
       aria-label={t('incentives.comparisonPanelAriaLabel')}
     >
-      <div className="mx-auto max-w-5xl px-4 py-3">
-        <div className="flex items-center justify-between mb-3">
+      <div className="mx-auto max-w-5xl px-3 py-3 xs:px-4">
+        <div className="mb-3 flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
           <div className="flex items-center gap-2">
             <GitCompare className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">
@@ -209,12 +224,12 @@ function ComparisonPanel({ incentives, selectedIds, onClear }: ComparisonPanelPr
           </Button>
         </div>
         <div
-          className="grid gap-3"
-          style={{ gridTemplateColumns: `repeat(${selected.length}, 1fr)` }}
+          className="grid grid-cols-1 gap-3 xs:grid-cols-2 tablet:grid-cols-3"
+          style={{ gridTemplateColumns: `repeat(${Math.min(selected.length, 3)}, minmax(0, 1fr))` }}
         >
           {selected.map((inc) => (
-            <div key={inc.id} className="rounded-lg border bg-card p-3 text-xs space-y-1.5">
-              <p className="font-semibold text-sm">#{inc.id} — {wasteTypeLabel(inc.waste_type)}</p>
+            <div key={inc.id} className="min-w-0 rounded-lg border bg-card p-3 text-xs space-y-1.5">
+              <p className="truncate text-sm font-semibold">#{inc.id} — {wasteTypeLabel(inc.waste_type)}</p>
               <CompareRow
                 label={t('incentives.compare.reward')}
                 value={t('incentives.points', { value: Number(inc.reward_points).toLocaleString() })}
@@ -316,7 +331,26 @@ export function IncentivesMarketplacePage() {
     [incentives, claimedIds]
   )
 
-  const colCount = viewMode === 'grid' ? GRID_COLS_DESKTOP : 1
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(800)
+  const [containerHeight, setContainerHeight] = useState(600)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = (width: number) => {
+      setContainerWidth(width)
+      setContainerHeight(Math.max(400, window.innerHeight - 280))
+    }
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry) update(entry.contentRect.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const colCount = viewMode === 'grid' ? gridColsForWidth(containerWidth) : 1
   const rows = useMemo<Incentive[][]>(() => {
     const result: Incentive[][] = []
     for (let i = 0; i < processed.length; i += colCount) {
@@ -325,24 +359,6 @@ export function IncentivesMarketplacePage() {
     return result
   }, [processed, colCount])
 
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [containerWidth, setContainerWidth] = useState(800)
-  const [containerHeight, setContainerHeight] = useState(600)
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (entry) {
-        setContainerWidth(entry.contentRect.width)
-        setContainerHeight(Math.max(400, window.innerHeight - 280))
-      }
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
   const rowHeight = viewMode === 'list' ? CARD_HEIGHT_LIST : CARD_HEIGHT_GRID
 
   const rowData: RowData = useMemo(
@@ -350,19 +366,20 @@ export function IncentivesMarketplacePage() {
       items: rows,
       viewMode,
       containerWidth,
+      colCount,
       compareIds,
       onToggleCompare: handleToggleCompare,
       onCardClick: handleCardClick,
     }),
-    [rows, viewMode, containerWidth, compareIds, handleToggleCompare, handleCardClick]
+    [rows, viewMode, containerWidth, colCount, compareIds, handleToggleCompare, handleCardClick]
   )
 
   const hasComparison = compareIds.size >= 2
 
   return (
-    <div className={cn('space-y-4 px-4 py-6 sm:px-0 sm:py-0', hasComparison && 'pb-48')}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold sm:text-2xl">{t('incentives.title')}</h1>
+    <div className={cn('space-y-4 px-3 py-6 xs:px-4 sm:px-0 sm:py-0', hasComparison && 'pb-48')}>
+      <div className="flex flex-col gap-3 tablet:flex-row tablet:items-center tablet:justify-between">
+        <h1 className="text-lg font-bold xs:text-xl sm:text-2xl">{t('incentives.title')}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Select
             value={`${sortField}:${sortDir}`}
@@ -372,7 +389,7 @@ export function IncentivesMarketplacePage() {
               setSortDir(d)
             }}
           >
-            <SelectTrigger className="w-52">
+            <SelectTrigger className="w-full xs:w-52">
               <SelectValue placeholder={t('incentives.sort.placeholder')} />
             </SelectTrigger>
             <SelectContent>
@@ -434,7 +451,7 @@ export function IncentivesMarketplacePage() {
       {showFilters && (
         <div
           id="incentives-filter-panel"
-          className="rounded-lg border bg-card p-4 space-y-4"
+          className="rounded-lg border bg-card p-3 xs:p-4 space-y-4"
           role="region"
           aria-label={t('incentives.filtersPanelAriaLabel')}
         >
@@ -501,7 +518,7 @@ export function IncentivesMarketplacePage() {
       )}
 
       {isLoading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 tablet:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <IncentiveSkeletonCard key={i} />
           ))}
@@ -546,7 +563,7 @@ export function IncentivesMarketplacePage() {
       )}
 
       {!isLoading && processed.length > 0 && (
-        <div ref={containerRef} className="w-full">
+        <div ref={containerRef} className="w-full min-w-0">
           <FixedSizeList
             height={containerHeight}
             width={containerWidth || '100%'}

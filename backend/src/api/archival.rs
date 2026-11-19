@@ -3,7 +3,13 @@ use actix_web::{web, HttpResponse, Result};
 use serde::Deserialize;
 use std::sync::Arc;
 
-/// API handlers for data archival
+/// API handlers for data archival.
+///
+/// These handlers form the *controller* layer: they are intentionally thin,
+/// responsible only for parsing/validating HTTP input, delegating to the
+/// [`ArchivalService`] (which owns business logic and, in turn, delegates
+/// persistence to the archival repository), and shaping the HTTP response.
+/// Route paths, request/response schemas and status codes are unchanged.
 
 /// Create retention policy
 pub async fn create_policy(
@@ -88,6 +94,29 @@ fn default_limit() -> usize {
     100
 }
 
+/// Parse the raw query-string status value into an [`ArchiveStatus`].
+fn parse_archive_status(value: &str) -> Option<ArchiveStatus> {
+    match value {
+        "pending" => Some(ArchiveStatus::Pending),
+        "in_progress" => Some(ArchiveStatus::InProgress),
+        "completed" => Some(ArchiveStatus::Completed),
+        "failed" => Some(ArchiveStatus::Failed),
+        "restored" => Some(ArchiveStatus::Restored),
+        _ => None,
+    }
+}
+
+/// Parse the raw query-string storage tier value into a [`StorageTier`].
+fn parse_storage_tier(value: &str) -> Option<StorageTier> {
+    match value {
+        "hot" => Some(StorageTier::Hot),
+        "warm" => Some(StorageTier::Warm),
+        "cold" => Some(StorageTier::Cold),
+        "glacier" => Some(StorageTier::Glacier),
+        _ => None,
+    }
+}
+
 pub async fn query_archives(
     service: web::Data<Arc<ArchivalService>>,
     params: web::Query<QueryParams>,
@@ -96,14 +125,7 @@ pub async fn query_archives(
 
     let query = ArchiveQuery {
         data_type: params.data_type.clone(),
-        status: params.status.as_ref().and_then(|s| match s.as_str() {
-            "pending" => Some(ArchiveStatus::Pending),
-            "in_progress" => Some(ArchiveStatus::InProgress),
-            "completed" => Some(ArchiveStatus::Completed),
-            "failed" => Some(ArchiveStatus::Failed),
-            "restored" => Some(ArchiveStatus::Restored),
-            _ => None,
-        }),
+        status: params.status.as_deref().and_then(parse_archive_status),
         from_date: params
             .from_date
             .as_ref()
@@ -114,13 +136,7 @@ pub async fn query_archives(
             .as_ref()
             .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| dt.with_timezone(&chrono::Utc)),
-        storage_tier: params.storage_tier.as_ref().and_then(|s| match s.as_str() {
-            "hot" => Some(StorageTier::Hot),
-            "warm" => Some(StorageTier::Warm),
-            "cold" => Some(StorageTier::Cold),
-            "glacier" => Some(StorageTier::Glacier),
-            _ => None,
-        }),
+        storage_tier: params.storage_tier.as_deref().and_then(parse_storage_tier),
         limit: params.limit,
         offset: params.offset,
     };
@@ -224,6 +240,26 @@ pub async fn delete_archive(
     })))
 }
 
+/// List archive jobs
+pub async fn list_jobs(
+    service: web::Data<Arc<ArchivalService>>,
+    status: web::Query<Option<String>>,
+) -> Result<HttpResponse> {
+    let filter_status = status.0.as_deref().and_then(parse_archive_status);
+
+    let jobs = service
+        .list_jobs(filter_status)
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Ok().json(jobs))
+}
+
+/// Get archive job
+pub async fn get_job(service: web::Data<Arc<ArchivalService>>, job_id: web::Path<String>) -> Result<HttpResponse> {
+    let job = service.get_job(&job_id).map_err(actix_web::error::ErrorNotFound)?;
+
+    Ok(HttpResponse::Ok().json(job))
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -469,5 +505,198 @@ mod tests {
 
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), actix_web::http::StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[actix_web::test]
+    async fn list_jobs_filters_by_status() {
+        let fake = Arc::new(FakeArchivalService::new());
+        fake.jobs.lock().unwrap().push(ArchiveJob {
+            id: "job-1".to_string(),
+            status: ArchiveStatus::Completed,
+            created_at: Utc::now(),
+        });
+        fake.jobs.lock().unwrap().push(ArchiveJob {
+            id: "job-2".to_string(),
+            status: ArchiveStatus::Failed,
+            created_at: Utc::now(),
+        });
+
+        let completed = fake.list_jobs(Some(ArchiveStatus::Completed)).unwrap();
+        assert_eq!(completed.len(), 1);
+        assert_eq!(completed[0].id, "job-1");
+
+        let all = fake.list_jobs(None).unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[actix_web::test]
+    async fn get_job_returns_not_found_for_unknown_id() {
+        let fake = Arc::new(FakeArchivalService::new());
+        assert!(matches!(fake.get_job("missing"), Err(ArchivalError::NotFound)));
+    }
+
+    // --- Controller-layer unit tests -------------------------------------
+    //
+    // These exercise the thin controller functions directly, verifying that
+    // request parsing/validation and response shaping behave as expected
+    // while the (mocked) service owns the business logic.
+
+    #[test]
+    fn parse_archive_status_maps_known_values() {
+        assert_eq!(parse_archive_status("pending"), Some(ArchiveStatus::Pending));
+        assert_eq!(parse_archive_status("in_progress"), Some(ArchiveStatus::InProgress));
+        assert_eq!(parse_archive_status("completed"), Some(ArchiveStatus::Completed));
+        assert_eq!(parse_archive_status("failed"), Some(ArchiveStatus::Failed));
+        assert_eq!(parse_archive_status("restored"), Some(ArchiveStatus::Restored));
+        assert_eq!(parse_archive_status("bogus"), None);
+    }
+
+    #[test]
+    fn parse_storage_tier_maps_known_values() {
+        assert_eq!(parse_storage_tier("hot"), Some(StorageTier::Hot));
+        assert_eq!(parse_storage_tier("warm"), Some(StorageTier::Warm));
+        assert_eq!(parse_storage_tier("cold"), Some(StorageTier::Cold));
+        assert_eq!(parse_storage_tier("glacier"), Some(StorageTier::Glacier));
+        assert_eq!(parse_storage_tier("bogus"), None);
+    }
+
+    #[actix_web::test]
+    async fn archive_data_controller_returns_created_with_archive_id() {
+        let fake = Arc::new(FakeArchivalService::new());
+        fake.seed_policy();
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(fake.clone()))
+                .route("/archives", web::post().to(archive_data)),
+        )
+        .await;
+
+        let req = test::TestRequest::post()
+            .uri("/archives")
+            .set_json(archive_request("rec-1"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::CREATED);
+
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["archive_id"], "archive-1");
+        assert_eq!(body["message"], "Data archived successfully");
+    }
+
+    #[actix_web::test]
+    async fn archive_data_controller_rejects_invalid_base64() {
+        let fake = Arc::new(FakeArchivalService::new());
+        fake.seed_policy();
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(fake.clone()))
+                .route("/archives", web::post().to(archive_data)),
+        )
+        .await;
+
+        // `data` is not valid base64, so deserialization must fail before
+        // the controller ever reaches the service.
+        let req = test::TestRequest::post()
+            .uri("/archives")
+            .set_json(serde_json::json!({
+                "data_type": "audit_log",
+                "data_id": "rec-1",
+                "policy_id": "policy-1",
+                "data": "!!!not-base64!!!"
+            }))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::BAD_REQUEST);
+        assert_eq!(fake.record_count(), 0);
+    }
+
+    #[actix_web::test]
+    async fn restore_data_controller_returns_encoded_payload() {
+        let fake = Arc::new(FakeArchivalService::new());
+        fake.seed_policy();
+        let archive_id = fake
+            .archive_data(
+                "audit_log".to_string(),
+                "rec-1".to_string(),
+                b"payload".to_vec(),
+                "policy-1".to_string(),
+            )
+            .unwrap();
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(fake.clone()))
+                .route("/archives/{id}/restore", web::post().to(restore_data)),
+        )
+        .await;
+
+        let req = test::TestRequest::post()
+            .uri(&format!("/archives/{}/restore", archive_id))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        assert_eq!(body["archive_id"], archive_id);
+        assert_eq!(body["size"], 7);
+        assert!(body["data"].is_string());
+    }
+
+    #[actix_web::test]
+    async fn query_archives_controller_accepts_filters() {
+        let fake = Arc::new(FakeArchivalService::new());
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(fake.clone()))
+                .route("/archives", web::get().to(query_archives)),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri("/archives?status=completed&storage_tier=cold&limit=10&offset=0")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn list_jobs_controller_filters_by_status() {
+        let fake = Arc::new(FakeArchivalService::new());
+        fake.jobs.lock().unwrap().push(ArchiveJob {
+            id: "job-1".to_string(),
+            status: ArchiveStatus::Completed,
+            created_at: Utc::now(),
+        });
+        fake.jobs.lock().unwrap().push(ArchiveJob {
+            id: "job-2".to_string(),
+            status: ArchiveStatus::Failed,
+            created_at: Utc::now(),
+        });
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(fake.clone()))
+                .route("/jobs", web::get().to(list_jobs)),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri("/jobs?status=completed")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), actix_web::http::StatusCode::OK);
+
+        let body: serde_json::Value = test::read_body_json(resp).await;
+        let jobs = body.as_array().expect("expected array of jobs");
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0]["id"], "job-1");
     }
 }
