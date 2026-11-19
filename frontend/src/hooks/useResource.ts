@@ -31,6 +31,13 @@ export interface UseResourceReturn<T> extends AsyncState<T> {
  *   loading UI instead of flashing an empty state.
  * - `status` / `data` / `error` mirror the underlying `useAsync` state.
  *
+ * The returned `status` field is compatible with the shared
+ * transaction-status module (`pending` / `success` / `failed` lifecycle),
+ * mapping the underlying async state as follows:
+ *   - `idle` / `loading` -> `pending`
+ *   - `success`          -> `success`
+ *   - `error`            -> `failed`
+ *
  * Backwards-compatible: the signature and return shape are unchanged.
  */
 export function useResource<T>(

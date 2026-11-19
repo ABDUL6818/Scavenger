@@ -1,6 +1,8 @@
 import { useCallback, useId, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Subscription } from '@/lib/subscriptionStorage'
 import { CalendarGrid } from '@/components/CalendarGrid'
+import { EmptyState } from '@/components/EmptyState'
 import { getMonthLabel, groupSubscriptionsByPickupDay } from '@/lib/date'
 import { SubscriptionStatus } from '@/lib/constants'
 
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export function SubscriptionCalendar({ subscriptions, month = new Date() }: Props) {
+  const { t } = useTranslation()
   const year = month.getFullYear()
   const monthIdx = month.getMonth()
   const headingId = useId()
@@ -20,6 +23,7 @@ export function SubscriptionCalendar({ subscriptions, month = new Date() }: Prop
   )
 
   const monthLabel = useMemo(() => getMonthLabel(month), [month])
+  const hasPickups = Object.keys(pickupsByDay).length > 0
 
   const renderDayContent = useCallback(
     (day: number) =>
@@ -42,13 +46,21 @@ export function SubscriptionCalendar({ subscriptions, month = new Date() }: Prop
         {monthLabel}
       </h3>
       <CalendarGrid month={month} renderDayContent={renderDayContent} />
+      {!hasPickups && (
+        <div className="mt-3">
+          <EmptyState
+            title={t('subscriptionCalendar.empty.title')}
+            description={t('subscriptionCalendar.empty.description')}
+          />
+        </div>
+      )}
       <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
         <span
           className="inline-block h-2 w-2 rounded-full bg-green-500"
           role="img"
-          aria-label="Scheduled pickup"
+          aria-label={t('subscriptionCalendar.legend.scheduledPickup')}
         />
-        <span aria-hidden="true">Scheduled pickup</span>
+        <span aria-hidden="true">{t('subscriptionCalendar.legend.scheduledPickup')}</span>
       </div>
     </div>
   )

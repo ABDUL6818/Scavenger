@@ -1,5 +1,6 @@
 import { Incentive } from '@/api/types'
 import { useContractMutation } from '@/hooks/useContractMutation'
+import { useTransactionStatus } from '@/hooks/useTransactionStatus'
 import { cacheKeys } from '@/lib/cacheKeys'
 
 /**
@@ -27,6 +28,8 @@ import { cacheKeys } from '@/lib/cacheKeys'
  * optimistic-update/rollback/invalidate lifecycle.
  */
 export function useIncentivesClaim() {
+  const { status, start, succeed, fail, reset } = useTransactionStatus()
+
   const mutation = useContractMutation<void, number, Incentive[]>({
     mutationFn: async (_incentiveId: number) => {
       // The actual on-chain claim is handled by distributeRewards in the contract.
@@ -38,6 +41,16 @@ export function useIncentivesClaim() {
     queryKey: cacheKeys.incentives(),
     invalidateKey: cacheKeys.incentivesRoot(),
     errorMessage: 'Failed to claim incentive. Please try again.',
+    onMutate: () => {
+      // Enter the shared pending lifecycle state
+      start()
+    },
+    onError: () => {
+      fail('Failed to claim incentive. Please try again.')
+    },
+    onSuccess: () => {
+      succeed()
+    },
     optimisticUpdate: (old, incentiveId) => {
       if (!old) return old
       return old.map((inc) =>
@@ -51,5 +64,8 @@ export function useIncentivesClaim() {
   return {
     claimIncentive: (incentiveId: number) => mutation.mutateAsync(incentiveId),
     isClaiming: mutation.isPending,
+    // Shared transaction lifecycle state (pending/success/failed)
+    status,
+    resetStatus: reset,
   }
 }

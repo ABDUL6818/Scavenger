@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import { FormField } from '@/components/ui/FormField'
 import type { UploadImage } from '@/hooks/useImageUpload'
@@ -39,10 +40,11 @@ export function WasteSubmissionImageUpload({
   photoError,
 }: WasteSubmissionImageUploadProps) {
   const errorId = useId()
+  const { t } = useTranslation()
 
   return (
     <FormField
-      label="Photos"
+      label={t('wasteSubmission.imageUpload.label')}
       required
       error={photoError ?? undefined}
       htmlFor="waste-submission-photos"

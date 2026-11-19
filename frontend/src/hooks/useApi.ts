@@ -36,6 +36,15 @@
  *   `useApi` is the canonical hook. `useContractQuery` / `useContractQueries`
  *   are deprecated aliases that delegate to the consolidated generic
  *   implementations in `useResource` / `useAsync` (see those modules).
+ *
+ * Usage:
+ *   const api = useApi()
+ *   const { data } = useQuery({ queryKey: ['participant', addr], queryFn: () => api.getParticipant(addr) })
+ *
+ * Backwards-compatibility: the public signature `useApi(): ScavengerClient`
+ * is unchanged. The returned client is the same instance consumed by the
+ * shared transaction-status module (see `@/hooks/useTransactionStatus`), so
+ * existing callers require no changes.
  *   The hook signature is unchanged — existing callers continue to work.
  *   Only the memoization dependencies were tightened to include the network
  *   passphrase, ensuring the client is rebuilt if network settings change.

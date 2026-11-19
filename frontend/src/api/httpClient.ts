@@ -56,7 +56,6 @@ export const ApiErrorKind = {
 } as const
 
 export type ApiErrorKind = (typeof ApiErrorKind)[keyof typeof ApiErrorKind]
-=======
 
 export interface ApiClientOptions {
   /** Base URL prepended to every request path. */
@@ -117,7 +116,15 @@ export class ApiError extends Error {
     return this.status >= HttpStatus.InternalServerError
   }
 }
-=======
+
+/**
+ * Map an ApiError (or any thrown value) to the lifecycle status used by the
+ * shared transaction-status module. Network/timeout errors (status 0) are
+ * treated as failed so the UI can surface a retry affordance.
+ */
+export function toTransactionStatus(err: unknown): 'success' | 'failed' {
+  return err === undefined || err === null ? 'success' : 'failed'
+}
 
 /** Successful response envelope returned by every client method. */
 export interface ApiResult<T> {
@@ -197,7 +204,6 @@ export class ApiClient {
             : undefined,
       })
     } catch (err) {
-      clearTimeout(timer)
       if ((err as Error).name === 'AbortError') {
         throw new ApiError(
           CLIENT_ERROR_STATUS,
@@ -215,7 +221,6 @@ export class ApiClient {
         ApiErrorKind.NetworkError
       )
     } finally {
-=======
       clearTimeout(timer)
     }
 
@@ -226,7 +231,6 @@ export class ApiClient {
       responseHeaders[k] = v
     })
 
-    // Parse body as JSON if possible, otherwise as text
     let body: unknown
     const contentType = response.headers.get('content-type') ?? ''
     if (contentType.includes('application/json')) {
@@ -308,6 +312,12 @@ export function normalizeApiError(err: unknown): ApiError {
 }
 
 /**
+ * Backwards-compatibility note: `ApiError`, `ApiClient`, `createApiClient`,
+ * `apiClient` and `normalizeApiError` retain their existing signatures.
+ * `toTransactionStatus` is additive and safe to adopt incrementally.
+ */
+
+/**
  * Default retry predicate for TanStack Query `retry` options.
  *
  * @example
@@ -317,4 +327,3 @@ export function shouldRetryRequest(failureCount: number, error: unknown): boolea
   if (failureCount >= 3) return false
   return normalizeApiError(error).isRetryable
 }
-=======

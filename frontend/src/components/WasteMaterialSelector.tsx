@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useId, type KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Controller, type Control, type FieldErrors } from 'react-hook-form'
 import {
   Newspaper, Recycle, Package, Wrench, GlassWater,
@@ -7,6 +8,7 @@ import {
 import { cn } from '@/lib/utils'
 import { handleListKeyboard } from '@/lib/accessibility'
 import { WasteType } from '@/api/types'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { WASTE_TYPES } from '@/lib/constants'
 import type { WasteFormValues } from '@/lib/schemas/waste'
 
@@ -20,9 +22,14 @@ const WASTE_TYPE_ICONS = {
   [WasteType.Electronic]: Cpu,
 } as const
 
+/**
+ * Static option metadata. `label` is kept for backwards compatibility with
+ * existing callers/tests; UI rendering uses the i18n key `labelKey`.
+ */
 export const WASTE_TYPE_OPTIONS = WASTE_TYPES.map((wasteType) => ({
   value: wasteType.value,
   label: wasteType.label,
+  labelKey: `waste.materials.${wasteType.value}`,
   icon: WASTE_TYPE_ICONS[wasteType.value],
 }))
 
@@ -33,6 +40,7 @@ interface WasteMaterialSelectorProps {
 }
 
 export function WasteMaterialSelector({ control, selectedType, errors }: WasteMaterialSelectorProps) {
+  const { t } = useTranslation()
   const [materialSearch, setMaterialSearch] = useState('')
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -45,8 +53,10 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
   const filteredMaterials = useMemo(() => {
     if (!materialSearch) return WASTE_TYPE_OPTIONS
     const lower = materialSearch.toLowerCase()
-    return WASTE_TYPE_OPTIONS.filter((opt) => opt.label.toLowerCase().includes(lower))
-  }, [materialSearch])
+    return WASTE_TYPE_OPTIONS.filter((opt) =>
+      t(opt.labelKey).toLowerCase().includes(lower)
+    )
+  }, [materialSearch, t])
 
   const selectedOption = WASTE_TYPE_OPTIONS.find((opt) => opt.value === selectedType)
 
@@ -91,7 +101,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
   return (
     <section>
       <span id={`${baseId}-label`} className="block text-sm font-medium mb-2">
-        Material Type <span className="text-destructive" aria-hidden="true">*</span>
+        {t('waste.materialType')} <span className="text-destructive" aria-hidden="true">*</span>
       </span>
       <Controller
         name="wasteType"
@@ -114,7 +124,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                 !selectedOption && 'text-muted-foreground',
                 fieldState.error && 'border-destructive'
               )}
-              aria-label="Select material type"
+              aria-label={t('waste.selectMaterialType')}
               aria-labelledby={`${baseId}-label`}
               aria-expanded={materialDropdownOpen}
               aria-haspopup="listbox"
@@ -125,10 +135,10 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                 {selectedOption ? (
                   <>
                     <selectedOption.icon className="h-4 w-4" />
-                    {selectedOption.label}
+                    {t(selectedOption.labelKey)}
                   </>
                 ) : (
-                  'Select material type'
+                  t('waste.selectMaterialType')
                 )}
               </span>
               <ChevronDown className="h-4 w-4 opacity-50" />
@@ -144,7 +154,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                     id={`${baseId}-search`}
                     ref={searchInputRef}
                     type="text"
-                    placeholder="Search materials..."
+                    placeholder={t('waste.searchMaterials')}
                     value={materialSearch}
                     onChange={(e) => {
                       setMaterialSearch(e.target.value)
@@ -152,6 +162,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                     }}
                     onKeyDown={handleSearchKeyDown}
                     className="flex-1 bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                    aria-label={t('waste.searchMaterials')}
                     aria-labelledby={searchLabelId}
                     aria-controls={listboxId}
                     aria-activedescendant={
@@ -169,8 +180,11 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                   className="max-h-48 overflow-y-auto p-1"
                 >
                   {filteredMaterials.length === 0 ? (
-                    <li className="px-3 py-2 text-sm text-muted-foreground" role="presentation">
-                      No materials found
+                    <li>
+                      <EmptyState
+                        title={t('waste.noMaterialsFound')}
+                        className="px-3 py-2"
+                      />
                     </li>
                   ) : (
                     filteredMaterials.map((opt, index) => {
@@ -190,7 +204,7 @@ export function WasteMaterialSelector({ control, selectedType, errors }: WasteMa
                           )}
                         >
                           <Icon className="h-4 w-4" aria-hidden="true" />
-                          {opt.label}
+                          {t(opt.labelKey)}
                         </li>
                       )
                     })

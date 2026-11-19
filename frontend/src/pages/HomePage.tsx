@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/context/AuthContext'
 import { Role } from '@/api/types'
 import { useAppTitle } from '@hooks/useAppTitle'
@@ -11,7 +12,8 @@ const ROLE_ROUTES: Record<string, string> = {
 }
 
 export function HomePage() {
-  useAppTitle('Scavngr Dashboard')
+  const { t } = useTranslation()
+  useAppTitle(t('home.appTitle'))
   const { user } = useAuth()
   const navigate = useNavigate()
 

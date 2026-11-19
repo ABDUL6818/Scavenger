@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useImpactCalculator } from '@/hooks/useImpactCalculator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -57,7 +58,8 @@ function EquivalentRow({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ImpactCalculatorPage() {
-  useAppTitle('Environmental Impact')
+  const { t } = useTranslation()
+  useAppTitle(t('impactCalculator.title'))
   const { impact, equivalents, shareText, isLoading, isError } = useImpactCalculator()
   const [copied, setCopied] = useState(false)
 
@@ -82,23 +84,23 @@ export function ImpactCalculatorPage() {
   }
 
   if (isError) {
-    return <p className="text-destructive">Failed to load waste data.</p>
+    return <p className="text-destructive">{t('impactCalculator.loadError')}</p>
   }
 
   return (
     <div className="space-y-6 px-4 py-6 sm:px-0 sm:py-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Environmental Impact</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{t('impactCalculator.title')}</h1>
           <p className="text-sm text-muted-foreground">
-            The positive impact of your recycling activities
+            {t('impactCalculator.subtitle')}
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={handleShare}>
           {copied ? (
-            <><Check className="mr-1 h-4 w-4 text-green-500" /> Copied</>
+            <><Check className="mr-1 h-4 w-4 text-green-500" /> {t('impactCalculator.copied')}</>
           ) : (
-            <><Share2 className="mr-1 h-4 w-4" /> Share</>
+            <><Share2 className="mr-1 h-4 w-4" /> {t('impactCalculator.share')}</>
           )}
         </Button>
       </div>
@@ -107,30 +109,30 @@ export function ImpactCalculatorPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <ImpactCard
           icon={<Leaf className="h-6 w-6 text-green-600" />}
-          label="CO₂ Saved"
+          label={t('impactCalculator.metrics.co2Saved')}
           value={impact.co2Kg}
-          unit="kg CO₂"
+          unit={t('impactCalculator.units.kgCo2')}
           color="bg-green-100 dark:bg-green-900/30"
         />
         <ImpactCard
           icon={<Zap className="h-6 w-6 text-yellow-600" />}
-          label="Energy Saved"
+          label={t('impactCalculator.metrics.energySaved')}
           value={impact.energyKwh}
-          unit="kWh"
+          unit={t('impactCalculator.units.kwh')}
           color="bg-yellow-100 dark:bg-yellow-900/30"
         />
         <ImpactCard
           icon={<Droplets className="h-6 w-6 text-blue-600" />}
-          label="Water Saved"
+          label={t('impactCalculator.metrics.waterSaved')}
           value={impact.waterLitres}
-          unit="litres"
+          unit={t('impactCalculator.units.litres')}
           color="bg-blue-100 dark:bg-blue-900/30"
         />
         <ImpactCard
           icon={<Trees className="h-6 w-6 text-emerald-600" />}
-          label="Trees Equivalent"
+          label={t('impactCalculator.metrics.treesEquivalent')}
           value={impact.treesEquivalent}
-          unit="tree-years"
+          unit={t('impactCalculator.units.treeYears')}
           color="bg-emerald-100 dark:bg-emerald-900/30"
         />
       </div>
@@ -138,28 +140,28 @@ export function ImpactCalculatorPage() {
       {/* Everyday equivalents */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">That's equivalent to…</CardTitle>
+          <CardTitle className="text-base">{t('impactCalculator.equivalents.title')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           <EquivalentRow
             icon={<Car className="h-4 w-4" />}
             value={equivalents.carKm}
-            label="km not driven"
+            label={t('impactCalculator.equivalents.carKm')}
           />
           <EquivalentRow
             icon={<Smartphone className="h-4 w-4" />}
             value={equivalents.smartphoneCharges}
-            label="smartphone charges"
+            label={t('impactCalculator.equivalents.smartphoneCharges')}
           />
           <EquivalentRow
             icon={<ShowerHead className="h-4 w-4" />}
             value={equivalents.showerMinutes}
-            label="minutes of showering saved"
+            label={t('impactCalculator.equivalents.showerMinutes')}
           />
           <EquivalentRow
             icon={<Lightbulb className="h-4 w-4" />}
             value={equivalents.lightbulbHours}
-            label="hours of LED lighting"
+            label={t('impactCalculator.equivalents.lightbulbHours')}
           />
         </CardContent>
       </Card>
@@ -167,15 +169,15 @@ export function ImpactCalculatorPage() {
       {/* Share preview */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Share your impact</CardTitle>
+          <CardTitle className="text-base">{t('impactCalculator.shareSection.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="rounded-md bg-muted px-4 py-3 text-sm leading-relaxed">{shareText}</p>
           <Button onClick={handleShare} className="w-full sm:w-auto">
             {copied ? (
-              <><Check className="mr-1 h-4 w-4" /> Copied to clipboard</>
+              <><Check className="mr-1 h-4 w-4" /> {t('impactCalculator.shareSection.copiedToClipboard')}</>
             ) : (
-              <><Share2 className="mr-1 h-4 w-4" /> Share on Social Media</>
+              <><Share2 className="mr-1 h-4 w-4" /> {t('impactCalculator.shareSection.shareOnSocialMedia')}</>
             )}
           </Button>
         </CardContent>

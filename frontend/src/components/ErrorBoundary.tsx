@@ -1,5 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
+import { EmptyState } from './EmptyState'
 
 interface Props {
   children: ReactNode
@@ -17,6 +19,24 @@ function keysChanged(prev: unknown[] | undefined, next: unknown[] | undefined): 
   if (!prev || !next) return false
   if (prev.length !== next.length) return true
   return prev.some((value, index) => !Object.is(value, next[index]))
+}
+
+interface DefaultFallbackProps {
+  error: Error | null
+  onRetry: () => void
+}
+
+function DefaultFallback({ error, onRetry }: DefaultFallbackProps) {
+  const { t } = useTranslation()
+  return (
+    <EmptyState
+      role="alert"
+      title={t('errorBoundary.title', 'Something went wrong.')}
+      description={error?.message ?? t('errorBoundary.description', 'An unexpected error occurred.')}
+      actionLabel={t('errorBoundary.tryAgain', 'Try again')}
+      onAction={onRetry}
+    />
+  )
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -52,22 +72,15 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null })
   }
 
+  private handleRetry = () => {
+    this.setState({ hasError: false, error: null })
+  }
+
   render() {
     if (this.state.hasError) {
       return (
         this.props.fallback ?? (
-          <div role="alert" className="flex min-h-[200px] flex-col items-center justify-center gap-3 p-6 text-center">
-            <p className="text-destructive font-medium">Something went wrong.</p>
-            <p className="text-muted-foreground text-sm">{this.state.error?.message}</p>
-            <button
-              type="button"
-              aria-label="Try again"
-              className="rounded-sm text-sm text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              onClick={this.reset}
-            >
-              Try again
-            </button>
-          </div>
+          <DefaultFallback error={this.state.error} onRetry={this.handleRetry} />
         )
       )
     }

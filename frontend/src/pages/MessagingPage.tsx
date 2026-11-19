@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Mail, Send, Archive, Search, Pencil, X, Reply, Ban } from 'lucide-react'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useMessaging, Message, MessageFolder, ComposeData } from '@/hooks/useMessaging'
@@ -18,6 +19,7 @@ function ComposeModal({
   onSend: (data: ComposeData) => Promise<void>
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const [to, setTo] = useState(initial?.to ?? '')
   const [subject, setSubject] = useState(initial?.subject ?? '')
   const [body, setBody] = useState(initial?.body ?? '')
@@ -38,33 +40,33 @@ function ComposeModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-lg rounded-xl border bg-background shadow-xl">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="font-semibold">Compose Message</h2>
+          <h2 className="font-semibold">{t('messaging.composeMessage')}</h2>
           <Button size="sm" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
         </div>
         <div className="space-y-3 p-4">
           <input
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            placeholder="To (address)"
+            placeholder={t('messaging.toAddress')}
             value={to}
             onChange={(e) => setTo(e.target.value)}
           />
           <input
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            placeholder="Subject"
+            placeholder={t('messaging.subject')}
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
           />
           <textarea
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             rows={5}
-            placeholder="Message…"
+            placeholder={t('messaging.messagePlaceholder')}
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
             <Button onClick={handleSend} disabled={sending || !to || !subject || !body}>
-              <Send className="mr-2 h-4 w-4" /> {sending ? 'Sending…' : 'Send'}
+              <Send className="mr-2 h-4 w-4" /> {sending ? t('messaging.sending') : t('messaging.send')}
             </Button>
           </div>
         </div>
@@ -110,7 +112,8 @@ function MessageRow({
 }
 
 export function MessagingPage() {
-  useAppTitle('Messages')
+  const { t } = useTranslation()
+  useAppTitle(t('messaging.title'))
   const { address } = useWallet()
   const {
     isLoading,
@@ -141,7 +144,7 @@ export function MessagingPage() {
 
   const handleReply = () => {
     if (!selected) return
-    setComposing({ to: selected.from, subject: `Re: ${selected.subject}`, threadId: selected.threadId })
+    setComposing({ to: selected.from, subject: t('messaging.replySubject', { subject: selected.subject }), threadId: selected.threadId })
   }
 
   const messages = searchResults ?? getFolder(folder)
@@ -149,7 +152,7 @@ export function MessagingPage() {
   if (!address) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Connect your wallet to use messaging.
+        {t('messaging.connectWallet')}
       </div>
     )
   }
@@ -159,11 +162,11 @@ export function MessagingPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Mail className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Messages</h1>
-          {unreadCount > 0 && <Badge>{unreadCount} unread</Badge>}
+          <h1 className="text-2xl font-bold">{t('messaging.title')}</h1>
+          {unreadCount > 0 && <Badge>{t('messaging.unreadCount', { count: unreadCount })}</Badge>}
         </div>
         <Button onClick={() => setComposing({})}>
-          <Pencil className="mr-2 h-4 w-4" /> Compose
+          <Pencil className="mr-2 h-4 w-4" /> {t('messaging.compose')}
         </Button>
       </div>
 
@@ -171,7 +174,7 @@ export function MessagingPage() {
       <div className="flex gap-2">
         <input
           className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
-          placeholder="Search messages…"
+          placeholder={t('messaging.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); if (!e.target.value) setSearchResults(null) }}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -192,7 +195,7 @@ export function MessagingPage() {
               {f === 'inbox' && <Mail className="h-4 w-4" />}
               {f === 'sent' && <Send className="h-4 w-4" />}
               {f === 'archived' && <Archive className="h-4 w-4" />}
-              {f}
+              {t(`messaging.folders.${f}`)}
             </button>
           ))}
         </div>
@@ -201,7 +204,7 @@ export function MessagingPage() {
         <Card className="flex min-h-0 flex-1 flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm capitalize">
-              {searchResults ? `Search results (${searchResults.length})` : folder}
+              {searchResults ? t('messaging.searchResults', { count: searchResults.length }) : t(`messaging.folders.${folder}`)}
             </CardTitle>
           </CardHeader>
           <CardContent className="min-h-0 flex-1 overflow-y-auto space-y-2">
@@ -211,7 +214,7 @@ export function MessagingPage() {
               </div>
             )}
             {!isLoading && messages.length === 0 && (
-              <EmptyState icon={Mail} title="No messages" description="Nothing here yet" />
+              <EmptyState icon={Mail} title={t('messaging.noMessages')} description={t('messaging.nothingHere')} />
             )}
             {messages.map((msg) => (
               <MessageRow
@@ -232,7 +235,7 @@ export function MessagingPage() {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <CardTitle className="text-sm">{selected.subject}</CardTitle>
-                  <p className="text-xs text-muted-foreground">From: {selected.from}</p>
+                  <p className="text-xs text-muted-foreground">{t('messaging.from', { address: selected.from })}</p>
                   <p className="text-xs text-muted-foreground">{formatDate(selected.createdAt / 1000)}</p>
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => setSelected(null)}><X className="h-4 w-4" /></Button>
@@ -243,7 +246,7 @@ export function MessagingPage() {
             </CardContent>
             <div className="border-t p-3">
               <Button size="sm" onClick={handleReply}>
-                <Reply className="mr-2 h-3 w-3" /> Reply
+                <Reply className="mr-2 h-3 w-3" /> {t('messaging.reply')}
               </Button>
             </div>
           </Card>
