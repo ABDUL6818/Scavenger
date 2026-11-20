@@ -183,7 +183,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(search_client.clone()))
             .app_data(web::Data::new(archival_service.clone()))
             .app_data(web::Data::new(stellar_client.clone()))
-            .app_data(web::JsonConfig::default().error_handler(json_error_handler))
+            // #1710: cap JSON bodies explicitly instead of relying on the framework default
+            .app_data(web::JsonConfig::default().limit(256 * 1024).error_handler(json_error_handler))
             .default_service(web::route().to(not_found))
             // Health
             .route("/health", web::get().to(health_check))
