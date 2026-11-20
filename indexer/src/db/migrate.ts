@@ -12,6 +12,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import type { Pool } from 'pg';
 import { getPool } from './client';
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
@@ -23,8 +24,7 @@ function baseName(filename: string): string {
 }
 
 /** Ensure the migrations tracking table exists. */
-async function ensureMigrationsTable(): Promise<void> {
-  const pool = getPool();
+async function ensureMigrationsTable(pool: Pool): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS migrations (
       name       TEXT        PRIMARY KEY,
@@ -36,10 +36,10 @@ async function ensureMigrationsTable(): Promise<void> {
 /**
  * Run all pending up-migrations in ascending order.
  * Idempotent: already-applied migrations are skipped.
+ * The pool is injected so callers and tests can supply their own (#1704).
  */
-export async function migrateUp(): Promise<void> {
-  await ensureMigrationsTable();
-  const pool = getPool();
+export async function migrateUp(pool: Pool = getPool()): Promise<void> {
+  await ensureMigrationsTable(pool);
 
   const upFiles = fs
     .readdirSync(MIGRATIONS_DIR)
@@ -65,9 +65,8 @@ export async function migrateUp(): Promise<void> {
  * Roll back the most recently applied migration.
  * Finds the corresponding `_down.sql` file and executes it.
  */
-export async function migrateDown(): Promise<void> {
-  await ensureMigrationsTable();
-  const pool = getPool();
+export async function migrateDown(pool: Pool = getPool()): Promise<void> {
+  await ensureMigrationsTable(pool);
 
   // Find the last applied migration, ordered by name descending.
   const { rows } = await pool.query(
