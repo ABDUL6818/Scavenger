@@ -1,3 +1,9 @@
+//! Cache layer (#1715).
+//!
+//! Values are stored through the `CacheBackend` implementations: `MemoryBackend`
+//! (`cache/memory.rs`) and `RedisBackend` (`cache/redis.rs`). Invalidation and TTL
+//! helpers sit on top of that, so callers do not depend on a single backend.
+
 pub mod cache;
 pub mod distributed;
 pub mod invalidation;
