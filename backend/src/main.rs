@@ -187,6 +187,7 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::route().to(not_found))
             // Health
             .route("/health", web::get().to(health_check))
+            .route("/ready", web::get().to(readiness_check))
             // ── Route table ──────────────────────────────────────────────────
             // #1697: Every route below points at a controller entry point.
             // Controllers delegate to the service layer, which in turn talks to
@@ -404,6 +405,20 @@ async fn health_check() -> HttpResponse {
         "version": "1.0.0",
         "services": ["contracts", "websocket", "export", "audit", "cache"]
     }))
+}
+
+/// Readiness probe: ready only when the Stellar RPC dependency answers (#1714).
+async fn readiness_check(stellar: web::Data<Arc<StellarRpcClient>>) -> HttpResponse {
+    let stellar_up = stellar.health_check().await.is_ok();
+    let body = serde_json::json!({
+        "status": if stellar_up { "ready" } else { "not_ready" },
+        "dependencies": { "stellar_rpc": if stellar_up { "up" } else { "down" } },
+    });
+    if stellar_up {
+        HttpResponse::Ok().json(body)
+    } else {
+        HttpResponse::ServiceUnavailable().json(body)
+    }
 }
 #[cfg(test)]
 mod tests {

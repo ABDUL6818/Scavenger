@@ -456,6 +456,12 @@ impl StellarRpcClient {
         .await
     }
 
+    /// Check that the Soroban RPC answers `getHealth` (#1714).
+    pub async fn health_check(&self) -> Result<(), RpcError> {
+        let _: serde_json::Value = self.soroban_call("getHealth", serde_json::json!({})).await?;
+        Ok(())
+    }
+
     /// Expose config for diagnostic/health endpoints.
     pub fn horizon_url(&self) -> &str {
         &self.config.horizon_url
