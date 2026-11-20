@@ -78,17 +78,11 @@ impl ArchivalStorage for FileSystemArchivalStorage {
 pub struct S3ArchivalStorage {
     bucket: String,
     region: String,
-    #[allow(dead_code)]
-    client: Option<()>, // Placeholder for AWS S3 client
 }
 
 impl S3ArchivalStorage {
     pub fn new(bucket: String, region: String) -> Self {
-        Self {
-            bucket,
-            region,
-            client: None,
-        }
+        Self { bucket, region }
     }
 }
 
