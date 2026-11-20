@@ -35,12 +35,24 @@ function decodeScVal(val: xdr.ScVal): unknown {
   }
 }
 
+// One server per URL, so repeated calls reuse the same client (#1707).
+const servers = new Map<string, rpc.Server>();
+
+function getServer(rpcUrl: string): rpc.Server {
+  let server = servers.get(rpcUrl);
+  if (!server) {
+    server = new rpc.Server(rpcUrl);
+    servers.set(rpcUrl, server);
+  }
+  return server;
+}
+
 export async function fetchEvents(
   config: StreamerConfig,
   fromLedger: number,
   _toLedger: number
 ): Promise<RawContractEvent[]> {
-  const server = new rpc.Server(config.rpcUrl);
+  const server = getServer(config.rpcUrl);
   const events: RawContractEvent[] = [];
 
   const response = await server.getEvents({
@@ -69,7 +81,7 @@ export async function fetchEvents(
 }
 
 export async function getLatestLedger(rpcUrl: string): Promise<number> {
-  const server = new rpc.Server(rpcUrl);
+  const server = getServer(rpcUrl);
   const info = await server.getLatestLedger();
   return info.sequence;
 }
