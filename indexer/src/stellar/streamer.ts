@@ -35,6 +35,10 @@ function decodeScVal(val: xdr.ScVal): unknown {
   }
 }
 
+const RPC_TIMEOUT_MS = 10_000;
+const RPC_ATTEMPTS = 3;
+const RPC_BASE_DELAY_MS = 500;
+
 // One server per URL, so repeated calls reuse the same client (#1707).
 const servers = new Map<string, rpc.Server>();
 
@@ -47,6 +51,30 @@ function getServer(rpcUrl: string): rpc.Server {
   return server;
 }
 
+/**
+ * Run an RPC call with a per-attempt timeout and exponential backoff between attempts (#1708).
+ */
+export async function withTimeoutAndRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < RPC_ATTEMPTS; attempt++) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('RPC request timed out')), RPC_TIMEOUT_MS);
+      });
+      return await Promise.race([fn(), timeout]);
+    } catch (error) {
+      lastError = error;
+      if (attempt < RPC_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, RPC_BASE_DELAY_MS * 2 ** attempt));
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError;
+}
+
 export async function fetchEvents(
   config: StreamerConfig,
   fromLedger: number,
@@ -55,10 +83,12 @@ export async function fetchEvents(
   const server = getServer(config.rpcUrl);
   const events: RawContractEvent[] = [];
 
-  const response = await server.getEvents({
-    startLedger: fromLedger,
-    filters: [{ type: 'contract', contractIds: [config.contractId] }],
-  });
+  const response = await withTimeoutAndRetry(() =>
+    server.getEvents({
+      startLedger: fromLedger,
+      filters: [{ type: 'contract', contractIds: [config.contractId] }],
+    })
+  );
 
   for (const event of response.events) {
     // In SDK v13, topic is xdr.ScVal[] and value is xdr.ScVal (already parsed)
@@ -82,6 +112,6 @@ export async function fetchEvents(
 
 export async function getLatestLedger(rpcUrl: string): Promise<number> {
   const server = getServer(rpcUrl);
-  const info = await server.getLatestLedger();
+  const info = await withTimeoutAndRetry(() => server.getLatestLedger());
   return info.sequence;
 }
