@@ -381,6 +381,9 @@ impl StellarRpcClient {
     // ── Soroban RPC endpoints ─────────────────────────────────────────────────
 
     /// Call a Soroban JSON-RPC method.
+    ///
+    /// This is the single path for Soroban requests. Every Soroban endpoint
+    /// goes through here, so retry and error mapping live in one place (#1707).
     async fn soroban_call<P, R>(&self, method: &str, params: P) -> Result<R, RpcError>
     where
         P: Serialize + Clone + Send + 'static,
