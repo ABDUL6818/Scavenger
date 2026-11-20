@@ -19,6 +19,8 @@ impl PaginationParams {
     pub const DEFAULT_LIMIT: u32 = 20;
     /// Default page used when a handler's query omits `page`.
     pub const DEFAULT_PAGE: u32 = 1;
+    /// Largest page size a handler will serve (#1706).
+    pub const MAX_LIMIT: u32 = 100;
 
     /// Resolve raw `Option<u32>` query params into a validated
     /// `PaginationParams`, or return the list of validation error messages
