@@ -382,7 +382,18 @@ async fn not_found(req: HttpRequest) -> HttpResponse {
 fn json_error_handler(err: actix_web::error::JsonPayloadError, _req: &HttpRequest) -> actix_web::Error {
     // #1699: structured logging instead of eprintln!.
     tracing::warn!(error = %err, "Malformed JSON request body");
-    let response = AppError::BadRequest(err.to_string()).error_response();
+    let response = match &err {
+        // Body over the configured limit is 413, not 400 (#1716)
+        actix_web::error::JsonPayloadError::Overflow { .. }
+        | actix_web::error::JsonPayloadError::OverflowKnownLength { .. } => {
+            HttpResponse::PayloadTooLarge().json(serde_json::json!({
+                "status": "error",
+                "code": 413,
+                "message": err.to_string(),
+            }))
+        }
+        _ => AppError::BadRequest(err.to_string()).error_response(),
+    };
     actix_web::error::InternalError::from_response(err, response).into()
 }
 
@@ -394,7 +405,6 @@ async fn health_check() -> HttpResponse {
         "services": ["contracts", "websocket", "export", "audit", "cache"]
     }))
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
