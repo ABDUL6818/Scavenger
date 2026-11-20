@@ -58,6 +58,7 @@ pub async fn suggest(
     let suggestions = service.suggest();
 
     Ok(HttpResponse::Ok().json(json!({
+        "success": true,
         "suggestions": suggestions
     })))
 }
@@ -65,6 +66,7 @@ pub async fn suggest(
 /// Search configuration endpoint
 pub async fn get_search_config() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(json!({
+        "success": true,
         "max_results": 10000,
         "default_page_size": super::pagination::PaginationParams::DEFAULT_LIMIT,
         "max_page_size": super::pagination::PaginationParams::MAX_LIMIT,
