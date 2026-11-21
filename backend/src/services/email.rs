@@ -89,7 +89,11 @@ impl EmailService for SendGridEmailService {
     async fn send_transactional(&self, email: TransactionalEmail) -> Result<String, EmailError> {
         self.validate_email(&email.recipient)?;
 
-        let client = reqwest::Client::new();
+        // Bounded timeout so a slow SendGrid call cannot hang the request (#1708)
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
         let body = serde_json::json!({
             "personalizations": [{
                 "to": [{"email": email.recipient}],
@@ -158,7 +162,11 @@ impl EmailService for SendGridEmailService {
             e
         })?;
 
-        let client = reqwest::Client::new();
+        // Bounded timeout so a slow SendGrid call cannot hang the request (#1708)
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
         let body = serde_json::json!({
             "personalizations": [{
                 "to": [{"email": email.recipient}],
