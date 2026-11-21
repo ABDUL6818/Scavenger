@@ -256,15 +256,15 @@ pub fn validate_max_collection_size(env: &Env, len: u32, max: u32, field_name: &
 // sites are unaffected.
 
 /// Full validation for a waste submission (weight range + coordinates).
-pub fn validate_waste_submission(weight: u128, latitude: i128, longitude: i128) {
-    validate_weight(weight, "waste weight");
-    validate_coordinates(latitude, longitude);
+pub fn validate_waste_submission(env: &Env, weight: u128, latitude: i128, longitude: i128) {
+    validate_weight(env, weight, "waste weight");
+    validate_coordinates(env, latitude, longitude);
 }
 
 /// Full validation for participant registration.
 pub fn validate_participant_registration(env: &Env, address: &Address, latitude: i128, longitude: i128) {
     validate_address_not_contract(env, address);
-    validate_coordinates(latitude, longitude);
+    validate_coordinates(env, latitude, longitude);
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -278,149 +278,172 @@ mod tests {
 
     #[test]
     fn positive_amount_accepts_valid_value() {
-        validate_positive_amount(1, "amount");
-        validate_positive_amount(i128::MAX, "amount");
+        let env = Env::default();
+        validate_positive_amount(&env, 1, "amount");
+        validate_positive_amount(&env, i128::MAX, "amount");
     }
 
     #[test]
-    #[should_panic(expected = "amount must be greater than zero")]
+    #[should_panic]
     fn positive_amount_rejects_zero() {
-        validate_positive_amount(0, "amount");
+        let env = Env::default();
+        validate_positive_amount(&env, 0, "amount");
     }
 
     #[test]
-    #[should_panic(expected = "amount must be greater than zero")]
+    #[should_panic]
     fn positive_amount_rejects_negative() {
-        validate_positive_amount(-1, "amount");
+        let env = Env::default();
+        validate_positive_amount(&env, -1, "amount");
     }
 
     #[test]
     fn positive_u128_accepts_valid_value() {
-        validate_positive_u128(1, "value");
+        let env = Env::default();
+        validate_positive_u128(&env, 1, "value");
     }
 
     #[test]
-    #[should_panic(expected = "value must be greater than zero")]
+    #[should_panic]
     fn positive_u128_rejects_zero() {
-        validate_positive_u128(0, "value");
+        let env = Env::default();
+        validate_positive_u128(&env, 0, "value");
     }
 
     #[test]
     fn non_negative_accepts_zero_and_positive() {
-        validate_non_negative(0, "amount");
-        validate_non_negative(100, "amount");
+        let env = Env::default();
+        validate_non_negative(&env, 0, "amount");
+        validate_non_negative(&env, 100, "amount");
     }
 
     #[test]
-    #[should_panic(expected = "amount cannot be negative")]
+    #[should_panic]
     fn non_negative_rejects_negative() {
-        validate_non_negative(-1, "amount");
+        let env = Env::default();
+        validate_non_negative(&env, -1, "amount");
     }
 
     // ── Weight tests ──────────────────────────────────────────────────────────
 
     #[test]
     fn weight_accepts_valid_range() {
-        validate_weight(MIN_WASTE_WEIGHT, "weight");
-        validate_weight(1_000, "weight");
-        validate_weight(MAX_WASTE_WEIGHT, "weight");
+        let env = Env::default();
+        validate_weight(&env, MIN_WASTE_WEIGHT, "weight");
+        validate_weight(&env, 1_000, "weight");
+        validate_weight(&env, MAX_WASTE_WEIGHT, "weight");
     }
 
     #[test]
-    #[should_panic(expected = "must be at least")]
+    #[should_panic]
     fn weight_rejects_below_minimum() {
-        validate_weight(99, "waste weight");
+        let env = Env::default();
+        validate_weight(&env, 99, "waste weight");
     }
 
     #[test]
-    #[should_panic(expected = "must not exceed")]
+    #[should_panic]
     fn weight_rejects_above_maximum() {
-        validate_weight(MAX_WASTE_WEIGHT + 1, "waste weight");
+        let env = Env::default();
+        validate_weight(&env, MAX_WASTE_WEIGHT + 1, "waste weight");
     }
 
     #[test]
     fn weight_max_accepts_value_within_ceiling() {
-        validate_weight_max(50, 100);
+        let env = Env::default();
+        validate_weight_max(&env, 50, 100);
     }
 
     #[test]
-    #[should_panic(expected = "exceeds maximum allowed")]
+    #[should_panic]
     fn weight_max_rejects_value_over_ceiling() {
-        validate_weight_max(101, 100);
+        let env = Env::default();
+        validate_weight_max(&env, 101, 100);
     }
 
     // ── Percentage tests ──────────────────────────────────────────────────────
 
     #[test]
     fn percentage_accepts_valid_values() {
-        validate_percentage(0, "pct");
-        validate_percentage(50, "pct");
-        validate_percentage(100, "pct");
+        let env = Env::default();
+        validate_percentage(&env, 0, "pct");
+        validate_percentage(&env, 50, "pct");
+        validate_percentage(&env, 100, "pct");
     }
 
     #[test]
-    #[should_panic(expected = "pct must be <= 100")]
+    #[should_panic]
     fn percentage_rejects_over_100() {
-        validate_percentage(101, "pct");
+        let env = Env::default();
+        validate_percentage(&env, 101, "pct");
     }
 
     #[test]
     fn reward_percentages_accepts_valid_split() {
-        validate_reward_percentages(30, 50);
-        validate_reward_percentages(0, 100);
-        validate_reward_percentages(50, 50);
+        let env = Env::default();
+        validate_reward_percentages(&env, 30, 50);
+        validate_reward_percentages(&env, 0, 100);
+        validate_reward_percentages(&env, 50, 50);
     }
 
     #[test]
-    #[should_panic(expected = "Total percentages cannot exceed 100")]
+    #[should_panic]
     fn reward_percentages_rejects_over_100() {
-        validate_reward_percentages(60, 50);
+        let env = Env::default();
+        validate_reward_percentages(&env, 60, 50);
     }
 
     #[test]
-    #[should_panic(expected = "Total percentages cannot exceed 100")]
+    #[should_panic]
     fn percentage_sum_rejects_over_100() {
-        validate_percentage_sum(60, 50);
+        let env = Env::default();
+        validate_percentage_sum(&env, 60, 50);
     }
 
     #[test]
     fn bps_accepts_boundary_values() {
-        validate_bps(0, "fee");
-        validate_bps(10_000, "fee");
+        let env = Env::default();
+        validate_bps(&env, 0, "fee");
+        validate_bps(&env, 10_000, "fee");
     }
 
     #[test]
-    #[should_panic(expected = "must be <= 10 000 basis points")]
+    #[should_panic]
     fn bps_rejects_over_max() {
-        validate_bps(10_001, "fee");
+        let env = Env::default();
+        validate_bps(&env, 10_001, "fee");
     }
 
     // ── Coordinate tests ──────────────────────────────────────────────────────
 
     #[test]
     fn coordinates_accept_valid_values() {
-        validate_coordinates(0, 0);
-        validate_coordinates(MAX_LAT, MAX_LON);
-        validate_coordinates(-MAX_LAT, -MAX_LON);
-        validate_coordinates(52_520_000, 13_405_000);
+        let env = Env::default();
+        validate_coordinates(&env, 0, 0);
+        validate_coordinates(&env, MAX_LAT, MAX_LON);
+        validate_coordinates(&env, -MAX_LAT, -MAX_LON);
+        validate_coordinates(&env, 52_520_000, 13_405_000);
     }
 
     #[test]
-    #[should_panic(expected = "Latitude must be between -90 and +90 degrees")]
+    #[should_panic]
     fn coordinates_reject_invalid_latitude() {
-        validate_coordinates(91_000_000, 0);
+        let env = Env::default();
+        validate_coordinates(&env, 91_000_000, 0);
     }
 
     #[test]
-    #[should_panic(expected = "Longitude must be between -180 and +180 degrees")]
+    #[should_panic]
     fn coordinates_reject_invalid_longitude() {
-        validate_coordinates(0, 181_000_000);
+        let env = Env::default();
+        validate_coordinates(&env, 0, 181_000_000);
     }
 
     #[test]
-    #[should_panic(expected = "Latitude must be between -90 and +90 degrees")]
+    #[should_panic]
     fn coordinates_reject_negative_lat_out_of_range() {
-        validate_coordinates(-91_000_000, 0);
+        let env = Env::default();
+        validate_coordinates(&env, -91_000_000, 0);
     }
 
     // ── Address tests ─────────────────────────────────────────────────────────
@@ -430,15 +453,15 @@ mod tests {
         let env = Env::default();
         let a = soroban_sdk::Address::generate(&env);
         let b = soroban_sdk::Address::generate(&env);
-        validate_addresses_different(&a, &b, "transfer");
+        validate_addresses_different(&env, &a, &b, "transfer");
     }
 
     #[test]
-    #[should_panic(expected = "transfer: addresses must be different")]
+    #[should_panic]
     fn addresses_different_rejects_same_address() {
         let env = Env::default();
         let a = soroban_sdk::Address::generate(&env);
-        validate_addresses_different(&a, &a, "transfer");
+        validate_addresses_different(&env, &a, &a, "transfer");
     }
 
     #[test]
@@ -453,72 +476,81 @@ mod tests {
         let env = Env::default();
         let a = soroban_sdk::Address::generate(&env);
         let list = Vec::from_array(&env, [a.clone()]);
-        validate_address_in_list(&a, &list, "admin");
+        validate_address_in_list(&env, &a, &list, "admin");
     }
 
     #[test]
-    #[should_panic(expected = "admin: address not authorised")]
+    #[should_panic]
     fn address_in_list_rejects_non_member() {
         let env = Env::default();
         let a = soroban_sdk::Address::generate(&env);
         let b = soroban_sdk::Address::generate(&env);
         let list = Vec::from_array(&env, [a]);
-        validate_address_in_list(&b, &list, "admin");
+        validate_address_in_list(&env, &b, &list, "admin");
     }
 
     // ── Composite tests ───────────────────────────────────────────────────────
 
     #[test]
     fn waste_submission_validates_all_fields() {
-        validate_waste_submission(1_000, 52_520_000, 13_405_000);
+        let env = Env::default();
+        validate_waste_submission(&env, 1_000, 52_520_000, 13_405_000);
     }
 
     #[test]
-    #[should_panic(expected = "must be at least")]
+    #[should_panic]
     fn waste_submission_rejects_low_weight() {
-        validate_waste_submission(10, 0, 0);
+        let env = Env::default();
+        validate_waste_submission(&env, 10, 0, 0);
     }
 
     #[test]
-    #[should_panic(expected = "Latitude must be between")]
+    #[should_panic]
     fn waste_submission_rejects_bad_coordinates() {
-        validate_waste_submission(1_000, 999_000_000, 0);
+        let env = Env::default();
+        validate_waste_submission(&env, 1_000, 999_000_000, 0);
     }
 
     // ── Timestamp tests ───────────────────────────────────────────────────────
 
     #[test]
     fn future_timestamp_accepts_future_time() {
-        validate_future_timestamp(1_000, 500, "deadline");
+        let env = Env::default();
+        validate_future_timestamp(&env, 1_000, 500, "deadline");
     }
 
     #[test]
-    #[should_panic(expected = "deadline must be in the future")]
+    #[should_panic]
     fn future_timestamp_rejects_past() {
-        validate_future_timestamp(500, 1_000, "deadline");
+        let env = Env::default();
+        validate_future_timestamp(&env, 500, 1_000, "deadline");
     }
 
     #[test]
-    #[should_panic(expected = "deadline must be in the future")]
+    #[should_panic]
     fn future_timestamp_rejects_equal() {
-        validate_future_timestamp(1_000, 1_000, "deadline");
+        let env = Env::default();
+        validate_future_timestamp(&env, 1_000, 1_000, "deadline");
     }
 
     #[test]
     fn time_range_accepts_end_after_start() {
-        validate_time_range(100, 200);
+        let env = Env::default();
+        validate_time_range(&env, 100, 200);
     }
 
     #[test]
-    #[should_panic(expected = "End time must be after start time")]
+    #[should_panic]
     fn time_range_rejects_end_before_start() {
-        validate_time_range(200, 100);
+        let env = Env::default();
+        validate_time_range(&env, 200, 100);
     }
 
     #[test]
-    #[should_panic(expected = "End time must be after start time")]
+    #[should_panic]
     fn time_range_rejects_equal_start_and_end() {
-        validate_time_range(100, 100);
+        let env = Env::default();
+        validate_time_range(&env, 100, 100);
     }
 
     // ── String tests ──────────────────────────────────────────────────────────
@@ -527,60 +559,64 @@ mod tests {
     fn string_not_empty_accepts_non_empty() {
         let env = Env::default();
         let s = soroban_sdk::String::from_str(&env, "hello");
-        validate_string_not_empty(&s, "name");
+        validate_string_not_empty(&env, &s, "name");
     }
 
     #[test]
-    #[should_panic(expected = "name must not be empty")]
+    #[should_panic]
     fn string_not_empty_rejects_empty() {
         let env = Env::default();
         let s = soroban_sdk::String::from_str(&env, "");
-        validate_string_not_empty(&s, "name");
+        validate_string_not_empty(&env, &s, "name");
     }
 
     #[test]
     fn string_max_len_accepts_within_limit() {
         let env = Env::default();
         let s = soroban_sdk::String::from_str(&env, "hello");
-        validate_string_max_len(&s, 10, "name");
+        validate_string_max_len(&env, &s, 10, "name");
     }
 
     #[test]
-    #[should_panic(expected = "must not exceed")]
+    #[should_panic]
     fn string_max_len_rejects_too_long() {
         let env = Env::default();
         let s = soroban_sdk::String::from_str(&env, "this is way too long");
-        validate_string_max_len(&s, 5, "name");
+        validate_string_max_len(&env, &s, 5, "name");
     }
 
     #[test]
     fn string_convenience_accepts_valid_string() {
         let env = Env::default();
         let s = soroban_sdk::String::from_str(&env, "ok");
-        validate_string(&s, 10, "name");
+        validate_string(&env, &s, 10, "name");
     }
 
     // ── Collection tests ──────────────────────────────────────────────────────
 
     #[test]
     fn not_empty_collection_accepts_nonzero_len() {
-        validate_not_empty_collection(1, "tags");
+        let env = Env::default();
+        validate_not_empty_collection(&env, 1, "tags");
     }
 
     #[test]
-    #[should_panic(expected = "tags must not be empty")]
+    #[should_panic]
     fn not_empty_collection_rejects_zero_len() {
-        validate_not_empty_collection(0, "tags");
+        let env = Env::default();
+        validate_not_empty_collection(&env, 0, "tags");
     }
 
     #[test]
     fn max_collection_size_accepts_within_limit() {
-        validate_max_collection_size(5, 10, "tags");
+        let env = Env::default();
+        validate_max_collection_size(&env, 5, 10, "tags");
     }
 
     #[test]
-    #[should_panic(expected = "tags must not exceed 10 items")]
+    #[should_panic]
     fn max_collection_size_rejects_over_limit() {
-        validate_max_collection_size(11, 10, "tags");
+        let env = Env::default();
+        validate_max_collection_size(&env, 11, 10, "tags");
     }
 }

@@ -37,13 +37,13 @@
 //! | `reset`      | `(reset, id)`      | `(owner, timestamp)`                         | v1    |
 //! | `deactive`   | `(deactive, id)`   | `(admin, timestamp)`                         | v1    |
 //! | `reg`        | `(reg, address)`   | `(role, name, lat, lon)`                     | v1    |
-//! | `rewarded`   | `(rewarded, id)`   | `(recycler, collector, total)`               | v1    |
-//! | `donated`    | `(donated, donor)` | `(charity, amount)`                          | v1    |
+//! | `rewarded`   | `(rewarded, addr)` | `(amount, waste_id)`                         | v1    |
+//! | `donated`    | `(donated, donor)` | `(amount, charity)`                          | v1    |
 //! | `paused`     | `(paused,)`        | `admin`                                      | v1    |
 //! | `unpaused`   | `(unpaused,)`      | `admin`                                      | v1    |
-//! | `adm_xfr`    | `(adm_xfr,)`       | `old_admin`                                  | v1    |
+//! | `adm_xfr`    | `(adm_xfr,)`       | `old_admin` (transfer) or `(admin, from, to)` (override) | v1    |
 //! | `inc_upd`    | `(inc_upd, id)`    | `(rewarder, new_points, new_budget)`         | v1    |
-//! | `bulk_xfr`   | `(bulk_xfr,)`      | `(count, actor)`                             | v1    |
+//! | `bulk_xfr`   | `(bulk_xfr, id)`   | `(collector, manufacturer, type, timestamp)` | v1    |
 //! | `ver_start`  | `(ver_start, id)`  | `verifier`                                   | v1    |
 //! | `ver_comp`   | `(ver_comp, id)`   | `verifier`                                   | v1    |
 //! | `ver_fail`   | `(ver_fail, id)`   | `verifier`                                   | v1    |

@@ -233,7 +233,7 @@ pub fn emit_participant_tier_changed(
 // ── Token / reward events ─────────────────────────────────────────────────────
 
 /// Emitted when tokens are rewarded to a participant.
-pub fn emit_tokens_rewarded(env: &Env, recipient: &Address, amount: u128, waste_id: u64) {
+pub fn emit_tokens_rewarded(env: &Env, recipient: &Address, amount: u128, waste_id: u128) {
     env.events()
         .publish((TOKENS_REWARDED, recipient), (amount, waste_id));
 }

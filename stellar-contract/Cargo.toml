@@ -25,6 +25,7 @@ criterion = { version = "=0.5.1", features = ["html_reports"] }
 [[bench]]
 name = "contract_benchmarks"
 harness = false
+required-features = []
 
 [features]
 testutils = ["soroban-sdk/testutils"]
