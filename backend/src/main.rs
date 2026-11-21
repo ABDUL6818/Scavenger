@@ -110,6 +110,8 @@ async fn main() -> std::io::Result<()> {
     );
 
     let rate_limit_config = RateLimitConfig::default();
+    // Largest request body the JSON and raw payload extractors will read (#1710).
+    const MAX_REQUEST_BODY_BYTES: usize = 256 * 1024;
     let ws_manager = ws::WsConnectionManager::new();
     // #1159: Use AppConfig fields — no direct std::env::var reads in main.rs.
     let csrf_secret = app_config.csrf_secret.clone();
@@ -169,6 +171,8 @@ async fn main() -> std::io::Result<()> {
             // #1697: Expose the container itself so controllers can resolve
             // their service/repository dependencies without every service
             // having to be registered individually.
+            .app_data(web::JsonConfig::default().limit(MAX_REQUEST_BODY_BYTES))
+            .app_data(web::PayloadConfig::new(MAX_REQUEST_BODY_BYTES))
             .app_data(web::Data::new(container.clone()))
             .app_data(web::Data::new(email_service.clone()))
             .app_data(web::Data::new(notification_service.clone()))
