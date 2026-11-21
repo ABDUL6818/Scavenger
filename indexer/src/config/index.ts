@@ -38,19 +38,28 @@
  * | `BATCH_SIZE`              | 100      | Event processing batch size        |
  */
 
+/**
+ * Parse an integer env value. A missing or non-numeric value falls back, so
+ * `NaN` never reaches the pool settings (#1705).
+ */
+function intFromEnv(raw: string | undefined, fallback: number): number {
+  const parsed = parseInt(raw ?? '', 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export const config = {
   database: {
     url: process.env.DATABASE_URL || 'postgresql://localhost/scavenger',
-    maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '20', 10),
+    maxConnections: intFromEnv(process.env.DB_MAX_CONNECTIONS, 20),
     // DB_MIN_CONNECTIONS was previously only in db/client.ts — centralised here (#1159)
-    minConnections: parseInt(process.env.DB_MIN_CONNECTIONS || '2', 10),
+    minConnections: intFromEnv(process.env.DB_MIN_CONNECTIONS, 2),
     // Support both naming conventions; DB_IDLE_TIMEOUT_MS takes precedence
-    idleTimeoutMs: parseInt(
-      process.env.DB_IDLE_TIMEOUT_MS || process.env.DB_IDLE_TIMEOUT || '30000',
-      10,
+    idleTimeoutMs: intFromEnv(
+      process.env.DB_IDLE_TIMEOUT_MS || process.env.DB_IDLE_TIMEOUT,
+      30000,
     ),
-    connectionTimeoutMs: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || '5000', 10),
-    statementTimeoutMs: parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || '30000', 10),
+    connectionTimeoutMs: intFromEnv(process.env.DB_CONNECTION_TIMEOUT_MS, 5000),
+    statementTimeoutMs: intFromEnv(process.env.DB_STATEMENT_TIMEOUT_MS, 30000),
   },
   stellar: {
     network: process.env.STELLAR_NETWORK || 'testnet',
