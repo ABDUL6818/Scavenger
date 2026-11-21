@@ -31,8 +31,9 @@ use crate::errors::types::AuthError;
 
 /// Decoded claims extracted from a bearer token.
 ///
-/// In production this would be parsed from a signed JWT.  The struct is kept
-/// framework-agnostic so the validation logic is testable without an HTTP server.
+/// Claims already decoded from a bearer token. Parsing and signature checks
+/// happen upstream of this module. The struct is kept framework-agnostic so the
+/// validation logic is testable without an HTTP server (#1712).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TokenClaims {
     /// Subject — typically a user or service account ID.
