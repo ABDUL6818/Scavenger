@@ -188,6 +188,7 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::route().to(not_found))
             // Health
             .route("/health", web::get().to(health_check))
+            .route("/ready", web::get().to(readiness_check))
             // ── Route table ──────────────────────────────────────────────────
             // #1697: Every route below points at a controller entry point.
             // Controllers delegate to the service layer, which in turn talks to
@@ -383,7 +384,18 @@ async fn not_found(req: HttpRequest) -> HttpResponse {
 fn json_error_handler(err: actix_web::error::JsonPayloadError, _req: &HttpRequest) -> actix_web::Error {
     // #1699: structured logging instead of eprintln!.
     tracing::warn!(error = %err, "Malformed JSON request body");
-    let response = AppError::BadRequest(err.to_string()).error_response();
+    let response = match &err {
+        // Body over the configured limit is 413, not 400 (#1716)
+        actix_web::error::JsonPayloadError::Overflow { .. }
+        | actix_web::error::JsonPayloadError::OverflowKnownLength { .. } => {
+            HttpResponse::PayloadTooLarge().json(serde_json::json!({
+                "status": "error",
+                "code": 413,
+                "message": err.to_string(),
+            }))
+        }
+        _ => AppError::BadRequest(err.to_string()).error_response(),
+    };
     actix_web::error::InternalError::from_response(err, response).into()
 }
 
@@ -396,6 +408,19 @@ async fn health_check() -> HttpResponse {
     }))
 }
 
+/// Readiness probe: ready only when the Stellar RPC dependency answers (#1714).
+async fn readiness_check(stellar: web::Data<Arc<StellarRpcClient>>) -> HttpResponse {
+    let stellar_up = stellar.health_check().await.is_ok();
+    let body = serde_json::json!({
+        "status": if stellar_up { "ready" } else { "not_ready" },
+        "dependencies": { "stellar_rpc": if stellar_up { "up" } else { "down" } },
+    });
+    if stellar_up {
+        HttpResponse::Ok().json(body)
+    } else {
+        HttpResponse::ServiceUnavailable().json(body)
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

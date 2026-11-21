@@ -87,6 +87,7 @@ where
             "http_request",
             request_id = %request_id,
             method = %req.method(),
+            // Path only: the query string can carry tokens, so it is never logged (#1717)
             path = %req.path(),
         );
 
